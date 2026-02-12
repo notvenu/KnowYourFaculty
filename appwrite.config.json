@@ -1,0 +1,20 @@
+{
+  "projectId": "695fdc1d0032b27b12b4",
+  "endpoint": "https://fra.cloud.appwrite.io/v1",
+  "functions": [
+    {
+      "$id": "weekly-scrape",
+      "name": "weekly-scrape",
+      "runtime": "node-18.0",
+      "path": "functions/weekly-scrape",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "schedule": "30 19 * * 6",
+      "events": [],
+      "execute": [],
+      "timeout": 900,
+      "enabled": true,
+      "logging": true
+    }
+  ]
+}

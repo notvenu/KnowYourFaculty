@@ -1,0 +1,43 @@
+{
+  "name": "knowyourfaculty",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "scraper:run": "node scripts/scrapeOnce.js",
+    "faculty:dedupe": "node scripts/dedupeFaculty.js",
+    "photos:migrate-avif": "node scripts/migrateAvifPhotos.js --all",
+    "faculty:stats": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getFacultyStats()).then(console.log)\"",
+    "faculty:count": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\""
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "@tailwindcss/vite": "^4.1.18",
+    "appwrite": "^21.5.0",
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "node-appwrite": "^21.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.71.0",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^7.12.0",
+    "sharp": "^0.34.3",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "vite": "^7.2.4"
+  }
+}
