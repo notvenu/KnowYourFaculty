@@ -1,11 +1,8 @@
-import { useState, useEffect } from 'react';
-import publicFacultyService from '../services/publicFacultyService.js';
+import { useState, useEffect } from "react";
+import publicFacultyService from "../services/publicFacultyService.js";
+import FacultyFeedbackPanel from "./FacultyFeedbackPanel.jsx";
 
-/**
- * 🏫 FACULTY LIST COMPONENT
- * Public access to faculty data - no authentication required
- */
-function FacultyList() {
+function FacultyList({ currentUser = null }) {
   const [facultyData, setFacultyData] = useState({
     faculty: [],
     loading: true,
@@ -18,34 +15,32 @@ function FacultyList() {
   });
 
   const [filters, setFilters] = useState({
-    search: '',
-    department: 'all',
-    sortBy: '$updatedAt',
-    sortOrder: 'desc'
+    search: "",
+    department: "all",
+    sortBy: "$updatedAt",
+    sortOrder: "desc"
   });
 
   const [departments, setDepartments] = useState([]);
   const [stats, setStats] = useState(null);
 
-  // Load initial data
   useEffect(() => {
     loadFaculty();
     loadDepartments();
     loadStats();
   }, []);
 
-  // Reload faculty when filters change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      loadFaculty(1); // Reset to page 1 when filters change
-    }, 300); // Debounce search
+      loadFaculty(1);
+    }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [filters.search, filters.department, filters.sortBy, filters.sortOrder]);
 
   const loadFaculty = async (page = facultyData.page) => {
     try {
-      setFacultyData(prev => ({ ...prev, loading: true, error: null }));
+      setFacultyData((prev) => ({ ...prev, loading: true, error: null }));
 
       const response = await publicFacultyService.getFacultyList({
         page,
@@ -56,13 +51,13 @@ function FacultyList() {
         sortOrder: filters.sortOrder
       });
 
-      setFacultyData(prev => ({
+      setFacultyData((prev) => ({
         ...prev,
         ...response,
         loading: false
       }));
     } catch (error) {
-      setFacultyData(prev => ({
+      setFacultyData((prev) => ({
         ...prev,
         loading: false,
         error: error.message
@@ -75,7 +70,7 @@ function FacultyList() {
       const depts = await publicFacultyService.getDepartments();
       setDepartments(depts);
     } catch (error) {
-      console.error('Failed to load departments:', error);
+      console.error("Failed to load departments:", error);
     }
   };
 
@@ -84,12 +79,12 @@ function FacultyList() {
       const facultyStats = await publicFacultyService.getFacultyStats();
       setStats(facultyStats);
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      console.error("Failed to load stats:", error);
     }
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const handlePageChange = (newPage) => {
@@ -109,66 +104,55 @@ function FacultyList() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header with Stats */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-4">Faculty Directory</h1>
         {stats && (
           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            <span className="bg-blue-100 px-3 py-1 rounded-full">
-              📊 Total: {stats.total} faculty members
-            </span>
+            <span className="bg-blue-100 px-3 py-1 rounded-full">Total: {stats.total} faculty members</span>
             <span className="bg-green-100 px-3 py-1 rounded-full">
-              🏢 {Object.keys(stats.byDepartment).length} departments
+              {Object.keys(stats.byDepartment).length} departments
             </span>
-            <span className="bg-purple-100 px-3 py-1 rounded-full">
-              🎓 {Object.keys(stats.byDesignation).length} designations
+            <span className="bg-indigo-100 px-3 py-1 rounded-full">
+              {Object.keys(stats.byDesignation).length} designations
             </span>
           </div>
         )}
       </div>
 
-      {/* Filters */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              🔍 Search Faculty
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search Faculty</label>
             <input
               type="text"
               placeholder="Search by name..."
               value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          {/* Department Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              🏢 Department
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
             <select
               value={filters.department}
-              onChange={(e) => handleFilterChange('department', e.target.value)}
+              onChange={(e) => handleFilterChange("department", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Departments</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
               ))}
             </select>
           </div>
 
-          {/* Sort Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              📊 Sort By
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
             <select
               value={filters.sortBy}
-              onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+              onChange={(e) => handleFilterChange("sortBy", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="$updatedAt">Last Updated</option>
@@ -178,14 +162,11 @@ function FacultyList() {
             </select>
           </div>
 
-          {/* Sort Order */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              🔄 Order
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
             <select
               value={filters.sortOrder}
-              onChange={(e) => handleFilterChange('sortOrder', e.target.value)}
+              onChange={(e) => handleFilterChange("sortOrder", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="desc">Descending</option>
@@ -195,29 +176,23 @@ function FacultyList() {
         </div>
       </div>
 
-      {/* Error Display */}
       {facultyData.error && (
         <div className="mb-6 bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded">
           <strong>Error:</strong> {facultyData.error}
-          <button
-            onClick={() => loadFaculty()}
-            className="ml-4 underline hover:no-underline"
-          >
+          <button onClick={() => loadFaculty()} className="ml-4 underline hover:no-underline">
             Try Again
           </button>
         </div>
       )}
 
-      {/* Faculty Grid */}
       {facultyData.faculty.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
             {facultyData.faculty.map((faculty) => (
-              <FacultyCard key={faculty.$id} faculty={faculty} />
+              <FacultyCard key={faculty.$id} faculty={faculty} currentUser={currentUser} />
             ))}
           </div>
 
-          {/* Pagination */}
           <Pagination
             currentPage={facultyData.page}
             totalPages={facultyData.totalPages}
@@ -230,10 +205,10 @@ function FacultyList() {
       ) : (
         <div className="text-center py-12">
           <p className="text-gray-600 text-lg mb-4">No faculty members found.</p>
-          {filters.search || filters.department !== 'all' ? (
+          {filters.search || filters.department !== "all" ? (
             <button
               onClick={() => {
-                setFilters({ search: '', department: 'all', sortBy: '$updatedAt', sortOrder: 'desc' });
+                setFilters({ search: "", department: "all", sortBy: "$updatedAt", sortOrder: "desc" });
               }}
               className="text-blue-600 hover:text-blue-800 underline"
             >
@@ -245,7 +220,6 @@ function FacultyList() {
         </div>
       )}
 
-      {/* Loading Overlay */}
       {facultyData.loading && facultyData.faculty.length > 0 && (
         <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg shadow-lg">
@@ -258,12 +232,11 @@ function FacultyList() {
   );
 }
 
-/**
- * 👤 FACULTY CARD COMPONENT
- */
-function FacultyCard({ faculty }) {
+function FacultyCard({ faculty, currentUser }) {
+  const [showFeedback, setShowFeedback] = useState(false);
   const photoUrl = publicFacultyService.getFacultyPhotoUrl(faculty.photoFileId);
-  const fallbackPhoto = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f3f4f6'/%3E%3Ctext x='50' y='50' text-anchor='middle' dy='.3em' font-family='sans-serif' font-size='14' fill='%236b7280'%3ENo Photo%3C/text%3E%3C/svg%3E";
+  const fallbackPhoto =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f3f4f6'/%3E%3Ctext x='50' y='50' text-anchor='middle' dy='.3em' font-family='sans-serif' font-size='14' fill='%236b7280'%3ENo Photo%3C/text%3E%3C/svg%3E";
 
   const handleImageError = (e) => {
     const img = e.currentTarget;
@@ -281,7 +254,6 @@ function FacultyCard({ faculty }) {
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full flex flex-col">
-      {/* Photo */}
       <div className="h-40 bg-gray-200 flex items-center justify-center flex-shrink-0">
         {photoUrl ? (
           <img
@@ -294,32 +266,34 @@ function FacultyCard({ faculty }) {
           />
         ) : (
           <div className="text-gray-500 text-center">
-            <div className="text-3xl mb-1">👤</div>
-            <div className="text-xs">No Photo</div>
+            <div className="text-3xl mb-1">No photo</div>
           </div>
         )}
       </div>
 
-      {/* Details */}
       <div className="p-3 flex-1 flex flex-col">
         <h3 className="font-semibold text-base text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem]">
-          {faculty.name || 'Unknown'}
+          {faculty.name || "Unknown"}
         </h3>
-        
+
         <div className="space-y-1.5 text-xs text-gray-600 flex-1">
           <div className="flex items-start">
-            <span className="font-medium w-16 shrink-0 text-gray-500">🏷️ Role:</span>
-            <span className="line-clamp-2 text-gray-700">{faculty.designation || 'Not specified'}</span>
+            <span className="font-medium w-16 shrink-0 text-gray-500">Role:</span>
+            <span className="line-clamp-2 text-gray-700">{faculty.designation || "Not specified"}</span>
           </div>
-          
+
           <div className="flex items-start">
-            <span className="font-medium w-16 shrink-0 text-gray-500">🏢 Dept:</span>
-            <span className="line-clamp-2 text-gray-700">{faculty.department ? faculty.department.replace('School of ', '').replace(' (', ' (') : 'Not specified'}</span>
+            <span className="font-medium w-16 shrink-0 text-gray-500">Dept:</span>
+            <span className="line-clamp-2 text-gray-700">
+              {faculty.department
+                ? faculty.department.replace("School of ", "").replace(" (", " (")
+                : "Not specified"}
+            </span>
           </div>
 
           {faculty.researchArea && (
             <div className="flex items-start">
-              <span className="font-medium w-16 shrink-0 text-gray-500">🔬 Research:</span>
+              <span className="font-medium w-16 shrink-0 text-gray-500">Research:</span>
               <span className="line-clamp-2 text-gray-700">{faculty.researchArea}</span>
             </div>
           )}
@@ -328,29 +302,27 @@ function FacultyCard({ faculty }) {
         <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200">
           <span className="text-xs text-gray-400">ID: {faculty.employeeId}</span>
           <button
-            onClick={() => {/* Navigate to detailed view */}}
+            onClick={() => setShowFeedback((prev) => !prev)}
             className="text-blue-600 hover:text-blue-800 text-xs font-medium"
           >
-            View Details →
+            {showFeedback ? "Hide Reviews" : "Rate and Review"}
           </button>
         </div>
+
+        {showFeedback ? (
+          <FacultyFeedbackPanel facultyId={faculty.employeeId} currentUser={currentUser} />
+        ) : null}
       </div>
     </div>
   );
 }
 
-/**
- * 📄 PAGINATION COMPONENT
- */
 function Pagination({ currentPage, totalPages, hasNext, hasPrev, onPageChange, totalItems }) {
   const maxVisiblePages = 5;
   const startPage = Math.max(1, Math.min(currentPage - 2, totalPages - maxVisiblePages + 1));
   const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-  const pages = Array.from(
-    { length: endPage - startPage + 1 },
-    (_, i) => startPage + i
-  );
+  const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 
   if (totalPages <= 1) return null;
 
@@ -359,7 +331,7 @@ function Pagination({ currentPage, totalPages, hasNext, hasPrev, onPageChange, t
       <div className="text-sm text-gray-600">
         Showing page {currentPage} of {totalPages} ({totalItems.toLocaleString()} total)
       </div>
-      
+
       <div className="flex items-center space-x-1">
         <button
           onClick={() => onPageChange(currentPage - 1)}
@@ -369,14 +341,14 @@ function Pagination({ currentPage, totalPages, hasNext, hasPrev, onPageChange, t
           Previous
         </button>
 
-        {pages.map(page => (
+        {pages.map((page) => (
           <button
             key={page}
             onClick={() => onPageChange(page)}
             className={`px-3 py-2 text-sm font-medium rounded-md ${
               page === currentPage
-                ? 'text-white bg-blue-600 border border-blue-600'
-                : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                ? "text-white bg-blue-600 border border-blue-600"
+                : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
             }`}
           >
             {page}

@@ -2,18 +2,11 @@ import clientConfig from "../../config/client.js";
 import { Client, Account, OAuthProvider } from "appwrite";
 
 export const ALLOWED_EMAIL_DOMAIN = "vitapstudent.ac.in";
-const EXTRA_ALLOWED_EMAILS = new Set(
-    String(import.meta.env.VITE_ALLOWED_EMAILS || "")
-        .split(",")
-        .map((email) => email.trim().toLowerCase())
-        .filter(Boolean)
-);
 
 function isAllowedEmailInternal(email) {
     const normalized = String(email || "").trim().toLowerCase();
     if (!normalized) return false;
-    if (normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) return true;
-    return EXTRA_ALLOWED_EMAILS.has(normalized);
+    return normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`);
 }
 
 const AUTH_CHECK_KEY = "kyf_auth_check";

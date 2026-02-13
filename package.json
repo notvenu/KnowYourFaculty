@@ -12,7 +12,8 @@
     "faculty:dedupe": "node scripts/dedupeFaculty.js",
     "photos:migrate-avif": "node scripts/migrateAvifPhotos.js --all",
     "faculty:stats": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getFacultyStats()).then(console.log)\"",
-    "faculty:count": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\""
+    "faculty:count": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\"",
+    "reviews:fix-permissions": "node scripts/fixReviewPermissions.js"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",

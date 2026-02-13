@@ -128,7 +128,7 @@ function App() {
       </nav>
 
       <main className="container mx-auto">
-        <FacultyList />
+        <FacultyList currentUser={currentUser} />
         {!currentUser && authError ? (
           <div className="px-4 pb-4">
             <p className="text-sm text-red-600 text-center">{authError}</p>
