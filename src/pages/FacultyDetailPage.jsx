@@ -10,7 +10,7 @@ import FacultyRatingsCard from "../components/FacultyRatingsCard.jsx";
 import FeedbackList from "../components/FeedbackList.jsx";
 import RatingSlider from "../components/RatingSlider.jsx";
 import ConfirmOverlay from "../components/ConfirmOverlay.jsx";
-import { RATING_FIELDS, THEORY_NOTE_OPTIONS, LAB_NOTE_OPTIONS } from "../lib/ratingConfig.js";
+import { RATING_FIELDS, THEORY_FIELDS, LAB_FIELDS, ECS_FIELDS, THEORY_NOTE_OPTIONS, LAB_NOTE_OPTIONS } from "../lib/ratingConfig.js";
 import { stripEmoji, containsDisallowed } from "../lib/reviewFilter.js";
 
 const INITIAL_FEEDBACK_FORM = {
@@ -57,6 +57,11 @@ function FacultyDetailPage({ currentUser }) {
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSuggestions, setCourseSuggestions] = useState([]);
   const [courseLookup, setCourseLookup] = useState({});
+  const [expandedSections, setExpandedSections] = useState({
+    theory: true,
+    lab: false,
+    ecs: false
+  });
 
   const hasUser = Boolean(currentUser?.$id);
   const facultyName = faculty?.name || "Faculty";
@@ -157,6 +162,19 @@ function FacultyDetailPage({ currentUser }) {
         if (existing) {
           setAlreadySubmitted(true);
           setIsEditing(false);
+          
+          // Determine which sections have ratings
+          const hasTheoryRatings = existing.theoryTeaching || existing.theoryAttendance || 
+                                    existing.theoryClass || existing.theoryCorrection;
+          const hasLabRatings = existing.labClass || existing.labCorrection || existing.labAttendance;
+          const hasEcsRatings = existing.ecsCapstoneSDP;
+          
+          setExpandedSections({
+            theory: Boolean(hasTheoryRatings),
+            lab: Boolean(hasLabRatings),
+            ecs: Boolean(hasEcsRatings)
+          });
+          
           setFeedbackForm({
             courseId: existing.courseId || "",
             review: existing.review || "",
@@ -207,31 +225,58 @@ function FacultyDetailPage({ currentUser }) {
   const submitFeedback = async (event) => {
     event.preventDefault();
     if (!hasUser) return;
-    const reviewText = stripEmoji(feedbackForm.review);
-    const disallowed = containsDisallowed(reviewText);
-    if (disallowed.blocked) {
-      setError(`Review contains content that isn't allowed.`);
+    
+    // Check if at least one section is expanded
+    if (!expandedSections.theory && !expandedSections.lab && !expandedSections.ecs) {
+      setError("Please rate at least one section (Theory, Lab, or ECS)");
       return;
+    }
+    
+    const reviewText = stripEmoji(feedbackForm.review).trim();
+    if (reviewText) {
+      const disallowed = containsDisallowed(reviewText);
+      if (disallowed.blocked) {
+        setError(`Review contains content that isn't allowed.`);
+        return;
+      }
     }
     try {
       setSaving(true);
       setError(null);
-      await facultyFeedbackService.submitFeedback({
+      
+      // Build payload with only expanded sections
+      const payload = {
         userId: currentUser.$id,
         facultyId,
         courseId: feedbackForm.courseId,
-        review: reviewText,
-        theoryTeaching: feedbackForm.theoryTeaching,
-        theoryAttendance: feedbackForm.theoryAttendance,
-        theoryClass: feedbackForm.theoryClass,
-        theoryCorrection: feedbackForm.theoryCorrection,
-        labClass: feedbackForm.labClass,
-        labCorrection: feedbackForm.labCorrection,
-        labAttendance: feedbackForm.labAttendance,
-        ecsCapstoneSDP: feedbackForm.ecsCapstoneSDP,
-        theoryNotes: feedbackForm.theoryNotes,
-        labNotes: feedbackForm.labNotes
-      });
+      };
+      
+      // Only include review if not empty
+      if (reviewText) {
+        payload.review = reviewText;
+      }
+      
+      // Include ratings only from expanded sections
+      if (expandedSections.theory) {
+        payload.theoryTeaching = feedbackForm.theoryTeaching;
+        payload.theoryAttendance = feedbackForm.theoryAttendance;
+        payload.theoryClass = feedbackForm.theoryClass;
+        payload.theoryCorrection = feedbackForm.theoryCorrection;
+        payload.theoryNotes = feedbackForm.theoryNotes;
+      }
+      
+      if (expandedSections.lab) {
+        payload.labClass = feedbackForm.labClass;
+        payload.labCorrection = feedbackForm.labCorrection;
+        payload.labAttendance = feedbackForm.labAttendance;
+        payload.labNotes = feedbackForm.labNotes;
+      }
+      
+      if (expandedSections.ecs) {
+        payload.ecsCapstoneSDP = feedbackForm.ecsCapstoneSDP;
+      }
+      
+      await facultyFeedbackService.submitFeedback(payload);
       setAlreadySubmitted(true);
       setIsEditing(false);
       setShowFeedbackForm(false);
@@ -254,6 +299,11 @@ function FacultyDetailPage({ currentUser }) {
       setShowFeedbackForm(false);
       setFeedbackForm(INITIAL_FEEDBACK_FORM);
       setCourseQuery("");
+      setExpandedSections({
+        theory: true,
+        lab: false,
+        ecs: false
+      });
       setShowDeleteConfirm(false);
       await loadFeedback();
     } catch (deleteError) {
@@ -283,158 +333,201 @@ function FacultyDetailPage({ currentUser }) {
         <p className="mb-4 rounded-lg bg-red-50 p-3 text-xs text-red-600">{error}</p>
       ) : null}
 
-      {/* Main Layout: Left Side (Faculty Info) + Right Side (Ratings) */}
+      {/* Main Layout: Left Side (Faculty Info) + Right Side (Ratings or Feedback Form) */}
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
         <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
           <FacultyProfileCard faculty={faculty} />
         </div>
-        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
-          <FacultyRatingsCard
-            ratingSummary={ratingSummary}
-            sectionAverages={sectionAverages}
-            averages={ratingSummary.averages || {}}
-            hasUser={hasUser}
-            alreadySubmitted={alreadySubmitted}
-            onShareFeedback={() => {
-              setShowFeedbackForm(true);
-              setIsEditing(true);
-            }}
-          />
-        </div>
-      </div>
-
-      {/* What students say */}
-      {!showFeedbackForm && (
-        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
-          <FeedbackList
-            feedbackList={feedbackList}
-            courseLookup={courseLookup}
-            maxItems={20}
-            currentUser={currentUser}
-            onDeleteFeedback={() => setShowDeleteConfirm(true)}
-            onEditReview={() => {
-              setShowFeedbackForm(true);
-              setIsEditing(true);
-            }}
-            deleting={deleting}
-          />
-        </div>
-      )}
-
-      {/* Feedback Form */}
-      {showFeedbackForm && hasUser && isEditing ? (
-        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)]">
-          <form onSubmit={submitFeedback} className="space-y-6">
-            <div>
-              <h2 className="mb-1 text-2xl font-bold">Share Your Experience</h2>
-              <p className="text-sm text-[var(--muted)]">Help fellow students by rating your time with {facultyName}</p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              {RATING_FIELDS.map((field) => (
-                <RatingSlider
-                  key={field.key}
-                  label={field.label}
-                  value={feedbackForm[field.key] ?? 3}
-                  onChange={(value) =>
-                    setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
-                  }
-                  name={field.key}
-                />
-              ))}
-            </div>
-
-            <div className="grid gap-4 border-t border-[var(--line)] pt-6 md:grid-cols-2">
+        {!showFeedbackForm ? (
+          <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
+            <FacultyRatingsCard
+              ratingSummary={ratingSummary}
+              sectionAverages={sectionAverages}
+              averages={ratingSummary.averages || {}}
+              hasUser={hasUser}
+              alreadySubmitted={alreadySubmitted}
+              onShareFeedback={() => {
+                setShowFeedbackForm(true);
+                setIsEditing(true);
+              }}
+              onDeleteFeedback={() => setShowDeleteConfirm(true)}
+              deleting={deleting}
+            />
+          </div>
+        ) : hasUser && isEditing ? (
+          <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)]">
+            <form onSubmit={submitFeedback} className="space-y-6">
               <div>
-                <p className="mb-3 text-sm font-semibold">Theory Notes Provided?</p>
-                <div className="relative h-[56px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_70%,var(--text))] px-3 shadow-inner">
-                  <div
-                    className="pointer-events-none absolute top-1 z-[1] h-[44px] rounded-full bg-gradient-to-b from-[var(--primary)]/90 to-[var(--primary)]/60 shadow-[0_0_20px_color-mix(in_srgb,var(--primary)_60%,transparent)] transition-transform duration-200"
-                    style={{
-                      width: "calc((100% - 1.5rem) / 2)",
-                      left: "0.75rem",
-                      transform: `translateX(${feedbackForm.theoryNotes ? 100 : 0}%)`
-                    }}
-                  />
-                  <div className="pointer-events-none relative z-[2] grid h-full grid-cols-2 items-center">
-                    {THEORY_NOTE_OPTIONS.map((label, idx) => (
-                      <span
-                        key={label}
-                        className={`text-center text-sm font-semibold transition-all duration-150 ${
-                          (feedbackForm.theoryNotes ? 1 : 0) === idx ? "opacity-100" : "opacity-60"
-                        }`}
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={1}
-                    value={feedbackForm.theoryNotes ? 1 : 0}
-                    onChange={(e) =>
-                      setFeedbackForm((prev) => ({
-                        ...prev,
-                        theoryNotes: Number(e.target.value) === 1
-                      }))
-                    }
-                    className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
-                    aria-label="Theory notes provided"
-                  />
-                </div>
+                <h2 className="mb-1 text-2xl font-bold text-[var(--text)]">Share Your Experience</h2>
+                <p className="text-sm text-[var(--muted)]">Help fellow students by rating your time with {facultyName}</p>
               </div>
 
-              <div>
-                <p className="mb-3 text-sm font-semibold">Lab Materials Provided?</p>
-                <div className="relative h-[56px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_70%,var(--text))] px-3 shadow-inner">
-                  <div
-                    className="pointer-events-none absolute top-1 z-[1] h-[44px] rounded-full bg-gradient-to-b from-[var(--primary)]/90 to-[var(--primary)]/60 shadow-[0_0_20px_color-mix(in_srgb,var(--primary)_60%,transparent)] transition-transform duration-200"
-                    style={{
-                      width: "calc((100% - 1.5rem) / 4)",
-                      left: "0.75rem",
-                      transform: `translateX(${
-                        Math.max(0, LAB_NOTE_OPTIONS.findIndex((opt) => opt.value === feedbackForm.labNotes)) * 100
-                      }%)`
-                    }}
-                  />
-                  <div className="pointer-events-none relative z-[2] grid h-full grid-cols-4 items-center">
-                    {LAB_NOTE_OPTIONS.map((opt, idx) => (
-                      <span
-                        key={opt.value}
-                        className={`text-center text-sm font-semibold transition-all duration-150 ${
-                          Math.max(0, LAB_NOTE_OPTIONS.findIndex((item) => item.value === feedbackForm.labNotes)) ===
-                          idx
-                            ? "opacity-100"
-                            : "opacity-60"
-                        }`}
-                      >
-                        {opt.label}
-                      </span>
-                    ))}
+              {/* Theory Section */}
+              <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedSections(prev => ({ ...prev, theory: !prev.theory }))}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-[var(--panel)] hover:bg-[var(--bg-elev)] transition-colors"
+                >
+                  <span className="font-semibold text-[var(--text)]">Theory</span>
+                  <span className="text-[var(--muted)] text-sm">{expandedSections.theory ? '▼' : '▶'}</span>
+                </button>
+                {expandedSections.theory && (
+                <div className="p-4 space-y-4 bg-[var(--bg-elev)]">
+                  {THEORY_FIELDS.map((field) => (
+                    <RatingSlider
+                      key={field.key}
+                      label={field.label}
+                      value={feedbackForm[field.key] ?? 3}
+                      onChange={(value) =>
+                        setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
+                      }
+                      name={field.key}
+                    />
+                  ))}
+                  <div>
+                    <p className="mb-3 text-sm font-semibold text-[var(--text)]">Theory Notes Provided?</p>
+                    <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
+                      <div
+                        className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+                        style={{
+                          width: "calc((100% - 1rem) / 2)",
+                          left: `calc(0.5rem + (100% - 1rem) * ${feedbackForm.theoryNotes ? 0.5 : 0})`
+                        }}
+                      />
+                      <div className="relative z-[2] grid h-full flex-1 grid-cols-2 items-center gap-0">
+                        {THEORY_NOTE_OPTIONS.map((label, idx) => (
+                          <span
+                            key={label}
+                            className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                              (feedbackForm.theoryNotes ? 1 : 0) === idx ? "opacity-100 text-[var(--text)]" : "opacity-50 text-[var(--muted)]"
+                            }`}
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={1}
+                        value={feedbackForm.theoryNotes ? 1 : 0}
+                        onChange={(e) =>
+                          setFeedbackForm((prev) => ({
+                            ...prev,
+                            theoryNotes: Number(e.target.value) === 1
+                          }))
+                        }
+                        className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
+                        aria-label="Theory notes provided"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={3}
-                    step={1}
-                    value={Math.max(0, LAB_NOTE_OPTIONS.findIndex((opt) => opt.value === feedbackForm.labNotes))}
-                    onChange={(e) =>
-                      setFeedbackForm((prev) => ({
-                        ...prev,
-                        labNotes: LAB_NOTE_OPTIONS[Number(e.target.value)]?.value || "None"
-                      }))
-                    }
-                    className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
-                    aria-label="Lab materials provided"
-                  />
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="relative">
-              <label className="mb-2 block text-sm font-semibold">Which Course?</label>
+            {/* Lab Section */}
+            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setExpandedSections(prev => ({ ...prev, lab: !prev.lab }))}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[var(--panel)] hover:bg-[var(--bg-elev)] transition-colors"
+              >
+                <span className="font-semibold text-[var(--text)]">Lab</span>
+                <span className="text-[var(--muted)] text-sm">{expandedSections.lab ? '▼' : '▶'}</span>
+              </button>
+              {expandedSections.lab && (
+                <div className="p-4 space-y-4 bg-[var(--bg-elev)]">
+                  {LAB_FIELDS.map((field) => (
+                    <RatingSlider
+                      key={field.key}
+                      label={field.label}
+                      value={feedbackForm[field.key] ?? 3}
+                      onChange={(value) =>
+                        setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
+                      }
+                      name={field.key}
+                    />
+                  ))}
+                  <div>
+                    <p className="mb-3 text-sm font-semibold text-[var(--text)]">Lab Materials Provided?</p>
+                    <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
+                      <div
+                        className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+                        style={{
+                          width: "calc((100% - 1rem) / 4)",
+                          left: `calc(0.5rem + (100% - 1rem) * ${Math.max(0, LAB_NOTE_OPTIONS.findIndex((opt) => opt.value === feedbackForm.labNotes)) / 4})`
+                        }}
+                      />
+                      <div className="relative z-[2] grid h-full flex-1 grid-cols-4 items-center gap-0">
+                        {LAB_NOTE_OPTIONS.map((opt, idx) => (
+                          <span
+                            key={opt.value}
+                            className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                              Math.max(0, LAB_NOTE_OPTIONS.findIndex((item) => item.value === feedbackForm.labNotes)) ===
+                              idx
+                                ? "opacity-100 text-[var(--text)]"
+                                : "opacity-50 text-[var(--muted)]"
+                            }`}
+                          >
+                            {opt.label}
+                          </span>
+                        ))}
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={3}
+                        step={1}
+                        value={Math.max(0, LAB_NOTE_OPTIONS.findIndex((opt) => opt.value === feedbackForm.labNotes))}
+                        onChange={(e) =>
+                          setFeedbackForm((prev) => ({
+                            ...prev,
+                            labNotes: LAB_NOTE_OPTIONS[Number(e.target.value)]?.value || "None"
+                          }))
+                        }
+                        className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
+                        aria-label="Lab materials provided"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ECS Section */}
+            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setExpandedSections(prev => ({ ...prev, ecs: !prev.ecs }))}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[var(--panel)] hover:bg-[var(--bg-elev)] transition-colors"
+              >
+                <span className="font-semibold text-[var(--text)]">ECS / Capstone</span>
+                <span className="text-[var(--muted)] text-sm">{expandedSections.ecs ? '▼' : '▶'}</span>
+              </button>
+              {expandedSections.ecs && (
+                <div className="p-4 space-y-4 bg-[var(--bg-elev)]">
+                  {ECS_FIELDS.map((field) => (
+                    <RatingSlider
+                      key={field.key}
+                      label={field.label}
+                      value={feedbackForm[field.key] ?? 3}
+                      onChange={(value) =>
+                        setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
+                      }
+                      name={field.key}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+
+
+            <div className="relative border-t border-[var(--line)] pt-6">
+              <label className="mb-2 block text-sm font-semibold text-[var(--text)]">Which Course?</label>
               <input
                 type="text"
                 placeholder="Type to search courses..."
@@ -465,13 +558,24 @@ function FacultyDetailPage({ currentUser }) {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold">Your Review</label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-sm font-semibold text-[var(--text)]">Your Review</label>
+                <span className="text-xs text-[var(--muted)]">
+                  {feedbackForm.review.length}/500
+                </span>
+              </div>
               <textarea
                 value={feedbackForm.review}
-                onChange={(e) => setFeedbackForm((prev) => ({ ...prev, review: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 500) {
+                    setFeedbackForm((prev) => ({ ...prev, review: value }));
+                  }
+                }}
                 rows={4}
+                maxLength={500}
                 placeholder={`Tell us about ${facultyName}: teaching style, grading fairness, and accessibility.`}
-                className="w-full rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm outline-none"
+                className="w-full rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--text)] outline-none"
               />
             </div>
 
@@ -491,14 +595,28 @@ function FacultyDetailPage({ currentUser }) {
                 {saving ? "Saving..." : "Save Feedback"}
               </button>
             </div>
-
           </form>
         </div>
-      ) : !hasUser && !showFeedbackForm ? (
-        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)]">
-          <p className="text-sm text-[var(--muted)]">Sign in with your VIT-AP account to submit feedback.</p>
+        ) : null}
+      </div>
+
+      {/* What students say */}
+      {!showFeedbackForm && (
+        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
+          <FeedbackList
+            feedbackList={feedbackList}
+            courseLookup={courseLookup}
+            maxItems={20}
+            currentUser={currentUser}
+            onDeleteFeedback={() => setShowDeleteConfirm(true)}
+            onEditReview={() => {
+              setShowFeedbackForm(true);
+              setIsEditing(true);
+            }}
+            deleting={deleting}
+          />
         </div>
-      ) : null}
+      )}
 
       <ConfirmOverlay
         open={showDeleteConfirm}

@@ -16,7 +16,7 @@ const RATING_FIELDS = [
   "labClass",
   "labCorrection",
   "labAttendance",
-  "ecsCapstoneSDP"
+  "ecsCapstoneSDP",
 ];
 
 function getRowOverall(row) {
@@ -47,7 +47,7 @@ function FacultyDirectoryPage() {
     search: "",
     department: "all",
     alpha: "all",
-    topRated: false
+    topRated: false,
   });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,11 +83,21 @@ function FacultyDirectoryPage() {
     try {
       setLoading(true);
       setError(null);
-      const [facultyResponse, departmentRows, feedbackRows] = await Promise.all([
-        publicFacultyService.getFacultyList({ page: 1, limit: 5000, sortBy: "name", sortOrder: "asc" }),
-        publicFacultyService.getDepartments(),
-        facultyFeedbackService.listRows(facultyFeedbackService.feedbackTableId, [Query.limit(5000)])
-      ]);
+      const [facultyResponse, departmentRows, feedbackRows] = await Promise.all(
+        [
+          publicFacultyService.getFacultyList({
+            page: 1,
+            limit: 5000,
+            sortBy: "name",
+            sortOrder: "asc",
+          }),
+          publicFacultyService.getDepartments(),
+          facultyFeedbackService.listRows(
+            facultyFeedbackService.feedbackTableId,
+            [Query.limit(5000)],
+          ),
+        ],
+      );
 
       const allFaculty = facultyResponse.faculty || [];
       const allFeedback = feedbackRows.rows || [];
@@ -99,7 +109,8 @@ function FacultyDirectoryPage() {
         if (!facultyId) continue;
         const overall = getRowOverall(row);
         if (overall !== null) {
-          if (!ratingAgg[facultyId]) ratingAgg[facultyId] = { total: 0, count: 0 };
+          if (!ratingAgg[facultyId])
+            ratingAgg[facultyId] = { total: 0, count: 0 };
           ratingAgg[facultyId].total += overall;
           ratingAgg[facultyId].count += 1;
         }
@@ -128,7 +139,9 @@ function FacultyDirectoryPage() {
   };
 
   const filteredFaculty = useMemo(() => {
-    const keyword = String(filters.search || "").trim().toLowerCase();
+    const keyword = String(filters.search || "")
+      .trim()
+      .toLowerCase();
 
     let rows = faculty.filter((item) => {
       const facultyId = String(item.employeeId || "").trim();
@@ -143,19 +156,30 @@ function FacultyDirectoryPage() {
         dept.includes(keyword) ||
         designation.includes(keyword) ||
         research.includes(keyword);
-      const matchesDepartment = filters.department === "all" || item.department === filters.department;
-      const matchesTopRated = !filters.topRated || (ratingLookup[facultyId] || 0) >= 4;
+      const matchesDepartment =
+        filters.department === "all" || item.department === filters.department;
+      const matchesTopRated =
+        !filters.topRated || (ratingLookup[facultyId] || 0) >= 4;
       const matchesCourse =
         !selectedCourse ||
-        Boolean(courseFacultyLookup[selectedCourse.$id] && courseFacultyLookup[selectedCourse.$id].has(facultyId));
+        Boolean(
+          courseFacultyLookup[selectedCourse.$id] &&
+          courseFacultyLookup[selectedCourse.$id].has(facultyId),
+        );
 
-      return matchesText && matchesDepartment && matchesTopRated && matchesCourse;
+      return (
+        matchesText && matchesDepartment && matchesTopRated && matchesCourse
+      );
     });
 
     if (filters.alpha === "az") {
-      rows = [...rows].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+      rows = [...rows].sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || "")),
+      );
     } else if (filters.alpha === "za") {
-      rows = [...rows].sort((a, b) => String(b.name || "").localeCompare(String(a.name || "")));
+      rows = [...rows].sort((a, b) =>
+        String(b.name || "").localeCompare(String(a.name || "")),
+      );
     }
 
     return rows;
@@ -163,9 +187,18 @@ function FacultyDirectoryPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.search, filters.department, filters.alpha, filters.topRated, selectedCourse]);
+  }, [
+    filters.search,
+    filters.department,
+    filters.alpha,
+    filters.topRated,
+    selectedCourse,
+  ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / FACULTY_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredFaculty.length / FACULTY_PER_PAGE),
+  );
   const paginatedFaculty = useMemo(() => {
     const start = (currentPage - 1) * FACULTY_PER_PAGE;
     return filteredFaculty.slice(start, start + FACULTY_PER_PAGE);
@@ -184,18 +217,31 @@ function FacultyDirectoryPage() {
   return (
     <div className="space-y-8">
       <section className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)] sm:p-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">Find faculty</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">
+          Find faculty
+        </h1>
         <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
-          Filter by department, course, or top ratings. Search by name, role, or research area.
+          Filter by department, course, or top ratings. Search by name, role, or
+          research area.
         </p>
       </section>
 
       <section className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-4 shadow-[var(--shadow-card)] sm:p-6">
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Search Bar and Filter Toggle */}
+        <div className="mb-4 flex flex-wrap items-stretch gap-3">
+          <input
+            type="text"
+            placeholder="Search name, department, role, research"
+            value={filters.search}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, search: e.target.value }))
+            }
+            className="min-w-0 flex-1 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm outline-none focus:border-[var(--primary)]"
+          />
           <button
             type="button"
             onClick={() => setShowFilterPanel((prev) => !prev)}
-            className="inline-flex items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+            className="inline-flex shrink-0 items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
           >
             <span aria-hidden>🔽</span>
             Filters
@@ -208,17 +254,12 @@ function FacultyDirectoryPage() {
         </div>
 
         {showFilterPanel ? (
-          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <input
-              type="text"
-              placeholder="Search name, department, role, research"
-              value={filters.search}
-              onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-              className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
-            />
+          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <select
               value={filters.department}
-              onChange={(e) => setFilters((prev) => ({ ...prev, department: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, department: e.target.value }))
+              }
               className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
             >
               <option value="all">All Departments</option>
@@ -230,7 +271,9 @@ function FacultyDirectoryPage() {
             </select>
             <select
               value={filters.alpha}
-              onChange={(e) => setFilters((prev) => ({ ...prev, alpha: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, alpha: e.target.value }))
+              }
               className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
             >
               <option value="all">No Alphabetic Sort</option>
@@ -241,7 +284,12 @@ function FacultyDirectoryPage() {
               <input
                 type="checkbox"
                 checked={filters.topRated}
-                onChange={(e) => setFilters((prev) => ({ ...prev, topRated: e.target.checked }))}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    topRated: e.target.checked,
+                  }))
+                }
               />
               Top Rated Only (4.0+)
             </label>
@@ -249,7 +297,11 @@ function FacultyDirectoryPage() {
               <input
                 type="text"
                 placeholder="Filter by course"
-                value={selectedCourse ? `${selectedCourse.courseCode} - ${selectedCourse.courseName}` : courseQuery}
+                value={
+                  selectedCourse
+                    ? `${selectedCourse.courseCode} - ${selectedCourse.courseName}`
+                    : courseQuery
+                }
                 onChange={(e) => {
                   setSelectedCourse(null);
                   setCourseQuery(e.target.value);
@@ -294,7 +346,9 @@ function FacultyDirectoryPage() {
         ) : null}
       </section>
 
-      {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
+      ) : null}
       {loading ? (
         <p className="text-sm text-[var(--muted)]">Loading faculty...</p>
       ) : (
@@ -309,7 +363,11 @@ function FacultyDirectoryPage() {
           const facultyId = String(item.employeeId || "");
           const overall = ratingLookup[facultyId];
           return (
-            <FacultyCard key={item.$id} faculty={item} overallRating={overall} />
+            <FacultyCard
+              key={item.$id}
+              faculty={item}
+              overallRating={overall}
+            />
           );
         })}
       </section>

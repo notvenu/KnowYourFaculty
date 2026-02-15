@@ -1,7 +1,7 @@
 // eslint-disable-next-line tailwindcss/no-custom-classname
 /* eslint-disable tailwindcss/no-custom-classname, no-unused-expressions */
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import SetupHelper from "./components/SetupHelper.jsx";
 import SiteNav from "./components/SiteNav.jsx";
 import SiteFooter from "./components/SiteFooter.jsx";
@@ -13,18 +13,22 @@ import clientConfig from "./config/client.js";
 import "./App.css";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
-const FacultyDirectoryPage = lazy(() => import("./pages/FacultyDirectoryPage.jsx"));
+const FacultyDirectoryPage = lazy(
+  () => import("./pages/FacultyDirectoryPage.jsx"),
+);
 const FacultyDetailPage = lazy(() => import("./pages/FacultyDetailPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.jsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.jsx"));
 
 function App() {
+  const location = useLocation();
   const [isSetupMode, setIsSetupMode] = useState(true);
   const [setupChecked, setSetupChecked] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [authError, setAuthError] = useState(null);
+  const [showNavbar, setShowNavbar] = useState(false);
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("kyf-theme");
     if (saved === "light" || saved === "dark") return saved;
@@ -44,6 +48,22 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("kyf-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    // Show navbar by default on non-landing pages
+    if (location.pathname !== "/") {
+      setShowNavbar(true);
+      return;
+    }
+
+    // For landing page, show navbar on scroll
+    const handleScroll = () => {
+      setShowNavbar(window.scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [location.pathname]);
 
   const checkDatabaseAccess = async () => {
     try {
@@ -129,7 +149,7 @@ function App() {
         <div className="animate-fadeIn text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--panel)] border-t-[var(--primary)]"></div>
           <p className="text-sm text-[var(--muted)]">
-            ✨ Setting things up for you...
+            Setting things up for you...
           </p>
         </div>
       </div>
@@ -140,20 +160,24 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
-      <SiteNav
-        currentUser={currentUser}
-        authError={authError}
-        isAdminUser={isAdminUser}
-        onOpenLoginOverlay={() => setShowLoginOverlay(true)}
-        onLogout={handleLogout}
-        theme={theme}
-        onToggleTheme={() =>
-          setTheme((prev) => (prev === "dark" ? "light" : "dark"))
-        }
-      />
+      {showNavbar && (
+        <SiteNav
+          currentUser={currentUser}
+          authError={authError}
+          isAdminUser={isAdminUser}
+          onOpenLoginOverlay={() => setShowLoginOverlay(true)}
+          onLogout={handleLogout}
+          theme={theme}
+          onToggleTheme={() =>
+            setTheme((prev) => (prev === "dark" ? "light" : "dark"))
+          }
+        />
+      )}
 
-      <main className="flex-1 w-full px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
+      <main
+        className={`flex-1 w-full ${showNavbar ? "px-4 py-8 sm:px-6 lg:px-8" : ""}`}
+      >
+        <div className={`${showNavbar ? "mx-auto max-w-7xl" : ""}`}>
           <Suspense
             fallback={
               <div className="grid min-h-[40vh] place-items-center">
@@ -176,7 +200,13 @@ function App() {
               <Route path="/terms-and-conditions" element={<TermsPage />} />
               <Route
                 path="/admin"
-                element={isAdminUser ? <AdminPanel /> : <Navigate to="/faculty" replace />}
+                element={
+                  isAdminUser ? (
+                    <AdminPanel />
+                  ) : (
+                    <Navigate to="/faculty" replace />
+                  )
+                }
               />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

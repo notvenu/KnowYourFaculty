@@ -320,7 +320,7 @@ class PublicFacultyService {
   }
 
   /**
-   * 🖼️ Get placeholder photo URL
+   * Get placeholder photo URL
    */
   getPlaceholderPhoto() {
     return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23f3f4f6'/%3E%3Cg transform='translate(100 100)'%3E%3Ccircle r='30' fill='%23d1d5db'/%3E%3Cpath d='M-15,-10 Q0,-25 15,-10 Q25,0 15,15 L-15,15 Q-25,0 -15,-10 Z' fill='%23d1d5db'/%3E%3C/g%3E%3Ctext x='100' y='160' text-anchor='middle' font-family='sans-serif' font-size='12' fill='%236b7280'%3EFaculty Photo%3C/text%3E%3C/svg%3E";

@@ -30,7 +30,7 @@ export default function Overlay({ open, onClose, children }) {
         tabIndex={0}
         aria-label="Close overlay"
       />
-      <div className="relative z-10 w-full max-w-md rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-hover)]">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm dark:shadow-md">
         {children}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 
 export default function SiteNav({
   currentUser,
@@ -9,6 +10,35 @@ export default function SiteNav({
   theme,
   onToggleTheme,
 }) {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDropdown]);
+
+  const getInitial = () => {
+    if (currentUser?.name) {
+      return currentUser.name.charAt(0).toUpperCase();
+    }
+    if (currentUser?.email) {
+      return currentUser.email.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
   const navClass = ({ isActive }) =>
     `rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
       isActive
@@ -23,10 +53,9 @@ export default function SiteNav({
           to="/"
           className="inline-flex items-center gap-3 text-[var(--text)] transition hover:opacity-90"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius)] bg-[var(--primary)] text-sm font-extrabold text-white shadow-[var(--shadow-card)]">
-            K
+          <span className="text-lg font-bold tracking-tight">
+            KnowYourFaculty
           </span>
-          <span className="text-lg font-bold tracking-tight">KnowYourFaculty</span>
         </Link>
 
         <nav className="flex flex-wrap items-center gap-0.5">
@@ -51,24 +80,44 @@ export default function SiteNav({
             type="button"
             onClick={onToggleTheme}
             className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
             {theme === "dark" ? "Light" : "Dark"}
           </button>
 
           {currentUser ? (
-            <>
-              <span className="max-w-48 truncate rounded-[var(--radius)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--muted)]">
-                {currentUser.name || currentUser.email}
-              </span>
+            <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
-                onClick={onLogout}
-                className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:border-red-400/80 hover:bg-red-500/10 hover:text-red-500"
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white font-semibold text-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2"
+                aria-label="User menu"
               >
-                Logout
+                {getInitial()}
               </button>
-            </>
+
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] shadow-lg overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-[var(--line)]">
+                    <p className="text-sm font-medium text-[var(--text)] truncate">
+                      {currentUser.name || currentUser.email}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDropdown(false);
+                      onLogout();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 transition"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <button
               type="button"

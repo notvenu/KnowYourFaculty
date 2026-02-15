@@ -28,7 +28,7 @@ function SetupHelper() {
   }, []);
 
   const statusStyles = {
-    checking: "border-[var(--primary)]/50 bg-[color-mix(in_srgb,var(--primary)_12%,var(--panel))] text-[var(--primary)]",
+    checking: "border-sky-500 dark:border-sky-400/50 bg-[color-mix(in_srgb,var(--primary)_12%,var(--panel))] text-sky-500 dark:text-sky-400",
     connected: "border-emerald-400/50 bg-emerald-500/10 text-emerald-700",
     permissions: "border-amber-400/50 bg-amber-500/10 text-amber-800",
     error: "border-red-400/50 bg-red-500/10 text-red-700",
@@ -37,7 +37,7 @@ function SetupHelper() {
   const statusContent = {
     checking: (
       <div className="flex items-center gap-3">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-sky-500 dark:border-sky-400 border-t-transparent" />
         <h3 className="text-lg font-semibold">Checking database connection…</h3>
       </div>
     ),
@@ -84,12 +84,12 @@ function SetupHelper() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] py-10 px-4">
+    <div className="min-h-screen bg-white dark:bg-gray-900 py-10 px-4">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text)]">
+          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">
             KnowYourFaculty – Setup
           </h1>
-          <p className="mt-2 text-sm text-[var(--muted)]">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Checking database connection and access…
           </p>
         </div>
@@ -104,7 +104,7 @@ function SetupHelper() {
           <button
             type="button"
             onClick={checkConnection}
-            className="rounded-xl bg-[var(--primary)] px-6 py-2.5 text-sm font-semibold text-white shadow-md"
+            className="rounded-xl bg-sky-500 dark:bg-sky-400 px-6 py-2.5 text-sm font-semibold text-white shadow-md"
           >
             Recheck connection
           </button>
@@ -112,7 +112,7 @@ function SetupHelper() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-6 py-2.5 text-sm font-semibold text-[var(--text)]"
+              className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-6 py-2.5 text-sm font-semibold text-gray-900 dark:text-white"
             >
               Launch directory
             </button>
@@ -120,33 +120,33 @@ function SetupHelper() {
         </div>
 
         {connectionStatus === "permissions" && (
-          <div className="mt-8 p-6 border-t border-[var(--line)]">
-            <h3 className="text-lg font-bold text-[var(--text)]">Sample preview</h3>
-            <p className="mt-1 text-sm text-[var(--muted)]">
+          <div className="mt-8 p-6 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Sample preview</h3>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
               Faculty cards will look like this once permissions are set.
             </p>
             <SampleFacultyPreview />
           </div>
         )}
 
-        <div className="mt-8 p-6 border-t border-[var(--line)]">
-          <h3 className="text-lg font-bold text-[var(--text)]">System info</h3>
+        <div className="mt-8 p-6 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">System info</h3>
           <div className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
             <div>
-              <span className="font-semibold text-[var(--text)]">Scraper</span>
-              <p className="text-[var(--muted)]">Runs weekly (e.g. Sunday 1:00 AM)</p>
+              <span className="font-semibold text-gray-900 dark:text-white">Scraper</span>
+              <p className="text-gray-600 dark:text-gray-400">Runs weekly (e.g. Sunday 1:00 AM)</p>
             </div>
             <div>
-              <span className="font-semibold text-[var(--text)]">Access</span>
-              <p className="text-[var(--muted)]">Public read once permissions are set</p>
+              <span className="font-semibold text-gray-900 dark:text-white">Access</span>
+              <p className="text-gray-600 dark:text-gray-400">Public read once permissions are set</p>
             </div>
             <div>
-              <span className="font-semibold text-[var(--text)]">Features</span>
-              <p className="text-[var(--muted)]">Search, filter, feedback, analytics</p>
+              <span className="font-semibold text-gray-900 dark:text-white">Features</span>
+              <p className="text-gray-600 dark:text-gray-400">Search, filter, feedback, analytics</p>
             </div>
             <div>
-              <span className="font-semibold text-[var(--text)]">Security</span>
-              <p className="text-[var(--muted)]">Read-only public faculty data</p>
+              <span className="font-semibold text-gray-900 dark:text-white">Security</span>
+              <p className="text-gray-600 dark:text-gray-400">Read-only public faculty data</p>
             </div>
           </div>
         </div>
@@ -175,15 +175,15 @@ function SampleFacultyPreview() {
       {sampleData.map((faculty, index) => (
         <div
           key={index}
-          className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4"
+          className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 p-4"
         >
-          <div className="mb-3 flex h-28 items-center justify-center rounded-lg bg-[var(--line)]/50 text-sm text-[var(--muted)]">
+          <div className="mb-3 flex h-28 items-center justify-center rounded-lg bg-gray-200/50 dark:bg-gray-700/50 text-sm text-gray-600 dark:text-gray-400">
             Photo
           </div>
-          <h4 className="font-semibold text-[var(--text)]">{faculty.name}</h4>
-          <p className="text-sm text-[var(--muted)]">{faculty.designation}</p>
-          <p className="text-sm font-medium text-[var(--primary)]">{faculty.department}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">{faculty.researchArea}</p>
+          <h4 className="font-semibold text-gray-900 dark:text-white">{faculty.name}</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{faculty.designation}</p>
+          <p className="text-sm font-medium text-sky-500 dark:text-sky-400">{faculty.department}</p>
+          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{faculty.researchArea}</p>
         </div>
       ))}
     </div>
