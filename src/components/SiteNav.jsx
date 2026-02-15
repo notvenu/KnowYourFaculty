@@ -17,19 +17,19 @@ export default function SiteNav({
     }`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] backdrop-blur-xl">
-      <div className="flex flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+    <header className="glass-panel sticky top-0 z-40 border-b border-[var(--line)]">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
         <Link
           to="/"
-          className="inline-flex items-center gap-2.5 text-lg font-bold tracking-tight text-[var(--text)] hover:opacity-90"
+          className="inline-flex items-center gap-3 text-[var(--text)] transition hover:opacity-90"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--primary)] text-sm font-extrabold text-white shadow-sm">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius)] bg-[var(--primary)] text-sm font-extrabold text-white shadow-[var(--shadow-card)]">
             K
           </span>
-          KnowYourFaculty
+          <span className="text-lg font-bold tracking-tight">KnowYourFaculty</span>
         </Link>
 
-        <nav className="flex flex-wrap items-center gap-1">
+        <nav className="flex flex-wrap items-center gap-0.5">
           <NavLink to="/" className={navClass} end>
             Home
           </NavLink>
@@ -50,7 +50,7 @@ export default function SiteNav({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3.5 py-2 text-xs font-medium text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+            className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
             {theme === "dark" ? "Light" : "Dark"}
@@ -58,13 +58,13 @@ export default function SiteNav({
 
           {currentUser ? (
             <>
-              <span className="max-w-48 truncate rounded-xl bg-[var(--panel)] px-3.5 py-2 text-xs font-medium text-[var(--muted)]">
+              <span className="max-w-48 truncate rounded-[var(--radius)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--muted)]">
                 {currentUser.name || currentUser.email}
               </span>
               <button
                 type="button"
                 onClick={onLogout}
-                className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:border-red-400/80 hover:bg-red-500/10 hover:text-red-500"
+                className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:border-red-400/80 hover:bg-red-500/10 hover:text-red-500"
               >
                 Logout
               </button>
@@ -73,9 +73,9 @@ export default function SiteNav({
             <button
               type="button"
               onClick={onOpenLoginOverlay}
-              className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] hover:shadow-[var(--shadow-hover)]"
+              className="rounded-[var(--radius)] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] transition hover:shadow-[var(--shadow-hover)]"
             >
-              Sign in with Google
+              Sign in
             </button>
           )}
         </div>

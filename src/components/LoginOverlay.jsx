@@ -21,14 +21,14 @@ export default function LoginOverlay({ open, onClose, authError, onSignIn, signi
             type="button"
             onClick={onSignIn}
             disabled={signingIn}
-            className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] hover:opacity-90 disabled:opacity-60"
+            className="rounded-[var(--radius)] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] transition hover:opacity-90 disabled:opacity-60"
           >
             {signingIn ? "Signing in…" : "Sign in with Google"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium text-[var(--text)] hover:bg-[var(--line)]"
+            className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--line)]"
           >
             Cancel
           </button>

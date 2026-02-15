@@ -23,7 +23,7 @@ export default function ConfirmOverlay({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium text-[var(--text)] hover:bg-[var(--line)] disabled:opacity-60"
+            className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium text-[var(--text)] transition hover:bg-[var(--line)] disabled:opacity-60"
           >
             {cancelLabel}
           </button>
@@ -31,7 +31,7 @@ export default function ConfirmOverlay({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] disabled:opacity-60 ${
+            className={`rounded-[var(--radius)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] transition disabled:opacity-60 ${
               danger
                 ? "bg-red-500 hover:bg-red-600"
                 : "bg-[var(--primary)] hover:opacity-90"

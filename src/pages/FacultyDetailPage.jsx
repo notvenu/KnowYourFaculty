@@ -5,32 +5,13 @@ import { Link, useParams } from "react-router-dom";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
-
-const RATING_FIELDS = [
-  { key: "theoryTeaching", label: "Theory Teaching Experience" },
-  { key: "theoryAttendance", label: "Attendance Strictness" },
-  { key: "labClass", label: "Lab Class Support" },
-  { key: "theoryCorrection", label: "Correction Fairness" },
-  { key: "ecsCapstoneSDP", label: "ECS / Capstone Support" },
-  { key: "labCorrection", label: "Lab Correction" }
-];
-
-const RATING_EMOJIS = {
-  1: "💀",
-  2: "😭",
-  3: "😃",
-  4: "🔥",
-  5: "🙇"
-};
-
-const EMOJI_ORDER = [1, 2, 3, 4, 5];
-const THEORY_NOTE_OPTIONS = ["No", "Yes"];
-const LAB_NOTE_OPTIONS = [
-  { value: "None", label: "None" },
-  { value: "Soft", label: "Soft" },
-  { value: "Hard", label: "Hard" },
-  { value: "Both", label: "Both" }
-];
+import FacultyProfileCard from "../components/FacultyProfileCard.jsx";
+import FacultyRatingsCard from "../components/FacultyRatingsCard.jsx";
+import FeedbackList from "../components/FeedbackList.jsx";
+import RatingSlider from "../components/RatingSlider.jsx";
+import ConfirmOverlay from "../components/ConfirmOverlay.jsx";
+import { RATING_FIELDS, THEORY_NOTE_OPTIONS, LAB_NOTE_OPTIONS } from "../lib/ratingConfig.js";
+import { stripEmoji, containsDisallowed } from "../lib/reviewFilter.js";
 
 const INITIAL_FEEDBACK_FORM = {
   courseId: "",
@@ -61,6 +42,8 @@ function FacultyDetailPage({ currentUser }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reviews, setReviews] = useState([]);
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ratingSummary, setRatingSummary] = useState({
     totalRatings: 0,
     overallAverage: null,
@@ -77,14 +60,13 @@ function FacultyDetailPage({ currentUser }) {
 
   const hasUser = Boolean(currentUser?.$id);
   const facultyName = faculty?.name || "Faculty";
-
-  const averageRows = useMemo(
-    () =>
-      RATING_FIELDS.map((field) => ({
-        ...field,
-        value: ratingSummary.averages?.[field.key] ?? null
-      })),
-    [ratingSummary]
+  const sectionAverages = useMemo(
+    () => ({
+      theory: ratingSummary.sectionAverages?.theory ?? null,
+      lab: ratingSummary.sectionAverages?.lab ?? null,
+      ecs: ratingSummary.sectionAverages?.ecs ?? null
+    }),
+    [ratingSummary.sectionAverages]
   );
 
   useEffect(() => {
@@ -164,6 +146,7 @@ function FacultyDetailPage({ currentUser }) {
     try {
       const response = await facultyFeedbackService.getFacultyFeedback(facultyId);
       setReviews(response.reviews || []);
+      setFeedbackList(response.ratings || []);
       setRatingSummary(
         response.ratingSummary || { totalRatings: 0, overallAverage: null, sectionAverages: {}, averages: {} }
       );
@@ -224,6 +207,12 @@ function FacultyDetailPage({ currentUser }) {
   const submitFeedback = async (event) => {
     event.preventDefault();
     if (!hasUser) return;
+    const reviewText = stripEmoji(feedbackForm.review);
+    const disallowed = containsDisallowed(reviewText);
+    if (disallowed.blocked) {
+      setError(`Review contains content that isn't allowed.`);
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
@@ -231,7 +220,7 @@ function FacultyDetailPage({ currentUser }) {
         userId: currentUser.$id,
         facultyId,
         courseId: feedbackForm.courseId,
-        review: feedbackForm.review,
+        review: reviewText,
         theoryTeaching: feedbackForm.theoryTeaching,
         theoryAttendance: feedbackForm.theoryAttendance,
         theoryClass: feedbackForm.theoryClass,
@@ -256,8 +245,6 @@ function FacultyDetailPage({ currentUser }) {
 
   const deleteFeedback = async () => {
     if (!hasUser) return;
-    const confirmed = window.confirm("Delete your feedback for this faculty?");
-    if (!confirmed) return;
     try {
       setDeleting(true);
       setError(null);
@@ -267,6 +254,7 @@ function FacultyDetailPage({ currentUser }) {
       setShowFeedbackForm(false);
       setFeedbackForm(INITIAL_FEEDBACK_FORM);
       setCourseQuery("");
+      setShowDeleteConfirm(false);
       await loadFeedback();
     } catch (deleteError) {
       setError(deleteError?.message || "Failed to delete feedback");
@@ -297,167 +285,45 @@ function FacultyDetailPage({ currentUser }) {
 
       {/* Main Layout: Left Side (Faculty Info) + Right Side (Ratings) */}
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        
-        {/* LEFT: Faculty Info Card */}
-        <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6">
-          <div className="overflow-hidden rounded-2xl border border-[var(--line)]">
-            <img
-              src={publicFacultyService.getFacultyPhotoUrl(faculty.photoFileId)}
-              alt={faculty.name}
-              className="h-80 w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.src = publicFacultyService.getPlaceholderPhoto();
-              }}
-            />
-          </div>
-
-          <div className="mt-6">
-            <h1 className="text-3xl font-black leading-tight">{faculty.name}</h1>
-            <p className="mt-2 text-sm font-semibold text-[var(--primary)]">{faculty.designation || "Not specified"}</p>
-            
-            <div className="mt-6 space-y-2 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">
-              <p>
-                <span className="font-semibold text-[var(--text)]">Department:</span> {faculty.department || "Not specified"}
-              </p>
-              <p>
-                <span className="font-semibold text-[var(--text)]">PhD in:</span> {faculty.educationPhD || "Not specified"}
-              </p>
-              <p>
-                <span className="font-semibold text-[var(--text)]">Employee ID:</span> {faculty.employeeId}
-              </p>
-            </div>
-          </div>
+        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
+          <FacultyProfileCard faculty={faculty} />
         </div>
-
-        {/* RIGHT: Ratings Card */}
-        <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Ratings</h2>
-            {hasUser && !showFeedbackForm && (
-              <button
-                onClick={() => {
-                  setShowFeedbackForm(true);
-                  setIsEditing(true);
-                }}
-                className="rounded-full bg-[var(--primary)] px-3 py-1 text-xs font-bold text-[#04222b] hover:opacity-90"
-              >
-                {alreadySubmitted ? "✏️ Edit" : "💬 Share"}
-              </button>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 text-center">
-            <div className="text-5xl font-black text-[var(--primary)]">
-              {ratingSummary.overallAverage?.toFixed(1) ?? "-"}
-            </div>
-            <div className="mt-2 flex justify-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className={`text-lg transition-opacity ${star <= Math.round(ratingSummary.overallAverage || 0) ? "opacity-100" : "opacity-30"}`}
-                >
-                  ★
-                </span>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              {ratingSummary.totalRatings} {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
-            </p>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {averageRows.map((row) => (
-              <div key={row.key}>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-xs font-medium text-[var(--text)]">{row.label}</span>
-                  <span className="text-xs font-bold text-[var(--primary)]">{row.value?.toFixed(1) ?? "-"}</span>
-                </div>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <div
-                      key={star}
-                      className={`h-1 flex-1 rounded-full transition-all ${
-                        star <= Math.round(row.value || 0)
-                          ? "bg-[var(--primary)]"
-                          : "bg-[var(--line)]"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
+          <FacultyRatingsCard
+            ratingSummary={ratingSummary}
+            sectionAverages={sectionAverages}
+            averages={ratingSummary.averages || {}}
+            hasUser={hasUser}
+            alreadySubmitted={alreadySubmitted}
+            onShareFeedback={() => {
+              setShowFeedbackForm(true);
+              setIsEditing(true);
+            }}
+          />
         </div>
       </div>
 
-      {/* Detailed Ratings Section */}
+      {/* What students say */}
       {!showFeedbackForm && (
-        <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6">
-          <h2 className="mb-6 text-2xl font-bold">Detailed Ratings</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {averageRows.map((row) => (
-              <div key={row.key} className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4">
-                <p className="mb-3 text-sm font-semibold text-[var(--text)]">{row.label}</p>
-                {row.value ? (
-                  <div className="flex items-end gap-3">
-                    <span className="text-3xl font-bold text-[var(--primary)]">{row.value.toFixed(1)}</span>
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className={`text-lg transition-opacity ${star <= Math.round(row.value) ? "opacity-100" : "opacity-30"}`}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[var(--muted)]">Not rated yet</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recent Reviews */}
-      {!showFeedbackForm && reviews.length > 0 && (
-        <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6">
-          <h2 className="mb-4 text-2xl font-bold">What Students Say</h2>
-          <div className="space-y-3">
-            {reviews.slice(0, 5).map((review) => {
-              const avgRating = Math.round(
-                (review.theoryTeaching + review.theoryAttendance + review.theoryCorrection + review.labClass + review.labCorrection) / 5
-              );
-              return (
-                <div key={review.$id} className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-[var(--text)]">Anonymous</p>
-                        {review.courseId && courseLookup[review.courseId] && (
-                          <span className="rounded-full bg-[var(--primary)]/20 px-2 py-1 text-xs font-medium text-[var(--primary)]">{courseLookup[review.courseId].courseCode}</span>
-                        )}
-                      </div>
-                      {review.review && (
-                        <p className="mt-2 text-sm text-[var(--muted)]">"{review.review.substring(0, 100)}{review.review.length > 100 ? "..." : ""}"</p>
-                      )}
-                    </div>
-                    <div className="text-2xl">
-                      {RATING_EMOJIS[avgRating]}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
+          <FeedbackList
+            feedbackList={feedbackList}
+            courseLookup={courseLookup}
+            maxItems={20}
+            currentUser={currentUser}
+            onDeleteFeedback={() => setShowDeleteConfirm(true)}
+            onEditReview={() => {
+              setShowFeedbackForm(true);
+              setIsEditing(true);
+            }}
+            deleting={deleting}
+          />
         </div>
       )}
 
       {/* Feedback Form */}
       {showFeedbackForm && hasUser && isEditing ? (
-        <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6">
+        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)]">
           <form onSubmit={submitFeedback} className="space-y-6">
             <div>
               <h2 className="mb-1 text-2xl font-bold">Share Your Experience</h2>
@@ -465,58 +331,23 @@ function FacultyDetailPage({ currentUser }) {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {RATING_FIELDS.map((field) => {
-                const value = feedbackForm[field.key];
-                return (
-                  <div key={field.key}>
-                    <p className="mb-3 text-sm font-semibold">{field.label}</p>
-                    <div className="relative h-[80px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_30%,#071923)] px-4 shadow-inner">
-                      <div
-                        className="pointer-events-none absolute top-1 z-[1] h-[68px] rounded-full bg-gradient-to-b from-[var(--primary)]/90 to-[var(--primary)]/60 shadow-[0_0_30px_color-mix(in_srgb,var(--primary)_75%,transparent)] transition-transform duration-200"
-                        style={{
-                          width: "calc((100% - 2rem) / 5)",
-                          left: "1rem",
-                          transform: `translateX(${(value - 1) * 100}%)`
-                        }}
-                        aria-hidden
-                      />
-                      <div className="pointer-events-none relative z-[2] grid h-full grid-cols-5 items-center">
-                        {EMOJI_ORDER.map((rating) => (
-                          <span
-                            key={`${field.key}-${rating}`}
-                            className={`text-center text-2xl transition-all duration-150 ${
-                              rating === value ? "scale-125 opacity-100 drop-shadow-md" : "opacity-50"
-                            }`}
-                          >
-                            {RATING_EMOJIS[rating]}
-                          </span>
-                        ))}
-                      </div>
-                      <input
-                        type="range"
-                        min={1}
-                        max={5}
-                        step={1}
-                        value={value}
-                        onChange={(e) =>
-                          setFeedbackForm((prev) => ({
-                            ...prev,
-                            [field.key]: Number(e.target.value)
-                          }))
-                        }
-                        className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
-                        aria-label={`${field.label} rating`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+              {RATING_FIELDS.map((field) => (
+                <RatingSlider
+                  key={field.key}
+                  label={field.label}
+                  value={feedbackForm[field.key] ?? 3}
+                  onChange={(value) =>
+                    setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
+                  }
+                  name={field.key}
+                />
+              ))}
             </div>
 
             <div className="grid gap-4 border-t border-[var(--line)] pt-6 md:grid-cols-2">
               <div>
                 <p className="mb-3 text-sm font-semibold">Theory Notes Provided?</p>
-                <div className="relative h-[56px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_30%,#071923)] px-3 shadow-inner">
+                <div className="relative h-[56px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_70%,var(--text))] px-3 shadow-inner">
                   <div
                     className="pointer-events-none absolute top-1 z-[1] h-[44px] rounded-full bg-gradient-to-b from-[var(--primary)]/90 to-[var(--primary)]/60 shadow-[0_0_20px_color-mix(in_srgb,var(--primary)_60%,transparent)] transition-transform duration-200"
                     style={{
@@ -557,7 +388,7 @@ function FacultyDetailPage({ currentUser }) {
 
               <div>
                 <p className="mb-3 text-sm font-semibold">Lab Materials Provided?</p>
-                <div className="relative h-[56px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_30%,#071923)] px-3 shadow-inner">
+                <div className="relative h-[56px] overflow-hidden rounded-3xl border border-[var(--line)] bg-gradient-to-b from-[var(--panel)] to-[color-mix(in_srgb,var(--panel)_70%,var(--text))] px-3 shadow-inner">
                   <div
                     className="pointer-events-none absolute top-1 z-[1] h-[44px] rounded-full bg-gradient-to-b from-[var(--primary)]/90 to-[var(--primary)]/60 shadow-[0_0_20px_color-mix(in_srgb,var(--primary)_60%,transparent)] transition-transform duration-200"
                     style={{
@@ -655,29 +486,31 @@ function FacultyDetailPage({ currentUser }) {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-full bg-[var(--primary)] px-8 py-3 text-sm font-bold text-[#04222b] shadow-lg disabled:opacity-60"
+                className="rounded-full bg-[var(--primary)] px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save Feedback"}
               </button>
             </div>
 
-            {alreadySubmitted && (
-              <button
-                type="button"
-                onClick={deleteFeedback}
-                disabled={deleting}
-                className="w-full rounded-full border border-red-500 px-6 py-3 text-sm text-red-400 hover:bg-red-50/30 disabled:opacity-60"
-              >
-                {deleting ? "Removing..." : "Remove Your Feedback"}
-              </button>
-            )}
           </form>
         </div>
       ) : !hasUser && !showFeedbackForm ? (
-        <div className="rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6">
+        <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)]">
           <p className="text-sm text-[var(--muted)]">Sign in with your VIT-AP account to submit feedback.</p>
         </div>
       ) : null}
+
+      <ConfirmOverlay
+        open={showDeleteConfirm}
+        title="Delete your feedback"
+        message="Are you sure you want to remove your feedback for this faculty? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={() => deleteFeedback()}
+        onCancel={() => setShowDeleteConfirm(false)}
+        loading={deleting}
+        danger
+      />
     </div>
   );
 }
