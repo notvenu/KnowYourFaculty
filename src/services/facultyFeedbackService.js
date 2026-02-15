@@ -1,4 +1,12 @@
-import { Client, Databases, ID, Permission, Query, Role, TablesDB } from "appwrite";
+import {
+  Client,
+  Databases,
+  ID,
+  Permission,
+  Query,
+  Role,
+  TablesDB,
+} from "appwrite";
 import clientConfig from "../config/client.js";
 
 const RATING_FIELDS = [
@@ -9,13 +17,18 @@ const RATING_FIELDS = [
   "labClass",
   "labCorrection",
   "labAttendance",
-  "ecsCapstoneSDP"
+  "ecsCapstoneSDP",
 ];
 
 const SECTION_FIELDS = {
-  theory: ["theoryTeaching", "theoryAttendance", "theoryClass", "theoryCorrection"],
+  theory: [
+    "theoryTeaching",
+    "theoryAttendance",
+    "theoryClass",
+    "theoryCorrection",
+  ],
   lab: ["labClass", "labCorrection", "labAttendance"],
-  ecs: ["ecsCapstoneSDP"]
+  ecs: ["ecsCapstoneSDP"],
 };
 
 function clampRating(value) {
@@ -31,7 +44,7 @@ function getRowPermissions(userId) {
   return [
     Permission.read(Role.any()),
     Permission.update(Role.user(uid)),
-    Permission.delete(Role.user(uid))
+    Permission.delete(Role.user(uid)),
   ];
 }
 
@@ -46,10 +59,13 @@ class FacultyFeedbackService {
     // Validate required configuration
     if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
       this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
-      console.error('FacultyFeedbackService initialization failed:', this.initError);
+      console.error(
+        "FacultyFeedbackService initialization failed:",
+        this.initError,
+      );
       return;
     }
-    
+
     try {
       this.client
         .setEndpoint(clientConfig.appwriteUrl)
@@ -59,8 +75,8 @@ class FacultyFeedbackService {
       this.tablesDB = new TablesDB(this.client);
       this.initialized = true;
     } catch (error) {
-      this.initError = error?.message || 'Failed to initialize Appwrite client';
-      console.error('FacultyFeedbackService initialization error:', error);
+      this.initError = error?.message || "Failed to initialize Appwrite client";
+      console.error("FacultyFeedbackService initialization error:", error);
     }
   }
 
@@ -70,18 +86,28 @@ class FacultyFeedbackService {
 
   async listRows(tableId, queries) {
     if (!this.initialized || !this.tablesDB) {
-      throw new Error(this.initError || 'Appwrite service not initialized');
+      throw new Error(this.initError || "Appwrite service not initialized");
     }
     try {
-      return await this.tablesDB.listRows(clientConfig.appwriteDBId, tableId, queries);
+      return await this.tablesDB.listRows(
+        clientConfig.appwriteDBId,
+        tableId,
+        queries,
+      );
     } catch {
       if (!this.databases) {
-        throw new Error(this.initError || 'Appwrite databases service not initialized');
+        throw new Error(
+          this.initError || "Appwrite databases service not initialized",
+        );
       }
-      const response = await this.databases.listDocuments(clientConfig.appwriteDBId, tableId, queries);
+      const response = await this.databases.listDocuments(
+        clientConfig.appwriteDBId,
+        tableId,
+        queries,
+      );
       return {
         rows: response.documents || [],
-        total: response.total || 0
+        total: response.total || 0,
       };
     }
   }
@@ -93,7 +119,7 @@ class FacultyFeedbackService {
         tableId,
         ID.unique(),
         data,
-        permissions
+        permissions,
       );
     } catch {
       return this.databases.createDocument(
@@ -101,7 +127,7 @@ class FacultyFeedbackService {
         tableId,
         ID.unique(),
         data,
-        permissions
+        permissions,
       );
     }
   }
@@ -113,7 +139,7 @@ class FacultyFeedbackService {
         tableId,
         rowId,
         data,
-        permissions
+        permissions,
       );
     } catch {
       return this.databases.updateDocument(
@@ -121,7 +147,7 @@ class FacultyFeedbackService {
         tableId,
         rowId,
         data,
-        permissions
+        permissions,
       );
     }
   }
@@ -130,16 +156,18 @@ class FacultyFeedbackService {
     const response = await this.listRows(this.feedbackTableId, [
       Query.equal("facultyId", String(facultyId)),
       Query.orderDesc("$createdAt"),
-      Query.limit(limit)
+      Query.limit(limit),
     ]);
-    return (response.rows || []).filter((row) => String(row?.review || "").trim().length > 0);
+    return (response.rows || []).filter(
+      (row) => String(row?.review || "").trim().length > 0,
+    );
   }
 
   async getFacultyRatings(facultyId, limit = 200) {
     const response = await this.listRows(this.feedbackTableId, [
       Query.equal("facultyId", String(facultyId)),
       Query.orderDesc("$createdAt"),
-      Query.limit(limit)
+      Query.limit(limit),
     ]);
     return response.rows || [];
   }
@@ -168,7 +196,8 @@ class FacultyFeedbackService {
 
     for (const field of RATING_FIELDS) {
       const count = counts[field];
-      averages[field] = count > 0 ? Number((totals[field] / count).toFixed(2)) : null;
+      averages[field] =
+        count > 0 ? Number((totals[field] / count).toFixed(2)) : null;
       if (count > 0) {
         weightedTotal += totals[field];
         weightedCount += count;
@@ -184,27 +213,32 @@ class FacultyFeedbackService {
         sectionCount += counts[field];
       }
       sectionAverages[sectionKey] =
-        sectionCount > 0 ? Number((sectionTotal / sectionCount).toFixed(2)) : null;
+        sectionCount > 0
+          ? Number((sectionTotal / sectionCount).toFixed(2))
+          : null;
     }
 
     return {
       totalRatings: ratings?.length || 0,
-      overallAverage: weightedCount > 0 ? Number((weightedTotal / weightedCount).toFixed(2)) : null,
+      overallAverage:
+        weightedCount > 0
+          ? Number((weightedTotal / weightedCount).toFixed(2))
+          : null,
       sectionAverages,
-      averages
+      averages,
     };
   }
 
   async getFacultyFeedback(facultyId) {
     const [reviews, ratings] = await Promise.all([
       this.getFacultyReviews(facultyId),
-      this.getFacultyRatings(facultyId)
+      this.getFacultyRatings(facultyId),
     ]);
 
     return {
       reviews,
       ratings,
-      ratingSummary: this.buildRatingSummary(ratings)
+      ratingSummary: this.buildRatingSummary(ratings),
     };
   }
 
@@ -213,7 +247,7 @@ class FacultyFeedbackService {
       Query.equal("userId", String(userId)),
       Query.equal("facultyId", String(facultyId)),
       Query.orderDesc("$createdAt"),
-      Query.limit(1)
+      Query.limit(1),
     ]);
     return response.rows?.[0] || null;
   }
@@ -232,7 +266,7 @@ class FacultyFeedbackService {
     labCorrection,
     labAttendance,
     ecsCapstoneSDP,
-    labNotes = "None"
+    labNotes = "None",
   }) {
     if (!String(userId || "").trim()) {
       throw new Error("You must be logged in to submit feedback.");
@@ -242,13 +276,16 @@ class FacultyFeedbackService {
     const normalizedLabNotes = String(labNotes || "None");
     const payload = {
       userId: String(userId),
-      facultyId: String(facultyId)
+      facultyId: String(facultyId),
     };
 
     if (courseId) payload.courseId = String(courseId).trim();
     if (typeof review === "string") payload.review = review.trim();
     if (Boolean(theoryNotes)) payload.theoryNotes = true;
-    if (allowedLabNotes.has(normalizedLabNotes) && normalizedLabNotes !== "None") {
+    if (
+      allowedLabNotes.has(normalizedLabNotes) &&
+      normalizedLabNotes !== "None"
+    ) {
       payload.labNotes = normalizedLabNotes;
     }
 
@@ -260,7 +297,7 @@ class FacultyFeedbackService {
       labClass,
       labCorrection,
       labAttendance,
-      ecsCapstoneSDP
+      ecsCapstoneSDP,
     })) {
       const value = clampRating(rawValue);
       if (value !== null) payload[field] = value;
@@ -269,7 +306,12 @@ class FacultyFeedbackService {
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
     const permissions = getRowPermissions(userId);
     if (existing?.$id) {
-      return this.updateRow(this.feedbackTableId, existing.$id, payload, permissions);
+      return this.updateRow(
+        this.feedbackTableId,
+        existing.$id,
+        payload,
+        permissions,
+      );
     }
     return this.createRow(this.feedbackTableId, payload, permissions);
   }
@@ -286,7 +328,7 @@ class FacultyFeedbackService {
     labCorrection,
     labAttendance,
     ecsCapstoneSDP,
-    labNotes = "None"
+    labNotes = "None",
   }) {
     return this.submitFeedback({
       userId,
@@ -300,17 +342,23 @@ class FacultyFeedbackService {
       labCorrection,
       labAttendance,
       ecsCapstoneSDP,
-      labNotes
+      labNotes,
     });
   }
 
-  async submitReview({ userId, facultyId, courseId, review, theoryNotes = false }) {
+  async submitReview({
+    userId,
+    facultyId,
+    courseId,
+    review,
+    theoryNotes = false,
+  }) {
     return this.submitFeedback({
       userId,
       facultyId,
       courseId,
       review,
-      theoryNotes
+      theoryNotes,
     });
   }
 
@@ -321,9 +369,17 @@ class FacultyFeedbackService {
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
     if (!existing?.$id) return null;
     try {
-      return await this.tablesDB.deleteRow(clientConfig.appwriteDBId, this.feedbackTableId, existing.$id);
+      return await this.tablesDB.deleteRow(
+        clientConfig.appwriteDBId,
+        this.feedbackTableId,
+        existing.$id,
+      );
     } catch {
-      return this.databases.deleteDocument(clientConfig.appwriteDBId, this.feedbackTableId, existing.$id);
+      return this.databases.deleteDocument(
+        clientConfig.appwriteDBId,
+        this.feedbackTableId,
+        existing.$id,
+      );
     }
   }
 }

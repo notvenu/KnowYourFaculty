@@ -6,7 +6,9 @@ function normalizeText(value) {
 }
 
 function normalizeCourseCode(value) {
-  return normalizeText(value).toUpperCase().replace(/[\s-]+/g, "");
+  return normalizeText(value)
+    .toUpperCase()
+    .replace(/[\s-]+/g, "");
 }
 
 function mergeCoursesByCode(courses = []) {
@@ -43,10 +45,10 @@ class CourseService {
     // Validate required configuration
     if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
       this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
-      console.error('CourseService initialization failed:', this.initError);
+      console.error("CourseService initialization failed:", this.initError);
       return;
     }
-    
+
     try {
       this.client
         .setEndpoint(clientConfig.appwriteUrl)
@@ -56,8 +58,8 @@ class CourseService {
       this.tablesDB = new TablesDB(this.client);
       this.initialized = true;
     } catch (error) {
-      this.initError = error?.message || 'Failed to initialize Appwrite client';
-      console.error('CourseService initialization error:', error);
+      this.initError = error?.message || "Failed to initialize Appwrite client";
+      console.error("CourseService initialization error:", error);
     }
   }
 
@@ -67,35 +69,65 @@ class CourseService {
 
   async listRows(queries = []) {
     if (!this.initialized || !this.tablesDB) {
-      throw new Error(this.initError || 'Appwrite service not initialized');
+      throw new Error(this.initError || "Appwrite service not initialized");
     }
     try {
-      return await this.tablesDB.listRows(clientConfig.appwriteDBId, this.coursesTableId, queries);
+      return await this.tablesDB.listRows(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        queries,
+      );
     } catch {
       if (!this.databases) {
-        throw new Error(this.initError || 'Appwrite databases service not initialized');
+        throw new Error(
+          this.initError || "Appwrite databases service not initialized",
+        );
       }
-      const response = await this.databases.listDocuments(clientConfig.appwriteDBId, this.coursesTableId, queries);
+      const response = await this.databases.listDocuments(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        queries,
+      );
       return {
         rows: response.documents || [],
-        total: response.total || 0
+        total: response.total || 0,
       };
     }
   }
 
   async createRow(data) {
     try {
-      return await this.tablesDB.createRow(clientConfig.appwriteDBId, this.coursesTableId, ID.unique(), data);
+      return await this.tablesDB.createRow(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        ID.unique(),
+        data,
+      );
     } catch {
-      return this.databases.createDocument(clientConfig.appwriteDBId, this.coursesTableId, ID.unique(), data);
+      return this.databases.createDocument(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        ID.unique(),
+        data,
+      );
     }
   }
 
   async updateRow(rowId, data) {
     try {
-      return await this.tablesDB.updateRow(clientConfig.appwriteDBId, this.coursesTableId, rowId, data);
+      return await this.tablesDB.updateRow(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        rowId,
+        data,
+      );
     } catch {
-      return this.databases.updateDocument(clientConfig.appwriteDBId, this.coursesTableId, rowId, data);
+      return this.databases.updateDocument(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        rowId,
+        data,
+      );
     }
   }
 
@@ -103,10 +135,18 @@ class CourseService {
     const id = normalizeText(courseId);
     if (!id) return null;
     try {
-      return await this.tablesDB.getRow(clientConfig.appwriteDBId, this.coursesTableId, id);
+      return await this.tablesDB.getRow(
+        clientConfig.appwriteDBId,
+        this.coursesTableId,
+        id,
+      );
     } catch {
       try {
-        return await this.databases.getDocument(clientConfig.appwriteDBId, this.coursesTableId, id);
+        return await this.databases.getDocument(
+          clientConfig.appwriteDBId,
+          this.coursesTableId,
+          id,
+        );
       } catch {
         return null;
       }
@@ -117,7 +157,10 @@ class CourseService {
     const normalizedCode = normalizeCourseCode(courseCode);
     if (!normalizedCode) return null;
 
-    const response = await this.listRows([Query.equal("courseCode", normalizedCode), Query.limit(1)]);
+    const response = await this.listRows([
+      Query.equal("courseCode", normalizedCode),
+      Query.limit(1),
+    ]);
     return response.rows?.[0] || null;
   }
 
@@ -131,7 +174,7 @@ class CourseService {
 
     const payload = {
       courseCode: normalizedCode,
-      courseName: normalizedName
+      courseName: normalizedName,
     };
 
     const existing = await this.getCourseByCode(normalizedCode);
@@ -142,7 +185,10 @@ class CourseService {
   }
 
   async getAllCourses(limit = 5000) {
-    const response = await this.listRows([Query.orderAsc("courseCode"), Query.limit(limit)]);
+    const response = await this.listRows([
+      Query.orderAsc("courseCode"),
+      Query.limit(limit),
+    ]);
     return response.rows || [];
   }
 
@@ -168,7 +214,9 @@ class CourseService {
 
     const existingCourses = await this.getAllCourses(5000);
     const existingByCode = new Map(
-      (existingCourses || []).map((row) => [normalizeCourseCode(row.courseCode), row]).filter(([code]) => code)
+      (existingCourses || [])
+        .map((row) => [normalizeCourseCode(row.courseCode), row])
+        .filter(([code]) => code),
     );
 
     let created = 0;
@@ -178,7 +226,7 @@ class CourseService {
       const existing = existingByCode.get(course.courseCode);
       const payload = {
         courseCode: course.courseCode,
-        courseName: course.courseName
+        courseName: course.courseName,
       };
 
       if (existing?.$id) {
@@ -194,7 +242,7 @@ class CourseService {
       parsedCount: Array.isArray(courses) ? courses.length : 0,
       mergedCount: mergedCourses.length,
       created,
-      updated
+      updated,
     };
   }
 }

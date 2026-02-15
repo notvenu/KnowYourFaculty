@@ -24,7 +24,9 @@ function App() {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("kyf-theme");
     if (saved === "light" || saved === "dark") return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
   });
 
   useEffect(() => {
@@ -59,7 +61,9 @@ function App() {
       if (!authService.isAllowedEmail(user.email)) {
         await authService.logout();
         setCurrentUser(null);
-        setAuthError(`Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`);
+        setAuthError(
+          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
+        );
         return;
       }
 
@@ -93,10 +97,12 @@ function App() {
     () =>
       Boolean(
         currentUser?.email &&
-          (clientConfig.adminEmails.length === 0 ||
-            clientConfig.adminEmails.includes(String(currentUser.email).trim().toLowerCase()))
+        (clientConfig.adminEmails.length === 0 ||
+          clientConfig.adminEmails.includes(
+            String(currentUser.email).trim().toLowerCase(),
+          )),
       ),
-    [currentUser]
+    [currentUser],
   );
 
   if (!setupChecked || !authChecked) {
@@ -104,7 +110,9 @@ function App() {
       <div className="min-h-screen grid place-items-center bg-[var(--bg)] text-[var(--text)]">
         <div className="animate-fadeIn text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--soft)] border-t-[var(--primary)]"></div>
-          <p className="text-sm text-[var(--muted)]">✨ Setting things up for you...</p>
+          <p className="text-sm text-[var(--muted)]">
+            ✨ Setting things up for you...
+          </p>
         </div>
       </div>
     );
@@ -121,7 +129,9 @@ function App() {
         onGoogleLogin={handleGoogleLogin}
         onLogout={handleLogout}
         theme={theme}
-        onToggleTheme={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+        onToggleTheme={() =>
+          setTheme((prev) => (prev === "dark" ? "light" : "dark"))
+        }
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -140,7 +150,9 @@ function App() {
           <Route path="/terms-and-conditions" element={<TermsPage />} />
           <Route
             path="/admin"
-            element={isAdminUser ? <AdminPanel /> : <Navigate to="/faculty" replace />}
+            element={
+              isAdminUser ? <AdminPanel /> : <Navigate to="/faculty" replace />
+            }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -158,7 +170,7 @@ function SiteNav({
   onGoogleLogin,
   onLogout,
   theme,
-  onToggleTheme
+  onToggleTheme,
 }) {
   const navClass = ({ isActive }) =>
     `rounded-full px-3 py-2 text-sm transition ${
@@ -171,7 +183,10 @@ function SiteNav({
     <header className="sticky top-0 z-40 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] backdrop-blur-2xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
-          <Link to="/" className="inline-flex items-center gap-2 text-lg font-bold tracking-tight hover:scale-105 transition-transform">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-lg font-bold tracking-tight hover:scale-105 transition-transform"
+          >
             <span className="inline-grid h-7 w-7 place-items-center rounded-full bg-[var(--primary)] text-xs text-[#04222b]">
               ✧
             </span>
@@ -201,7 +216,9 @@ function SiteNav({
             type="button"
             onClick={onToggleTheme}
             className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-xs hover:border-[var(--primary)] hover:scale-105 transition-all"
-            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
             {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
           </button>
@@ -229,7 +246,9 @@ function SiteNav({
         </div>
       </div>
       {!currentUser && authError ? (
-        <p className="animate-shake px-4 pb-3 text-center text-xs text-red-500 sm:px-6 lg:px-8">⚠️ {authError}</p>
+        <p className="animate-shake px-4 pb-3 text-center text-xs text-red-500 sm:px-6 lg:px-8">
+          ⚠️ {authError}
+        </p>
       ) : null}
     </header>
   );
@@ -247,13 +266,22 @@ function SiteFooter() {
           <span>© 2026 KnowYourFaculty</span>
         </p>
         <nav className="flex flex-wrap items-center gap-4">
-          <Link to="/privacy-policy" className="hover:text-[var(--text)] transition-colors">
+          <Link
+            to="/privacy-policy"
+            className="hover:text-[var(--text)] transition-colors"
+          >
             Privacy Policy
           </Link>
-          <Link to="/terms-and-conditions" className="hover:text-[var(--text)] transition-colors">
+          <Link
+            to="/terms-and-conditions"
+            className="hover:text-[var(--text)] transition-colors"
+          >
             Terms & Conditions
           </Link>
-          <Link to="/contact" className="hover:text-[var(--text)] transition-colors">
+          <Link
+            to="/contact"
+            className="hover:text-[var(--text)] transition-colors"
+          >
             💌 Contact Us
           </Link>
         </nav>

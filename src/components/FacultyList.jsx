@@ -12,14 +12,14 @@ function FacultyList({ currentUser = null }) {
     page: 1,
     totalPages: 0,
     hasNext: false,
-    hasPrev: false
+    hasPrev: false,
   });
 
   const [filters, setFilters] = useState({
     search: "",
     department: "all",
     sortBy: "$updatedAt",
-    sortOrder: "desc"
+    sortOrder: "desc",
   });
 
   const [departments, setDepartments] = useState([]);
@@ -49,19 +49,19 @@ function FacultyList({ currentUser = null }) {
         search: filters.search,
         department: filters.department,
         sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder
+        sortOrder: filters.sortOrder,
       });
 
       setFacultyData((prev) => ({
         ...prev,
         ...response,
-        loading: false
+        loading: false,
       }));
     } catch (error) {
       setFacultyData((prev) => ({
         ...prev,
         loading: false,
-        error: error.message
+        error: error.message,
       }));
     }
   };
@@ -97,7 +97,9 @@ function FacultyList({ currentUser = null }) {
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
-          <p className="text-[var(--muted)]">🔍 Finding amazing professors for you...</p>
+          <p className="text-[var(--muted)]">
+            🔍 Finding amazing professors for you...
+          </p>
         </div>
       </div>
     );
@@ -115,7 +117,8 @@ function FacultyList({ currentUser = null }) {
               <span>👥</span> {stats.total} Professors
             </span>
             <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)] px-4 py-2 rounded-full font-semibold">
-              <span>🏛️</span> {Object.keys(stats.byDepartment).length} Departments
+              <span>🏛️</span> {Object.keys(stats.byDepartment).length}{" "}
+              Departments
             </span>
             <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)} px-4 py-2 rounded-full font-semibold">
               <span>🎯</span> {Object.keys(stats.byDesignation).length} Roles
@@ -127,7 +130,7 @@ function FacultyList({ currentUser = null }) {
       <div className="mb-6 rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="mb-2 flex items-center gap-1 text-sm font-medium text-[var(--text)]">  
+            <label className="mb-2 flex items-center gap-1 text-sm font-medium text-[var(--text)]">
               <span>🔍</span> Search
             </label>
             <input
@@ -192,7 +195,10 @@ function FacultyList({ currentUser = null }) {
       {facultyData.error && (
         <div className="animate-shake mb-6 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-red-700">
           <strong>⚠️ Error:</strong> {facultyData.error}
-          <button onClick={() => loadFaculty()} className="ml-4 font-semibold underline hover:no-underline">
+          <button
+            onClick={() => loadFaculty()}
+            className="ml-4 font-semibold underline hover:no-underline"
+          >
             🔄 Try Again
           </button>
         </div>
@@ -218,18 +224,27 @@ function FacultyList({ currentUser = null }) {
       ) : (
         <div className="text-center py-12">
           <p className="text-2xl mb-3">🔍</p>
-          <p className="text-[var(--muted)] text-lg mb-4">No professors found matching your search.</p>
+          <p className="text-[var(--muted)] text-lg mb-4">
+            No professors found matching your search.
+          </p>
           {filters.search || filters.department !== "all" ? (
             <button
               onClick={() => {
-                setFilters({ search: "", department: "all", sortBy: "$updatedAt", sortOrder: "desc" });
+                setFilters({
+                  search: "",
+                  department: "all",
+                  sortBy: "$updatedAt",
+                  sortOrder: "desc",
+                });
               }}
               className="rounded-full bg-[var(--primary)] px-6 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg"
             >
               🔄 Clear All Filters
             </button>
           ) : (
-            <p className="text-[var(--muted)]">Try again later or contact support.</p>
+            <p className="text-[var(--muted)]">
+              Try again later or contact support.
+            </p>
           )}
         </div>
       )}
@@ -268,10 +283,18 @@ function FacultyCard({ faculty }) {
   return (
     <Link
       to={`/faculty/${faculty.employeeId}`}
-      style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer', pointerEvents: 'auto' }}
+      style={{
+        textDecoration: "none",
+        color: "inherit",
+        cursor: "pointer",
+        pointerEvents: "auto",
+      }}
       className="flex flex-col rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] shadow-md overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 h-full"
     >
-      <div className="h-40 bg-[var(--panel)] flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ pointerEvents: 'none' }}>
+      <div
+        className="h-40 bg-[var(--panel)] flex items-center justify-center flex-shrink-0 overflow-hidden"
+        style={{ pointerEvents: "none" }}
+      >
         {photoUrl ? (
           <img
             src={photoUrl}
@@ -280,7 +303,7 @@ function FacultyCard({ faculty }) {
             loading="lazy"
             decoding="async"
             onError={handleImageError}
-            style={{ pointerEvents: 'none' }}
+            style={{ pointerEvents: "none" }}
           />
         ) : (
           <div className="text-[var(--muted)] text-center">
@@ -290,7 +313,10 @@ function FacultyCard({ faculty }) {
         )}
       </div>
 
-      <div className="p-3 flex-1 flex flex-col" style={{ pointerEvents: 'none' }}>
+      <div
+        className="p-3 flex-1 flex flex-col"
+        style={{ pointerEvents: "none" }}
+      >
         <h3 className="font-semibold text-base text-[var(--text)] mb-2 line-clamp-2 min-h-[2.5rem]">
           {faculty.name || "Unknown"}
         </h3>
@@ -298,14 +324,18 @@ function FacultyCard({ faculty }) {
         <div className="space-y-1.5 text-xs text-[var(--muted)] flex-1">
           <div className="flex items-start">
             <span className="font-medium w-16 shrink-0">🎯 Role:</span>
-            <span className="line-clamp-2 text-[var(--text)]">{faculty.designation || "Not specified"}</span>
+            <span className="line-clamp-2 text-[var(--text)]">
+              {faculty.designation || "Not specified"}
+            </span>
           </div>
 
           <div className="flex items-start">
             <span className="font-medium w-16 shrink-0">🏛️ Dept:</span>
             <span className="line-clamp-2 text-[var(--text)]">
               {faculty.department
-                ? faculty.department.replace("School of ", "").replace(" (", " (")
+                ? faculty.department
+                    .replace("School of ", "")
+                    .replace(" (", " (")
                 : "Not specified"}
             </span>
           </div>
@@ -313,32 +343,50 @@ function FacultyCard({ faculty }) {
           {faculty.researchArea && (
             <div className="flex items-start">
               <span className="font-medium w-16 shrink-0">🔬 Focus:</span>
-              <span className="line-clamp-2 text-[var(--text)]">{faculty.researchArea}</span>
+              <span className="line-clamp-2 text-[var(--text)]">
+                {faculty.researchArea}
+              </span>
             </div>
           )}
         </div>
 
         <div className="flex items-center justify-between mt-3 pt-2 border-t border-[var(--line)]">
-          <span className="text-xs text-[var(--muted)]">ID: {faculty.employeeId}</span>
+          <span className="text-xs text-[var(--muted)]">
+            ID: {faculty.employeeId}
+          </span>
         </div>
       </div>
     </Link>
   );
 }
 
-function Pagination({ currentPage, totalPages, hasNext, hasPrev, onPageChange, totalItems }) {
+function Pagination({
+  currentPage,
+  totalPages,
+  hasNext,
+  hasPrev,
+  onPageChange,
+  totalItems,
+}) {
   const maxVisiblePages = 5;
-  const startPage = Math.max(1, Math.min(currentPage - 2, totalPages - maxVisiblePages + 1));
+  const startPage = Math.max(
+    1,
+    Math.min(currentPage - 2, totalPages - maxVisiblePages + 1),
+  );
   const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-  const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+  const pages = Array.from(
+    { length: endPage - startPage + 1 },
+    (_, i) => startPage + i,
+  );
 
   if (totalPages <= 1) return null;
 
   return (
     <div className="flex items-center justify-between">
       <div className="text-sm text-[var(--muted)]">
-        📊 Page {currentPage} of {totalPages} ({totalItems.toLocaleString()} professors)
+        📊 Page {currentPage} of {totalPages} ({totalItems.toLocaleString()}{" "}
+        professors)
       </div>
 
       <div className="flex items-center space-x-1">
