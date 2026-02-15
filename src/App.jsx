@@ -103,7 +103,7 @@ function App() {
     return (
       <div className="min-h-screen grid place-items-center bg-[var(--bg)] text-[var(--text)]">
         <div className="animate-fadeIn text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--panel)] border-t-[var(--primary)]"></div>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--soft)] border-t-[var(--primary)]"></div>
           <p className="text-sm text-[var(--muted)]">✨ Setting things up for you...</p>
         </div>
       </div>

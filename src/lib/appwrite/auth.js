@@ -32,16 +32,34 @@ function setAuthCheckFlag(enabled) {
 export class AuthService {
     client = new Client();
     account;
+    initialized = false;
+    initError = null;
     
     constructor() {
-        this.client
-            .setEndpoint(clientConfig.appwriteUrl)
-            .setProject(clientConfig.appwriteProjectId);
-        this.account = new Account(this.client);
+        // Validate required configuration
+        if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
+            this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
+            console.error('AuthService initialization failed:', this.initError);
+            return;
+        }
+        
+        try {
+            this.client
+                .setEndpoint(clientConfig.appwriteUrl)
+                .setProject(clientConfig.appwriteProjectId);
+            this.account = new Account(this.client);
+            this.initialized = true;
+        } catch (error) {
+            this.initError = error?.message || 'Failed to initialize Appwrite client';
+            console.error('AuthService initialization error:', error);
+        }
     }
     
     // Google OAuth sign in
     async googleSignIn() {
+        if (!this.initialized || !this.account) {
+            throw new Error(this.initError || 'Appwrite service not initialized');
+        }
         try {
             setAuthCheckFlag(true);
             const session = await this.account.createOAuth2Session(
@@ -58,6 +76,10 @@ export class AuthService {
 
     // Get current user
     async getCurrentUser() {
+        if (!this.initialized || !this.account) {
+            console.debug('Appwrite service not initialized, returning null');
+            return null;
+        }
         try {
             if (!getAuthCheckFlag()) {
                 return null;
@@ -88,6 +110,10 @@ export class AuthService {
 
     // Logout
     async logout() {
+        if (!this.initialized || !this.account) {
+            setAuthCheckFlag(false);
+            return true;
+        }
         try {
             await this.account.deleteSession('current');
             setAuthCheckFlag(false);

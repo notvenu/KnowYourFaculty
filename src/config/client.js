@@ -28,4 +28,17 @@ const clientConfig = {
     }
 };
 
+// Validate critical environment variables
+const missingEnvVars = [];
+if (!clientConfig.appwriteUrl) missingEnvVars.push('VITE_APPWRITE_URL');
+if (!clientConfig.appwriteProjectId) missingEnvVars.push('VITE_APPWRITE_PROJECT_ID');
+
+if (missingEnvVars.length > 0) {
+    console.warn(
+        `⚠️  Missing environment variables: ${missingEnvVars.join(', ')}. 
+        The application may not function properly. 
+        Please set these variables in your deployment environment or .env file.`
+    );
+}
+
 export default clientConfig;

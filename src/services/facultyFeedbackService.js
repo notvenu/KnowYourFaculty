@@ -39,14 +39,29 @@ class FacultyFeedbackService {
   client = new Client();
   databases;
   tablesDB;
+  initialized = false;
+  initError = null;
 
   constructor() {
-    this.client
-      .setEndpoint(clientConfig.appwriteUrl)
-      .setProject(clientConfig.appwriteProjectId);
+    // Validate required configuration
+    if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
+      this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
+      console.error('FacultyFeedbackService initialization failed:', this.initError);
+      return;
+    }
+    
+    try {
+      this.client
+        .setEndpoint(clientConfig.appwriteUrl)
+        .setProject(clientConfig.appwriteProjectId);
 
-    this.databases = new Databases(this.client);
-    this.tablesDB = new TablesDB(this.client);
+      this.databases = new Databases(this.client);
+      this.tablesDB = new TablesDB(this.client);
+      this.initialized = true;
+    } catch (error) {
+      this.initError = error?.message || 'Failed to initialize Appwrite client';
+      console.error('FacultyFeedbackService initialization error:', error);
+    }
   }
 
   get feedbackTableId() {
@@ -54,9 +69,15 @@ class FacultyFeedbackService {
   }
 
   async listRows(tableId, queries) {
+    if (!this.initialized || !this.tablesDB) {
+      throw new Error(this.initError || 'Appwrite service not initialized');
+    }
     try {
       return await this.tablesDB.listRows(clientConfig.appwriteDBId, tableId, queries);
     } catch {
+      if (!this.databases) {
+        throw new Error(this.initError || 'Appwrite databases service not initialized');
+      }
       const response = await this.databases.listDocuments(clientConfig.appwriteDBId, tableId, queries);
       return {
         rows: response.documents || [],

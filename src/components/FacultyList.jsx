@@ -117,7 +117,7 @@ function FacultyList({ currentUser = null }) {
             <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)] px-4 py-2 rounded-full font-semibold">
               <span>🏛️</span> {Object.keys(stats.byDepartment).length} Departments
             </span>
-            <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)] px-4 py-2 rounded-full font-semibold">
+            <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)} px-4 py-2 rounded-full font-semibold">
               <span>🎯</span> {Object.keys(stats.byDesignation).length} Roles
             </span>
           </div>
