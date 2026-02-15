@@ -9,8 +9,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "scraper:run": "node scripts/scrapeOnce.js",
-    "faculty:dedupe": "node scripts/dedupeFaculty.js",
-    "photos:migrate-avif": "node scripts/migrateAvifPhotos.js --all",
     "faculty:stats": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getFacultyStats()).then(console.log)\"",
     "faculty:count": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\"",
     "reviews:fix-permissions": "node scripts/fixReviewPermissions.js"
@@ -22,6 +20,7 @@
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "node-appwrite": "^21.1.0",
+    "pdfjs-dist": "^5.4.296",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.0",

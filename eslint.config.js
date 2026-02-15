@@ -24,6 +24,8 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'tailwindcss/no-custom-classname': 'off',
+      'unused-expressions': 'off',
     },
   },
 ])

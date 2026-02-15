@@ -8,8 +8,15 @@ const RATING_FIELDS = [
   "theoryCorrection",
   "labClass",
   "labCorrection",
-  "labAttendance"
+  "labAttendance",
+  "ecsCapstoneSDP"
 ];
+
+const SECTION_FIELDS = {
+  theory: ["theoryTeaching", "theoryAttendance", "theoryClass", "theoryCorrection"],
+  lab: ["labClass", "labCorrection", "labAttendance"],
+  ecs: ["ecsCapstoneSDP"]
+};
 
 function clampRating(value) {
   const n = Number(value);
@@ -147,9 +154,22 @@ class FacultyFeedbackService {
       }
     }
 
+    const sectionAverages = {};
+    for (const [sectionKey, fields] of Object.entries(SECTION_FIELDS)) {
+      let sectionTotal = 0;
+      let sectionCount = 0;
+      for (const field of fields) {
+        sectionTotal += totals[field];
+        sectionCount += counts[field];
+      }
+      sectionAverages[sectionKey] =
+        sectionCount > 0 ? Number((sectionTotal / sectionCount).toFixed(2)) : null;
+    }
+
     return {
       totalRatings: ratings?.length || 0,
       overallAverage: weightedCount > 0 ? Number((weightedTotal / weightedCount).toFixed(2)) : null,
+      sectionAverages,
       averages
     };
   }
@@ -190,6 +210,7 @@ class FacultyFeedbackService {
     labClass,
     labCorrection,
     labAttendance,
+    ecsCapstoneSDP,
     labNotes = "None"
   }) {
     if (!String(userId || "").trim()) {
@@ -200,13 +221,15 @@ class FacultyFeedbackService {
     const normalizedLabNotes = String(labNotes || "None");
     const payload = {
       userId: String(userId),
-      facultyId: String(facultyId),
-      theoryNotes: Boolean(theoryNotes),
-      labNotes: allowedLabNotes.has(normalizedLabNotes) ? normalizedLabNotes : "None"
+      facultyId: String(facultyId)
     };
 
     if (courseId) payload.courseId = String(courseId).trim();
     if (typeof review === "string") payload.review = review.trim();
+    if (Boolean(theoryNotes)) payload.theoryNotes = true;
+    if (allowedLabNotes.has(normalizedLabNotes) && normalizedLabNotes !== "None") {
+      payload.labNotes = normalizedLabNotes;
+    }
 
     for (const [field, rawValue] of Object.entries({
       theoryTeaching,
@@ -215,7 +238,8 @@ class FacultyFeedbackService {
       theoryCorrection,
       labClass,
       labCorrection,
-      labAttendance
+      labAttendance,
+      ecsCapstoneSDP
     })) {
       const value = clampRating(rawValue);
       if (value !== null) payload[field] = value;
@@ -240,6 +264,7 @@ class FacultyFeedbackService {
     labClass,
     labCorrection,
     labAttendance,
+    ecsCapstoneSDP,
     labNotes = "None"
   }) {
     return this.submitFeedback({
@@ -253,6 +278,7 @@ class FacultyFeedbackService {
       labClass,
       labCorrection,
       labAttendance,
+      ecsCapstoneSDP,
       labNotes
     });
   }
