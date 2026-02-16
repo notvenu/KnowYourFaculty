@@ -405,14 +405,26 @@ function FacultyCard({ faculty }) {
           </div>
 
           {faculty.researchArea && (
-            <div className="flex items-start">
-              <span className="inline-flex w-16 shrink-0 items-center gap-1 font-medium">
+            <div className="flex flex-col gap-1.5">
+              <span className="inline-flex items-center gap-1 font-medium text-xs">
                 <FontAwesomeIcon icon={faFlask} />
-                <span>Focus:</span>
+                <span>Research:</span>
               </span>
-              <span className="line-clamp-2 text-[var(--text)]">
-                {faculty.researchArea}
-              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {String(faculty.researchArea)
+                  .split(/[,;]|\band\b/i)
+                  .map((area) => area.trim())
+                  .filter((area) => area.length > 0)
+                  .slice(0, 3)
+                  .map((area, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-xs font-medium text-[var(--primary)]"
+                    >
+                      {area}
+                    </span>
+                  ))}
+              </div>
             </div>
           )}
         </div>
