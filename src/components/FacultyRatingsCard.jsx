@@ -1,4 +1,6 @@
 import { THEORY_FIELDS, LAB_FIELDS, ECS_FIELDS } from "../lib/ratingConfig.js";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faStar } from "@fortawesome/free-solid-svg-icons";
 
 export default function FacultyRatingsCard({
   ratingSummary,
@@ -11,7 +13,9 @@ export default function FacultyRatingsCard({
   return (
     <div className="p-4 sm:p-5 md:p-6">
       <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-bold text-[var(--text)] sm:text-2xl">Ratings</h2>
+        <h2 className="text-xl font-bold text-[var(--text)] sm:text-2xl">
+          Ratings
+        </h2>
         {hasUser && (
           <button
             type="button"
@@ -30,16 +34,19 @@ export default function FacultyRatingsCard({
           {[1, 2, 3, 4, 5].map((star) => (
             <span
               key={star}
-              className={`emoji text-lg transition-opacity ${
-                star <= Math.round(ratingSummary.overallAverage || 0) ? "opacity-100" : "opacity-30"
+              className={`text-lg motion-safe:transition-transform motion-safe:transition-opacity ${
+                star <= Math.round(ratingSummary.overallAverage || 0)
+                  ? "scale-105 opacity-100 text-[var(--primary)]"
+                  : "opacity-30 text-[var(--muted)]"
               }`}
             >
-              ★
+              <FontAwesomeIcon icon={faStar} />
             </span>
           ))}
         </div>
         <p className="mt-2 text-xs font-medium text-[var(--muted)]">
-          {ratingSummary.totalRatings} {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
+          {ratingSummary.totalRatings}{" "}
+          {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
         </p>
       </div>
 
@@ -48,7 +55,9 @@ export default function FacultyRatingsCard({
           <h3 className="mb-3 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-[var(--muted)]">
             Theory
             <span className="font-bold normal-case text-[var(--primary)]">
-              {sectionAverages.theory != null ? sectionAverages.theory.toFixed(1) : "—"}
+              {sectionAverages.theory != null
+                ? sectionAverages.theory.toFixed(1)
+                : "—"}
             </span>
           </h3>
           <div className="space-y-2.5">
@@ -57,7 +66,9 @@ export default function FacultyRatingsCard({
               return (
                 <div key={field.key}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs font-medium text-[var(--text)]">{field.label}</span>
+                    <span className="text-xs font-medium text-[var(--text)]">
+                      {field.label}
+                    </span>
                     <span className="text-xs font-bold text-[var(--primary)]">
                       {value != null ? value.toFixed(1) : "—"}
                     </span>
@@ -67,7 +78,9 @@ export default function FacultyRatingsCard({
                       <div
                         key={star}
                         className={`h-1.5 flex-1 rounded-full transition-colors ${
-                          star <= Math.round(value || 0) ? "bg-[var(--primary)]" : "bg-[var(--line)]"
+                          star <= Math.round(value || 0)
+                            ? "bg-[var(--primary)]"
+                            : "bg-[var(--line)]"
                         }`}
                       />
                     ))}
@@ -82,7 +95,9 @@ export default function FacultyRatingsCard({
           <h3 className="mb-3 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-[var(--muted)]">
             Lab
             <span className="font-bold normal-case text-[var(--primary)]">
-              {sectionAverages.lab != null ? sectionAverages.lab.toFixed(1) : "—"}
+              {sectionAverages.lab != null
+                ? sectionAverages.lab.toFixed(1)
+                : "—"}
             </span>
           </h3>
           <div className="space-y-2.5">
@@ -91,7 +106,9 @@ export default function FacultyRatingsCard({
               return (
                 <div key={field.key}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs font-medium text-[var(--text)]">{field.label}</span>
+                    <span className="text-xs font-medium text-[var(--text)]">
+                      {field.label}
+                    </span>
                     <span className="text-xs font-bold text-[var(--primary)]">
                       {value != null ? value.toFixed(1) : "—"}
                     </span>
@@ -101,7 +118,9 @@ export default function FacultyRatingsCard({
                       <div
                         key={star}
                         className={`h-1.5 flex-1 rounded-full transition-colors ${
-                          star <= Math.round(value || 0) ? "bg-[var(--primary)]" : "bg-[var(--line)]"
+                          star <= Math.round(value || 0)
+                            ? "bg-[var(--primary)]"
+                            : "bg-[var(--line)]"
                         }`}
                       />
                     ))}
@@ -116,7 +135,9 @@ export default function FacultyRatingsCard({
           <h3 className="mb-3 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-[var(--muted)]">
             ECS / Capstone
             <span className="font-bold normal-case text-[var(--primary)]">
-              {sectionAverages.ecs != null ? sectionAverages.ecs.toFixed(1) : "—"}
+              {sectionAverages.ecs != null
+                ? sectionAverages.ecs.toFixed(1)
+                : "—"}
             </span>
           </h3>
           <div className="space-y-2.5">
@@ -125,7 +146,9 @@ export default function FacultyRatingsCard({
               return (
                 <div key={field.key}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-xs font-medium text-[var(--text)]">{field.label}</span>
+                    <span className="text-xs font-medium text-[var(--text)]">
+                      {field.label}
+                    </span>
                     <span className="text-xs font-bold text-[var(--primary)]">
                       {value != null ? value.toFixed(1) : "—"}
                     </span>
@@ -135,7 +158,9 @@ export default function FacultyRatingsCard({
                       <div
                         key={star}
                         className={`h-1.5 flex-1 rounded-full transition-colors ${
-                          star <= Math.round(value || 0) ? "bg-[var(--primary)]" : "bg-[var(--line)]"
+                          star <= Math.round(value || 0)
+                            ? "bg-[var(--primary)]"
+                            : "bg-[var(--line)]"
                         }`}
                       />
                     ))}

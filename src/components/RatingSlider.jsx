@@ -2,11 +2,11 @@ import { RATING_LABELS, RATING_ORDER } from "../lib/ratingConfig.js";
 
 export default function RatingSlider({ label, value, onChange, name }) {
   return (
-    <div className="rating-emoji-slider">
+    <div className="group">
       <p className="mb-3 text-sm font-semibold text-[var(--text)]">{label}</p>
       <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
         <div
-          className="rating-thumb absolute h-10 w-[calc((100%-1rem)/5)] rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+          className="absolute h-10 w-[calc((100%-1rem)/5)] rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md will-change-transform motion-safe:transition-[left,transform,box-shadow] motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none group-active:scale-[1.02] group-active:shadow-lg group-focus-within:scale-[1.02] group-focus-within:shadow-lg"
           style={{ left: `calc(0.5rem + (100% - 1rem) * ${(value - 1) / 5})` }}
           aria-hidden
         />
@@ -14,7 +14,7 @@ export default function RatingSlider({ label, value, onChange, name }) {
           {RATING_ORDER.map((rating) => (
             <span
               key={rating}
-              className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+              className={`select-none text-center text-xs font-semibold motion-safe:transition-all motion-safe:duration-150 ${
                 rating === value ? "scale-105 opacity-100 text-[var(--text)]" : "opacity-50 text-[var(--muted)]"
               }`}
             >

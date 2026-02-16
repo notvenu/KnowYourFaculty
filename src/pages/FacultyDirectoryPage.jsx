@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Query } from "appwrite";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
 import FacultyCard from "../components/FacultyCard.jsx";
 
@@ -243,7 +245,9 @@ function FacultyDirectoryPage() {
             onClick={() => setShowFilterPanel((prev) => !prev)}
             className="inline-flex shrink-0 items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
           >
-            <span aria-hidden>🔽</span>
+            <span aria-hidden>
+              <FontAwesomeIcon icon={faChevronDown} />
+            </span>
             Filters
             {activeFilterCount > 0 ? (
               <span className="rounded-full bg-[var(--primary)] px-2.5 py-0.5 text-xs font-bold text-white">

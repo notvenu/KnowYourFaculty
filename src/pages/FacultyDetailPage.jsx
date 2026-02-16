@@ -5,6 +5,8 @@ import { Link, useParams } from "react-router-dom";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import FacultyProfileCard from "../components/FacultyProfileCard.jsx";
 import FacultyRatingsCard from "../components/FacultyRatingsCard.jsx";
 import FeedbackList from "../components/FeedbackList.jsx";
@@ -366,163 +368,218 @@ function FacultyDetailPage({ currentUser }) {
               <div className="rounded-xl border border-[var(--line)] overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setExpandedSections(prev => ({ ...prev, theory: !prev.theory }))}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-[var(--panel)] hover:bg-[var(--bg-elev)] transition-colors"
+                  onClick={() =>
+                    setExpandedSections((prev) => ({ ...prev, theory: !prev.theory }))
+                  }
+                  className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
                 >
                   <span className="font-semibold text-[var(--text)]">Theory</span>
-                  <span className="text-[var(--muted)] text-sm">{expandedSections.theory ? '▼' : '▶'}</span>
+                  <span className="text-[var(--muted)]">
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
+                      className={`h-3 w-3 transition-transform duration-200 ${
+                        expandedSections.theory ? "rotate-180" : "rotate-0"
+                      }`}
+                    />
+                  </span>
                 </button>
                 {expandedSections.theory && (
-                <div className="p-4 space-y-4 bg-[var(--bg-elev)]">
-                  {THEORY_FIELDS.map((field) => (
-                    <RatingSlider
-                      key={field.key}
-                      label={field.label}
-                      value={feedbackForm[field.key] ?? 3}
-                      onChange={(value) =>
-                        setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
-                      }
-                      name={field.key}
-                    />
-                  ))}
-                  <div>
-                    <p className="mb-3 text-sm font-semibold text-[var(--text)]">Theory Notes Provided?</p>
-                    <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
-                      <div
-                        className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
-                        style={{
-                          width: "calc((100% - 1rem) / 2)",
-                          left: `calc(0.5rem + (100% - 1rem) * ${feedbackForm.theoryNotes ? 0.5 : 0})`
-                        }}
-                      />
-                      <div className="relative z-[2] grid h-full flex-1 grid-cols-2 items-center gap-0">
-                        {THEORY_NOTE_OPTIONS.map((label, idx) => (
-                          <span
-                            key={label}
-                            className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
-                              (feedbackForm.theoryNotes ? 1 : 0) === idx ? "opacity-100 text-[var(--text)]" : "opacity-50 text-[var(--muted)]"
-                            }`}
-                          >
-                            {label}
-                          </span>
-                        ))}
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={1}
-                        value={feedbackForm.theoryNotes ? 1 : 0}
-                        onChange={(e) =>
-                          setFeedbackForm((prev) => ({
-                            ...prev,
-                            theoryNotes: Number(e.target.value) === 1
-                          }))
+                  <div className="bg-[var(--bg-elev)] p-4 space-y-4">
+                    {THEORY_FIELDS.map((field) => (
+                      <RatingSlider
+                        key={field.key}
+                        label={field.label}
+                        value={feedbackForm[field.key] ?? 3}
+                        onChange={(value) =>
+                          setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
                         }
-                        className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
-                        aria-label="Theory notes provided"
+                        name={field.key}
                       />
+                    ))}
+                    <div>
+                      <p className="mb-3 text-sm font-semibold text-[var(--text)]">
+                        Theory Notes Provided?
+                      </p>
+                      <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
+                        <div
+                          className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+                          style={{
+                            width: "calc((100% - 1rem) / 2)",
+                            left: `calc(0.5rem + (100% - 1rem) * ${
+                              feedbackForm.theoryNotes ? 0.5 : 0
+                            })`,
+                          }}
+                        />
+                        <div className="relative z-[2] grid h-full flex-1 grid-cols-2 items-center gap-0">
+                          {THEORY_NOTE_OPTIONS.map((label, idx) => (
+                            <span
+                              key={label}
+                              className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                                (feedbackForm.theoryNotes ? 1 : 0) === idx
+                                  ? "opacity-100 text-[var(--text)]"
+                                  : "opacity-50 text-[var(--muted)]"
+                              }`}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={1}
+                          value={feedbackForm.theoryNotes ? 1 : 0}
+                          onChange={(e) =>
+                            setFeedbackForm((prev) => ({
+                              ...prev,
+                              theoryNotes: Number(e.target.value) === 1,
+                            }))
+                          }
+                          className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
+                          aria-label="Theory notes provided"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Lab Section */}
-            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setExpandedSections(prev => ({ ...prev, lab: !prev.lab }))}
-                className="w-full flex items-center justify-between px-4 py-3 bg-[var(--panel)] hover:bg-[var(--bg-elev)] transition-colors"
-              >
-                <span className="font-semibold text-[var(--text)]">Lab</span>
-                <span className="text-[var(--muted)] text-sm">{expandedSections.lab ? '▼' : '▶'}</span>
-              </button>
-              {expandedSections.lab && (
-                <div className="p-4 space-y-4 bg-[var(--bg-elev)]">
-                  {LAB_FIELDS.map((field) => (
-                    <RatingSlider
-                      key={field.key}
-                      label={field.label}
-                      value={feedbackForm[field.key] ?? 3}
-                      onChange={(value) =>
-                        setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
-                      }
-                      name={field.key}
+              {/* Lab Section */}
+              <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedSections((prev) => ({ ...prev, lab: !prev.lab }))
+                  }
+                  className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                >
+                  <span className="font-semibold text-[var(--text)]">Lab</span>
+                  <span className="text-[var(--muted)]">
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
+                      className={`h-3 w-3 transition-transform duration-200 ${
+                        expandedSections.lab ? "rotate-180" : "rotate-0"
+                      }`}
                     />
-                  ))}
-                  <div>
-                    <p className="mb-3 text-sm font-semibold text-[var(--text)]">Lab Materials Provided?</p>
-                    <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
-                      <div
-                        className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
-                        style={{
-                          width: "calc((100% - 1rem) / 4)",
-                          left: `calc(0.5rem + (100% - 1rem) * ${Math.max(0, LAB_NOTE_OPTIONS.findIndex((opt) => opt.value === feedbackForm.labNotes)) / 4})`
-                        }}
-                      />
-                      <div className="relative z-[2] grid h-full flex-1 grid-cols-4 items-center gap-0">
-                        {LAB_NOTE_OPTIONS.map((opt, idx) => (
-                          <span
-                            key={opt.value}
-                            className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
-                              Math.max(0, LAB_NOTE_OPTIONS.findIndex((item) => item.value === feedbackForm.labNotes)) ===
-                              idx
-                                ? "opacity-100 text-[var(--text)]"
-                                : "opacity-50 text-[var(--muted)]"
-                            }`}
-                          >
-                            {opt.label}
-                          </span>
-                        ))}
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={3}
-                        step={1}
-                        value={Math.max(0, LAB_NOTE_OPTIONS.findIndex((opt) => opt.value === feedbackForm.labNotes))}
-                        onChange={(e) =>
-                          setFeedbackForm((prev) => ({
-                            ...prev,
-                            labNotes: LAB_NOTE_OPTIONS[Number(e.target.value)]?.value || "None"
-                          }))
+                  </span>
+                </button>
+                {expandedSections.lab && (
+                  <div className="bg-[var(--bg-elev)] p-4 space-y-4">
+                    {LAB_FIELDS.map((field) => (
+                      <RatingSlider
+                        key={field.key}
+                        label={field.label}
+                        value={feedbackForm[field.key] ?? 3}
+                        onChange={(value) =>
+                          setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
                         }
-                        className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
-                        aria-label="Lab materials provided"
+                        name={field.key}
                       />
+                    ))}
+                    <div>
+                      <p className="mb-3 text-sm font-semibold text-[var(--text)]">
+                        Lab Materials Provided?
+                      </p>
+                      <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
+                        <div
+                          className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+                          style={{
+                            width: "calc((100% - 1rem) / 4)",
+                            left: `calc(0.5rem + (100% - 1rem) * ${
+                              Math.max(
+                                0,
+                                LAB_NOTE_OPTIONS.findIndex(
+                                  (opt) => opt.value === feedbackForm.labNotes,
+                                ),
+                              ) / 4
+                            })`,
+                          }}
+                        />
+                        <div className="relative z-[2] grid h-full flex-1 grid-cols-4 items-center gap-0">
+                          {LAB_NOTE_OPTIONS.map((opt, idx) => (
+                            <span
+                              key={opt.value}
+                              className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                                Math.max(
+                                  0,
+                                  LAB_NOTE_OPTIONS.findIndex(
+                                    (item) => item.value === feedbackForm.labNotes,
+                                  ),
+                                ) === idx
+                                  ? "opacity-100 text-[var(--text)]"
+                                  : "opacity-50 text-[var(--muted)]"
+                              }`}
+                            >
+                              {opt.label}
+                            </span>
+                          ))}
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={3}
+                          step={1}
+                          value={Math.max(
+                            0,
+                            LAB_NOTE_OPTIONS.findIndex(
+                              (opt) => opt.value === feedbackForm.labNotes,
+                            ),
+                          )}
+                          onChange={(e) =>
+                            setFeedbackForm((prev) => ({
+                              ...prev,
+                              labNotes:
+                                LAB_NOTE_OPTIONS[Number(e.target.value)]?.value ||
+                                "None",
+                            }))
+                          }
+                          className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
+                          aria-label="Lab materials provided"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* ECS Section */}
-            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setExpandedSections(prev => ({ ...prev, ecs: !prev.ecs }))}
-                className="w-full flex items-center justify-between px-4 py-3 bg-[var(--panel)] hover:bg-[var(--bg-elev)] transition-colors"
-              >
-                <span className="font-semibold text-[var(--text)]">ECS / Capstone</span>
-                <span className="text-[var(--muted)] text-sm">{expandedSections.ecs ? '▼' : '▶'}</span>
-              </button>
-              {expandedSections.ecs && (
-                <div className="p-4 space-y-4 bg-[var(--bg-elev)]">
-                  {ECS_FIELDS.map((field) => (
-                    <RatingSlider
-                      key={field.key}
-                      label={field.label}
-                      value={feedbackForm[field.key] ?? 3}
-                      onChange={(value) =>
-                        setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
-                      }
-                      name={field.key}
+              {/* ECS Section */}
+              <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedSections((prev) => ({ ...prev, ecs: !prev.ecs }))
+                  }
+                  className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                >
+                  <span className="font-semibold text-[var(--text)]">
+                    ECS / Capstone
+                  </span>
+                  <span className="text-[var(--muted)]">
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
+                      className={`h-3 w-3 transition-transform duration-200 ${
+                        expandedSections.ecs ? "rotate-180" : "rotate-0"
+                      }`}
                     />
-                  ))}
-                </div>
-              )}
-            </div>
+                  </span>
+                </button>
+                {expandedSections.ecs && (
+                  <div className="bg-[var(--bg-elev)] p-4 space-y-4">
+                    {ECS_FIELDS.map((field) => (
+                      <RatingSlider
+                        key={field.key}
+                        label={field.label}
+                        value={feedbackForm[field.key] ?? 3}
+                        onChange={(value) =>
+                          setFeedbackForm((prev) => ({ ...prev, [field.key]: value }))
+                        }
+                        name={field.key}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
 
 

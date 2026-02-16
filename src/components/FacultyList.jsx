@@ -1,6 +1,22 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRotateRight,
+  faBuildingColumns,
+  faChartBar,
+  faChevronLeft,
+  faChevronRight,
+  faExclamationTriangle,
+  faFlask,
+  faGraduationCap,
+  faHourglassHalf,
+  faMagnifyingGlass,
+  faSort,
+  faUser,
+  faUsers,
+} from "@fortawesome/free-solid-svg-icons";
 import publicFacultyService from "../services/publicFacultyService.js";
 
 function FacultyList({ currentUser = null }) {
@@ -97,8 +113,12 @@ function FacultyList({ currentUser = null }) {
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
-          <p className="text-[var(--muted)]">
-            🔍 Finding amazing professors for you...
+          <p className="text-[var(--muted)] flex items-center justify-center gap-2">
+            <FontAwesomeIcon
+              icon={faMagnifyingGlass}
+              className="text-[var(--primary)]"
+            />
+            <span>Finding amazing professors for you...</span>
           </p>
         </div>
       </div>
@@ -108,20 +128,26 @@ function FacultyList({ currentUser = null }) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 animate-fadeIn">
-        <h1 className="flex items-center gap-2 text-3xl font-bold text-[var(--text)] mb-4">
-          <span>🎓</span> Find Your Professor
+        <h1 className="mb-4 flex items-center gap-2 text-3xl font-bold text-[var(--text)]">
+          <FontAwesomeIcon
+            icon={faGraduationCap}
+            className="text-[var(--primary)]"
+          />
+          <span>Find Your Professor</span>
         </h1>
         {stats && (
           <div className="flex flex-wrap gap-3 text-sm">
-            <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)] px-4 py-2 rounded-full font-semibold">
-              <span>👥</span> {stats.total} Professors
+            <span className="flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-semibold text-[var(--primary)]">
+              <FontAwesomeIcon icon={faUsers} />
+              <span>{stats.total} Professors</span>
             </span>
-            <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)] px-4 py-2 rounded-full font-semibold">
-              <span>🏛️</span> {Object.keys(stats.byDepartment).length}{" "}
-              Departments
+            <span className="flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-semibold text-[var(--primary)]">
+              <FontAwesomeIcon icon={faBuildingColumns} />
+              <span>{Object.keys(stats.byDepartment).length} Departments</span>
             </span>
-            <span className="flex items-center gap-1 bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] text-[var(--primary)} px-4 py-2 rounded-full font-semibold">
-              <span>🎯</span> {Object.keys(stats.byDesignation).length} Roles
+            <span className="flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-semibold text-[var(--primary)]">
+              <FontAwesomeIcon icon={faChartBar} />
+              <span>{Object.keys(stats.byDesignation).length} Roles</span>
             </span>
           </div>
         )}
@@ -131,7 +157,11 @@ function FacultyList({ currentUser = null }) {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-[var(--text)]">
-              <span>🔍</span> Search
+              <FontAwesomeIcon
+                icon={faMagnifyingGlass}
+                className="text-[var(--primary)]"
+              />
+              <span>Search</span>
             </label>
             <input
               type="text"
@@ -144,7 +174,11 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-[var(--text)]">
-              <span>🏛️</span> Department
+              <FontAwesomeIcon
+                icon={faBuildingColumns}
+                className="text-[var(--primary)]"
+              />
+              <span>Department</span>
             </label>
             <select
               value={filters.department}
@@ -162,7 +196,11 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-[var(--text)]">
-              <span>📊</span> Sort By
+              <FontAwesomeIcon
+                icon={faChartBar}
+                className="text-[var(--primary)]"
+              />
+              <span>Sort By</span>
             </label>
             <select
               value={filters.sortBy}
@@ -178,7 +216,11 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-[var(--text)]">
-              <span>⇅</span> Order
+              <FontAwesomeIcon
+                icon={faSort}
+                className="text-[var(--primary)]"
+              />
+              <span>Order</span>
             </label>
             <select
               value={filters.sortOrder}
@@ -194,12 +236,17 @@ function FacultyList({ currentUser = null }) {
 
       {facultyData.error && (
         <div className="animate-shake mb-6 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-red-700">
-          <strong>⚠️ Error:</strong> {facultyData.error}
+          <strong className="inline-flex items-center gap-2">
+            <FontAwesomeIcon icon={faExclamationTriangle} />
+            <span>Error:</span>
+          </strong>{" "}
+          {facultyData.error}
           <button
             onClick={() => loadFaculty()}
-            className="ml-4 font-semibold underline hover:no-underline"
+            className="ml-4 inline-flex items-center gap-2 font-semibold underline hover:no-underline"
           >
-            🔄 Try Again
+            <FontAwesomeIcon icon={faArrowRotateRight} />
+            <span>Try Again</span>
           </button>
         </div>
       )}
@@ -223,7 +270,9 @@ function FacultyList({ currentUser = null }) {
         </>
       ) : (
         <div className="text-center py-12">
-          <p className="text-2xl mb-3">🔍</p>
+          <p className="mb-3 text-2xl text-[var(--primary)]">
+            <FontAwesomeIcon icon={faMagnifyingGlass} />
+          </p>
           <p className="text-[var(--muted)] text-lg mb-4">
             No professors found matching your search.
           </p>
@@ -237,9 +286,10 @@ function FacultyList({ currentUser = null }) {
                   sortOrder: "desc",
                 });
               }}
-              className="rounded-full bg-[var(--primary)] px-6 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--primary)] px-6 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg"
             >
-              🔄 Clear All Filters
+              <FontAwesomeIcon icon={faArrowRotateRight} />
+              <span>Clear All Filters</span>
             </button>
           ) : (
             <p className="text-[var(--muted)]">
@@ -253,7 +303,13 @@ function FacultyList({ currentUser = null }) {
         <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
           <div className="animate-fadeIn rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-xl">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)] mx-auto mb-2"></div>
-            <p className="text-[var(--muted)]">⏳ Loading...</p>
+            <p className="flex items-center justify-center gap-2 text-[var(--muted)]">
+              <FontAwesomeIcon
+                icon={faHourglassHalf}
+                className="text-[var(--primary)]"
+              />
+              <span>Loading...</span>
+            </p>
           </div>
         </div>
       )}
@@ -306,8 +362,10 @@ function FacultyCard({ faculty }) {
             style={{ pointerEvents: "none" }}
           />
         ) : (
-          <div className="text-[var(--muted)] text-center">
-            <div className="text-3xl mb-1">👤</div>
+          <div className="text-center text-[var(--muted)]">
+            <div className="mb-1 text-3xl text-[var(--primary)]">
+              <FontAwesomeIcon icon={faUser} />
+            </div>
             <div className="text-xs">No photo</div>
           </div>
         )}
@@ -323,14 +381,20 @@ function FacultyCard({ faculty }) {
 
         <div className="space-y-1.5 text-xs text-[var(--muted)] flex-1">
           <div className="flex items-start">
-            <span className="font-medium w-16 shrink-0">🎯 Role:</span>
+            <span className="inline-flex w-16 shrink-0 items-center gap-1 font-medium">
+              <FontAwesomeIcon icon={faChartBar} />
+              <span>Role:</span>
+            </span>
             <span className="line-clamp-2 text-[var(--text)]">
               {faculty.designation || "Not specified"}
             </span>
           </div>
 
           <div className="flex items-start">
-            <span className="font-medium w-16 shrink-0">🏛️ Dept:</span>
+            <span className="inline-flex w-16 shrink-0 items-center gap-1 font-medium">
+              <FontAwesomeIcon icon={faBuildingColumns} />
+              <span>Dept:</span>
+            </span>
             <span className="line-clamp-2 text-[var(--text)]">
               {faculty.department
                 ? faculty.department
@@ -342,7 +406,10 @@ function FacultyCard({ faculty }) {
 
           {faculty.researchArea && (
             <div className="flex items-start">
-              <span className="font-medium w-16 shrink-0">🔬 Focus:</span>
+              <span className="inline-flex w-16 shrink-0 items-center gap-1 font-medium">
+                <FontAwesomeIcon icon={faFlask} />
+                <span>Focus:</span>
+              </span>
               <span className="line-clamp-2 text-[var(--text)]">
                 {faculty.researchArea}
               </span>
@@ -371,13 +438,13 @@ function Pagination({
   const maxVisiblePages = 5;
   const startPage = Math.max(
     1,
-    Math.min(currentPage - 2, totalPages - maxVisiblePages + 1),
+    Math.min(currentPage - 2, totalPages - maxVisiblePages + 1)
   );
   const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
   const pages = Array.from(
     { length: endPage - startPage + 1 },
-    (_, i) => startPage + i,
+    (_, i) => startPage + i
   );
 
   if (totalPages <= 1) return null;
@@ -385,8 +452,13 @@ function Pagination({
   return (
     <div className="flex items-center justify-between">
       <div className="text-sm text-[var(--muted)]">
-        📊 Page {currentPage} of {totalPages} ({totalItems.toLocaleString()}{" "}
-        professors)
+        <span className="inline-flex items-center gap-2">
+          <FontAwesomeIcon icon={faChartBar} />
+          <span>
+            Page {currentPage} of {totalPages} ({totalItems.toLocaleString()}{" "}
+            professors)
+          </span>
+        </span>
       </div>
 
       <div className="flex items-center space-x-1">
@@ -395,7 +467,10 @@ function Pagination({
           disabled={!hasPrev}
           className="rounded-full border border-[var(--line)] bg-[var(--bg-elev)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:bg-[var(--panel)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          ← Previous
+          <span className="inline-flex items-center gap-2">
+            <FontAwesomeIcon icon={faChevronLeft} />
+            <span>Previous</span>
+          </span>
         </button>
 
         {pages.map((page) => (
@@ -417,7 +492,10 @@ function Pagination({
           disabled={!hasNext}
           className="rounded-full border border-[var(--line)] bg-[var(--bg-elev)] px-4 py-2 text-sm font-medium text-[var(--text)] hover:bg-[var(--panel)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Next →
+          <span className="inline-flex items-center gap-2">
+            <span>Next</span>
+            <FontAwesomeIcon icon={faChevronRight} />
+          </span>
         </button>
       </div>
     </div>

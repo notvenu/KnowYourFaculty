@@ -1,5 +1,4 @@
-// eslint-disable-next-line tailwindcss/no-custom-classname
-/* eslint-disable tailwindcss/no-custom-classname, no-unused-expressions */
+/* eslint-disable no-unused-expressions */
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import SetupHelper from "./components/SetupHelper.jsx";
@@ -13,8 +12,8 @@ import clientConfig from "./config/client.js";
 import "./App.css";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
-const FacultyDirectoryPage = lazy(
-  () => import("./pages/FacultyDirectoryPage.jsx"),
+const FacultyDirectoryPage = lazy(() =>
+  import("./pages/FacultyDirectoryPage.jsx")
 );
 const FacultyDetailPage = lazy(() => import("./pages/FacultyDetailPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
@@ -88,7 +87,7 @@ function App() {
         await authService.logout();
         setCurrentUser(null);
         setAuthError(
-          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
+          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`
         );
         return;
       }
@@ -135,17 +134,17 @@ function App() {
     () =>
       Boolean(
         currentUser?.email &&
-        (clientConfig.adminEmails.length === 0 ||
-          clientConfig.adminEmails.includes(
-            String(currentUser.email).trim().toLowerCase(),
-          )),
+          (clientConfig.adminEmails.length === 0 ||
+            clientConfig.adminEmails.includes(
+              String(currentUser.email).trim().toLowerCase()
+            ))
       ),
-    [currentUser],
+    [currentUser]
   );
 
   if (!setupChecked || !authChecked) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[var(--bg)] text-[var(--text)]">
+      <div className="grid min-h-screen place-items-center bg-[var(--bg)] text-[var(--text)] transition-colors duration-300">
         <div className="animate-fadeIn text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--panel)] border-t-[var(--primary)]"></div>
           <p className="text-sm text-[var(--muted)]">
@@ -159,7 +158,7 @@ function App() {
   if (isSetupMode) return <SetupHelper />;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)]">
+    <div className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] transition-colors duration-300">
       {showNavbar && (
         <SiteNav
           currentUser={currentUser}
@@ -175,7 +174,9 @@ function App() {
       )}
 
       <main
-        className={`flex-1 w-full ${showNavbar ? "px-4 py-8 sm:px-6 lg:px-8" : ""}`}
+        className={`flex-1 w-full ${
+          showNavbar ? "px-4 py-8 sm:px-6 lg:px-8" : ""
+        }`}
       >
         <div className={`${showNavbar ? "mx-auto max-w-7xl" : ""}`}>
           <Suspense
