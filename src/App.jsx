@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-expressions */
+﻿/* eslint-disable no-unused-expressions */
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import SetupHelper from "./components/SetupHelper.jsx";
@@ -144,10 +144,10 @@ function App() {
 
   if (!setupChecked || !authChecked) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[var(--bg)] text-[var(--text)] transition-colors duration-300">
+      <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">
         <div className="animate-fadeIn text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[var(--panel)] border-t-[var(--primary)]"></div>
-          <p className="text-sm text-[var(--muted)]">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)"></div>
+          <p className="text-sm text-(--muted)">
             Setting things up for you...
           </p>
         </div>
@@ -158,7 +158,7 @@ function App() {
   if (isSetupMode) return <SetupHelper />;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] transition-colors duration-300">
+    <div className="flex min-h-screen flex-col bg-(--bg) text-(--text) transition-colors duration-300">
       {showNavbar && (
         <SiteNav
           currentUser={currentUser}
@@ -182,7 +182,7 @@ function App() {
           <Suspense
             fallback={
               <div className="grid min-h-[40vh] place-items-center">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--panel)] border-t-[var(--primary)]" />
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)" />
               </div>
             }
           >
@@ -228,3 +228,4 @@ function App() {
 }
 
 export default App;
+

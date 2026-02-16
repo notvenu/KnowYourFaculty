@@ -242,17 +242,17 @@ function FacultyDirectoryPage() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)] sm:p-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow-card) sm:p-8">
+        <h1 className="text-3xl font-bold tracking-tight text-(--text) sm:text-4xl">
           Find faculty
         </h1>
-        <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
+        <p className="mt-2 text-sm text-(--muted) sm:text-base">
           Filter by department, course, or top ratings. Search by name, role, or
           research area.
         </p>
       </section>
 
-      <section className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-3 sm:p-4 md:p-6 shadow-[var(--shadow-card)]">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-3 sm:p-4 md:p-6 shadow-(--shadow-card)">
         {/* Search Bar and Filter Toggle */}
         <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row items-stretch gap-2 sm:gap-3">
           <input
@@ -262,19 +262,19 @@ function FacultyDirectoryPage() {
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, search: e.target.value }))
             }
-            className="w-full sm:min-w-0 sm:flex-1 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-3 sm:px-4 py-2 sm:py-3 text-sm outline-none focus:border-[var(--primary)]"
+            className="w-full sm:min-w-0 sm:flex-1 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-sm outline-none focus:border-(--primary)"
           />
           <button
             type="button"
             onClick={() => setShowFilterPanel((prev) => !prev)}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-(--text) transition hover:border-(--primary) hover:bg-(--primary-soft)"
           >
             <span aria-hidden className="inline-flex items-center">
               <FontAwesomeIcon icon={faChevronDown} className={`text-xs sm:text-sm transition-transform duration-200 ${showFilterPanel ? 'rotate-180' : ''}`} />
             </span>
             <span className="hidden xs:inline">Filters</span>
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-[var(--primary)] px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-white">
+              <span className="rounded-full bg-(--primary) px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-white">
                 {activeFilterCount}
               </span>
             ) : null}
@@ -288,7 +288,7 @@ function FacultyDirectoryPage() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, department: e.target.value }))
               }
-              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+              className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
             >
               <option value="all">All Departments</option>
               {departments.map((dept) => (
@@ -303,7 +303,7 @@ function FacultyDirectoryPage() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, tier: e.target.value }))
               }
-              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+              className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
             >
               <option value="all">All Tiers</option>
               {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
@@ -318,7 +318,7 @@ function FacultyDirectoryPage() {
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
               }
-              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+              className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
             >
               <option value="none">No Sort</option>
               <option value="rating-high">
@@ -330,7 +330,7 @@ function FacultyDirectoryPage() {
             </select>
 
 
-            <label className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm cursor-pointer hover:bg-[var(--bg-elev)] transition-colors">
+            <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
               <input
                 type="checkbox"
                 checked={filters.topRated}
@@ -358,10 +358,10 @@ function FacultyDirectoryPage() {
                   setSelectedCourse(null);
                   setCourseQuery(e.target.value);
                 }}
-                className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+                className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
               />
               {courseSuggestions.length > 0 ? (
-                <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-[var(--line)] bg-[var(--bg)] shadow-xl">
+                <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-(--line) bg-(--bg) shadow-xl">
                   {courseSuggestions.map((course) => (
                     <button
                       key={course.$id}
@@ -371,7 +371,7 @@ function FacultyDirectoryPage() {
                         setCourseQuery("");
                         setCourseSuggestions([]);
                       }}
-                      className="block w-full border-b border-[var(--line)] px-3 py-2 text-left text-xs hover:bg-[var(--panel)] last:border-b-0"
+                      className="block w-full border-b border-(--line) px-3 py-2 text-left text-xs hover:bg-(--panel) last:border-b-0"
                     >
                       {course.courseCode} - {course.courseName}
                     </button>
@@ -383,14 +383,14 @@ function FacultyDirectoryPage() {
         ) : null}
 
         {selectedCourse ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[var(--muted)]">
-            <span className="rounded-full border border-[var(--line)] bg-[var(--panel)] px-3 py-1">
+          <div className="mt-3 flex items-center gap-2 text-xs text-(--muted)">
+            <span className="rounded-full border border-(--line) bg-(--panel) px-3 py-1">
               Course: {selectedCourse.courseCode}
             </span>
             <button
               type="button"
               onClick={() => setSelectedCourse(null)}
-              className="rounded-full border border-[var(--line)] px-3 py-1 hover:border-[var(--primary)]"
+              className="rounded-full border border-(--line) px-3 py-1 hover:border-(--primary)"
             >
               Clear Course
             </button>
@@ -402,9 +402,9 @@ function FacultyDirectoryPage() {
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
       ) : null}
       {loading ? (
-        <p className="text-sm text-[var(--muted)]">Loading faculty...</p>
+        <p className="text-sm text-(--muted)">Loading faculty...</p>
       ) : (
-        <p className="text-sm text-[var(--muted)]">
+        <p className="text-sm text-(--muted)">
           {filteredFaculty.length} faculty found
           {totalPages > 1 ? ` · Page ${currentPage} of ${totalPages}` : ""}
         </p>
@@ -430,18 +430,18 @@ function FacultyDirectoryPage() {
             type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage <= 1}
-            className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-[var(--primary)]"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
           >
             Previous
           </button>
-          <span className="px-4 py-2 text-sm font-medium text-[var(--muted)]">
+          <span className="px-4 py-2 text-sm font-medium text-(--muted)">
             Page {currentPage} of {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage >= totalPages}
-            className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-[var(--primary)]"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
           >
             Next
           </button>
@@ -452,3 +452,4 @@ function FacultyDirectoryPage() {
 }
 
 export default FacultyDirectoryPage;
+

@@ -62,7 +62,7 @@ export default function FeedbackList({
 
   return (
     <div className="p-4 sm:p-5 md:p-6">
-      <h2 className="mb-3 sm:mb-4 text-xl font-bold text-[var(--text)] sm:text-2xl">What students say</h2>
+      <h2 className="mb-3 sm:mb-4 text-xl font-bold text-(--text) sm:text-2xl">What students say</h2>
       <div className="space-y-3 sm:space-y-4">
         {feedbackWithReviews.slice(0, maxItems).map((row) => {
           const avgRating = getAverageRating(row);
@@ -74,24 +74,24 @@ export default function FeedbackList({
           return (
             <div
               key={row.$id}
-              className="border-b border-[var(--line)] py-3 sm:py-4 last:border-b-0"
+              className="border-b border-(--line) py-3 sm:py-4 last:border-b-0"
             >
               <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-[var(--text)]">{isOwnReview ? "Your review" : "Anonymous"}</span>
+                    <span className="font-semibold text-(--text)">{isOwnReview ? "Your review" : "Anonymous"}</span>
                     {row.courseId && courseLookup[row.courseId] && (
-                      <span className="rounded-lg bg-[var(--primary-soft)] px-2 py-0.5 text-xs font-medium text-[var(--primary)]">
+                      <span className="rounded-lg bg-(--primary-soft) px-2 py-0.5 text-xs font-medium text-(--primary)">
                         {courseLookup[row.courseId].courseCode}
                       </span>
                     )}
                     {when ? (
-                      <span className="text-xs text-[var(--muted)]" title={row.$createdAt}>
+                      <span className="text-xs text-(--muted)" title={row.$createdAt}>
                         {when}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                  <p className="mt-2 text-sm leading-relaxed text-(--muted)">
                     &ldquo;{reviewText.length > 200 ? reviewText.substring(0, 200) + "…" : reviewText}&rdquo;
                   </p>
                 </div>
@@ -102,7 +102,7 @@ export default function FeedbackList({
                         <button
                           type="button"
                           onClick={() => onEditReview(row.$id)}
-                          className="rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-1.5 text-xs font-medium text-[var(--text)] hover:border-[var(--primary)]/50"
+                          className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
                         >
                           Edit
                         </button>
@@ -120,7 +120,7 @@ export default function FeedbackList({
                     </div>
                   )}
                   <span
-                    className="rounded-lg bg-[var(--primary-soft)] px-2 py-1 text-xs font-semibold text-[var(--primary)]"
+                    className="rounded-lg bg-(--primary-soft) px-2 py-1 text-xs font-semibold text-(--primary)"
                     aria-hidden
                   >
                     {ratingLabel}
@@ -134,3 +134,4 @@ export default function FeedbackList({
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 
 export default function Overlay({ open, onClose, children }) {
   useEffect(() => {
@@ -30,9 +30,10 @@ export default function Overlay({ open, onClose, children }) {
         tabIndex={0}
         aria-label="Close overlay"
       />
-      <div className="relative z-10 w-full max-w-md rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)]">
+      <div className="relative z-10 w-full max-w-md rounded-(--radius-xl) border border-(--line) bg-(--bg-elev) shadow-(--shadow-card)">
         {children}
       </div>
     </div>
   );
 }
+

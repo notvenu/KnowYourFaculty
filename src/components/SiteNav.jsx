@@ -58,15 +58,15 @@ export default function SiteNav({
   const navClass = ({ isActive }) =>
     `rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
       isActive
-        ? "bg-[var(--primary-soft)] text-[var(--primary)] shadow-sm"
-        : "text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)]"
+        ? "bg-(--primary-soft) text-(--primary) shadow-sm"
+        : "text-(--muted) hover:bg-(--panel) hover:text-(--text)"
     }`;
 
   const mobileNavClass = ({ isActive }) =>
     `rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
       isActive
-        ? "bg-gradient-to-r from-[var(--primary-soft)] to-transparent text-[var(--primary)] font-semibold shadow-sm border-l-2 border-[var(--primary)]"
-        : "text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--primary)]"
+        ? "bg-gradient-to-r from-(--primary-soft) to-transparent text-(--primary) font-semibold shadow-sm border-l-2 border-(--primary)"
+        : "text-(--text) hover:bg-(--panel) hover:text-(--primary)"
     }`;
 
   return (
@@ -79,11 +79,11 @@ export default function SiteNav({
         />
       )}
       
-      <header className="glass-panel sticky top-0 z-40 border-b border-[var(--line)] transition-colors duration-300">
+      <header className="glass-panel sticky top-0 z-40 border-b border-(--line) transition-colors duration-300">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <Link
           to="/"
-          className="inline-flex items-center gap-3 text-[var(--text)] transition hover:opacity-90"
+          className="inline-flex items-center gap-3 text-(--text) transition hover:opacity-90"
         >
           <span className="text-lg font-bold tracking-tight">
             KnowYourFaculty
@@ -112,7 +112,7 @@ export default function SiteNav({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text)] transition-all duration-200 hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] hover:shadow-md active:scale-95"
+              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) transition-all duration-200 hover:border-(--primary) hover:bg-(--primary-soft) hover:shadow-md active:scale-95"
               title={
                 theme === "dark"
                   ? "Switch to light mode"
@@ -133,8 +133,8 @@ export default function SiteNav({
                 <button
                   type="button"
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[color-mix(in_srgb,var(--primary)_80%,transparent)] text-white font-bold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 ${
-                    showDropdown ? "ring-2 ring-[var(--primary)] ring-offset-2" : ""
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-(--primary) to-[color-mix(in_srgb,var(--primary)_80%,transparent)] text-white font-bold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-(--primary) focus:ring-offset-2 ${
+                    showDropdown ? "ring-2 ring-(--primary) ring-offset-2" : ""
                   }`}
                   aria-label="User menu"
                 >
@@ -142,20 +142,20 @@ export default function SiteNav({
                 </button>
 
                 <div
-                  className={`absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] shadow-2xl backdrop-blur-xl z-50 origin-top-right transform transition-all duration-300 ease-out ${
+                  className={`absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-(--line) bg-(--bg-elev) shadow-2xl backdrop-blur-xl z-50 origin-top-right transform transition-all duration-300 ease-out ${
                     showDropdown
                       ? "opacity-100 translate-y-0 scale-100"
                       : "pointer-events-none opacity-0 -translate-y-2 scale-95"
                   }`}
                 >
                   {/* Gradient accent */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-soft)]/20 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-linear-to-br from-(--primary-soft)/20 via-transparent to-transparent pointer-events-none" />
                   
-                  <div className="relative z-10 border-b border-[var(--line)] bg-gradient-to-r from-[var(--primary-soft)]/10 to-transparent px-4 py-3">
-                    <p className="truncate text-sm font-semibold text-[var(--text)]">
+                  <div className="relative z-10 border-b border-(--line) bg-linear-to-r from-(--primary-soft)/10 to-transparent px-4 py-3">
+                    <p className="truncate text-sm font-semibold text-(--text)">
                       {currentUser.name || currentUser.email}
                     </p>
-                    <p className="text-xs text-[var(--muted)] mt-0.5">Account</p>
+                    <p className="text-xs text-(--muted) mt-0.5">Account</p>
                   </div>
                   <button
                     type="button"
@@ -179,7 +179,7 @@ export default function SiteNav({
                   setIsMobileMenuOpen(false);
                   onOpenLoginOverlay();
                 }}
-                className="hidden rounded-xl bg-gradient-to-r from-[var(--primary)] to-[color-mix(in_srgb,var(--primary)_80%,transparent)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 active:scale-95 sm:inline-flex items-center gap-2"
+                className="hidden rounded-xl bg-linear-to-r from-(--primary) to-[color-mix(in_srgb,var(--primary)_80%,transparent)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 active:scale-95 sm:inline-flex items-center gap-2"
               >
                 <span>Sign in</span>
                 <FontAwesomeIcon icon={faChevronRight} className="w-3 h-3" />
@@ -192,8 +192,8 @@ export default function SiteNav({
                 onClick={() => setIsMobileMenuOpen((prev) => !prev)}
                 className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 transition-all duration-200 ease-out active:scale-95 ${
                   isMobileMenuOpen
-                    ? "border-[var(--primary)] bg-[var(--primary-soft)] shadow-md"
-                    : "border-[var(--line)] bg-[var(--panel)] hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+                    ? "border-(--primary) bg-(--primary-soft) shadow-md"
+                    : "border-(--line) bg-(--panel) hover:border-(--primary) hover:bg-(--primary-soft)"
                 }`}
                 aria-label="Toggle navigation menu"
                 aria-expanded={isMobileMenuOpen}
@@ -201,17 +201,17 @@ export default function SiteNav({
                 <span className="sr-only">Open navigation</span>
                 <span className="flex h-4 w-5 flex-col justify-between">
                   <span
-                    className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-all duration-300 ease-in-out ${
+                    className={`block h-0.5 w-full rounded-full bg-(--text) transition-all duration-300 ease-in-out ${
                       isMobileMenuOpen ? "translate-y-1.5 rotate-45" : ""
                     }`}
                   />
                   <span
-                    className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-opacity duration-300 ${
+                    className={`block h-0.5 w-full rounded-full bg-(--text) transition-opacity duration-300 ${
                       isMobileMenuOpen ? "opacity-0" : "opacity-100"
                     }`}
                   />
                   <span
-                    className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-all duration-300 ease-in-out ${
+                    className={`block h-0.5 w-full rounded-full bg-(--text) transition-all duration-300 ease-in-out ${
                       isMobileMenuOpen ? "-translate-y-1.5 -rotate-45" : ""
                     }`}
                   />
@@ -226,23 +226,23 @@ export default function SiteNav({
                     : "pointer-events-none opacity-0 scale-95 -translate-y-2"
                 }`}
               >
-                <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] shadow-2xl backdrop-blur-xl">
+                <div className="relative overflow-hidden rounded-2xl border border-(--line) bg-(--bg-elev) shadow-2xl backdrop-blur-xl">
                   {/* Gradient accent */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-soft)]/30 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-linear-to-br from-(--primary-soft)/30 via-transparent to-transparent pointer-events-none" />
                   
                   {/* Content */}
                   <div className="relative z-10">
                     {/* Header */}
-                    <div className="border-b border-[var(--line)] bg-gradient-to-r from-[var(--primary-soft)]/20 to-transparent px-4 py-3">
+                    <div className="border-b border-(--line) bg-linear-to-r from-(--primary-soft)/20 to-transparent px-4 py-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
-                          <FontAwesomeIcon icon={faCircle} className="w-1.5 h-1.5 text-[var(--primary)] animate-pulse" />
+                        <span className="text-sm font-bold text-(--text) flex items-center gap-2">
+                          <FontAwesomeIcon icon={faCircle} className="w-1.5 h-1.5 text-(--primary) animate-pulse" />
                           Menu
                         </span>
                         <button
                           type="button"
                           onClick={() => setIsMobileMenuOpen(false)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--panel)] text-[var(--text)] transition-all hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] active:scale-95"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-(--line) bg-(--panel) text-(--text) transition-all hover:border-(--primary) hover:bg-(--primary-soft) active:scale-95"
                           aria-label="Close navigation menu"
                         >
                           <span className="text-lg leading-none">×</span>
@@ -259,7 +259,7 @@ export default function SiteNav({
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span className="flex items-center gap-2">
-                          <FontAwesomeIcon icon={faHome} className="w-4 h-4 text-[var(--primary)]" />
+                          <FontAwesomeIcon icon={faHome} className="w-4 h-4 text-(--primary)" />
                           Home
                         </span>
                       </NavLink>
@@ -269,7 +269,7 @@ export default function SiteNav({
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span className="flex items-center gap-2">
-                          <FontAwesomeIcon icon={faChalkboardUser} className="w-4 h-4 text-[var(--primary)]" />
+                          <FontAwesomeIcon icon={faChalkboardUser} className="w-4 h-4 text-(--primary)" />
                           Find Professors
                         </span>
                       </NavLink>
@@ -279,7 +279,7 @@ export default function SiteNav({
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <span className="flex items-center gap-2">
-                          <FontAwesomeIcon icon={faEnvelope} className="w-4 h-4 text-[var(--primary)]" />
+                          <FontAwesomeIcon icon={faEnvelope} className="w-4 h-4 text-(--primary)" />
                           Contact
                         </span>
                       </NavLink>
@@ -290,7 +290,7 @@ export default function SiteNav({
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
                           <span className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={faGear} className="w-4 h-4 text-[var(--primary)]" />
+                            <FontAwesomeIcon icon={faGear} className="w-4 h-4 text-(--primary)" />
                             Admin
                           </span>
                         </NavLink>
@@ -304,7 +304,7 @@ export default function SiteNav({
                             setIsMobileMenuOpen(false);
                             onOpenLoginOverlay();
                           }}
-                          className="mt-2 mx-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[color-mix(in_srgb,var(--primary)_80%,transparent)] px-4 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                          className="mt-2 mx-2 rounded-xl bg-linear-to-r from-(--primary) to-[color-mix(in_srgb,var(--primary)_80%,transparent)] px-4 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
                         >
                           <span className="flex items-center justify-center gap-2">
                             <span>Sign in</span>
@@ -312,10 +312,10 @@ export default function SiteNav({
                           </span>
                         </button>
                       ) : (
-                        <div className="mt-2 mx-2 border-t border-[var(--line)] pt-2">
-                          <div className="rounded-xl bg-[var(--panel)] px-4 py-3">
-                            <p className="text-xs font-medium text-[var(--muted)] mb-1">Signed in as</p>
-                            <p className="text-sm font-semibold text-[var(--text)] truncate">
+                        <div className="mt-2 mx-2 border-t border-(--line) pt-2">
+                          <div className="rounded-xl bg-(--panel) px-4 py-3">
+                            <p className="text-xs font-medium text-(--muted) mb-1">Signed in as</p>
+                            <p className="text-sm font-semibold text-(--text) truncate">
                               {currentUser.name || currentUser.email}
                             </p>
                           </div>
@@ -333,3 +333,4 @@ export default function SiteNav({
     </>
   );
 }
+

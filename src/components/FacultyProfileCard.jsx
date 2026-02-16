@@ -4,7 +4,7 @@ function DetailRow({value }) {
   if (value == null || String(value).trim() === "") return null;
   return (
     <p>
-      <span className="font-semibold text-[var(--text)]"></span>{" "}
+      <span className="font-semibold text-(--text)"></span>{" "}
       {String(value).trim()}
     </p>
   );
@@ -20,7 +20,7 @@ export default function FacultyProfileCard({ faculty }) {
 
   return (
     <div className="flex flex-col p-3 sm:p-4 md:p-5">
-      <div className="aspect-[4/3] w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-[var(--panel)]">
+      <div className="aspect-[4/3] w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--panel)">
         <img
           src={photoUrl}
           alt={faculty.name}
@@ -31,23 +31,23 @@ export default function FacultyProfileCard({ faculty }) {
         />
       </div>
       <div className="mt-4 min-w-0 space-y-1">
-        <h1 className="text-lg font-extrabold leading-tight tracking-tight text-[var(--text)] sm:text-xl">
+        <h1 className="text-lg font-extrabold leading-tight tracking-tight text-(--text) sm:text-xl">
           {faculty.name}
         </h1>
-        <p className="text-xs font-semibold text-[var(--primary)] sm:text-sm">
+        <p className="text-xs font-semibold text-(--primary) sm:text-sm">
           {faculty.designation || "—"}
         </p>
-        <div className="space-y-0.5 text-xs text-[var(--muted)]">
+        <div className="space-y-0.5 text-xs text-(--muted)">
           <DetailRow label="Department" value={faculty.department} />
         </div>
         {faculty.subDepartment ? (
-          <p className="text-xs text-[var(--muted)]">
-            <span className="font-semibold text-[var(--muted)]">Area - </span>{" "}
+          <p className="text-xs text-(--muted)">
+            <span className="font-semibold text-(--muted)">Area - </span>{" "}
             {faculty.subDepartment}
           </p>
         ) : null}
         {researchArea ? (
-          <div className="text-xs text-[var(--muted)]">
+          <div className="text-xs text-(--muted)">
             <div className="mt-2 flex flex-wrap gap-1.5">
               {researchArea
                 .split(/[,;]|\band\b/i)
@@ -56,7 +56,7 @@ export default function FacultyProfileCard({ faculty }) {
                 .map((area, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-xs font-medium text-[var(--primary)]"
+                    className="inline-flex items-center rounded-full bg-(--primary-soft) px-2.5 py-1 text-xs font-medium text-(--primary)"
                   >
                     {area}
                   </span>
@@ -68,3 +68,4 @@ export default function FacultyProfileCard({ faculty }) {
     </div>
   );
 }
+

@@ -24,7 +24,7 @@ export default function FacultyRatingsCard({
   return (
     <div className="p-4 sm:p-5 md:p-6">
       <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-bold text-[var(--text)] sm:text-2xl">
+        <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
           Ratings
         </h2>
         {hasUser && (
@@ -33,7 +33,7 @@ export default function FacultyRatingsCard({
               <button
                 type="button"
                 onClick={onShareFeedback}
-                className="rounded-xl bg-[var(--primary)] px-4 py-2 text-xs font-bold text-white shadow-[var(--shadow)] hover:opacity-90"
+                className="rounded-xl bg-(--primary) px-4 py-2 text-xs font-bold text-white shadow-(--shadow) hover:opacity-90"
               >
                 Share feedback
               </button>
@@ -42,7 +42,7 @@ export default function FacultyRatingsCard({
               <button
                 type="button"
                 onClick={onEditRating}
-                className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-bold text-[var(--text)] hover:bg-[var(--bg-elev)]"
+                className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
               >
                 Edit ratings
               </button>
@@ -62,17 +62,17 @@ export default function FacultyRatingsCard({
       </div>
 
       {!hasRatings ? (
-        <div className="border-b border-[var(--line)] pb-4 text-center sm:pb-5">
-          <div className="text-4xl font-extrabold text-[var(--muted)] sm:text-5xl">
+        <div className="border-b border-(--line) pb-4 text-center sm:pb-5">
+          <div className="text-4xl font-extrabold text-(--muted) sm:text-5xl">
             —
           </div>
-          <p className="mt-2 text-xs font-medium text-[var(--muted)]">
+          <p className="mt-2 text-xs font-medium text-(--muted)">
             No ratings yet
           </p>
         </div>
       ) : (
-        <div className="border-b border-[var(--line)] pb-4 text-center sm:pb-5">
-          <div className="text-4xl font-extrabold text-[var(--primary)] sm:text-5xl">
+        <div className="border-b border-(--line) pb-4 text-center sm:pb-5">
+          <div className="text-4xl font-extrabold text-(--primary) sm:text-5xl">
             {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
           </div>
           <div className="mt-2 flex justify-center gap-0.5">
@@ -81,15 +81,15 @@ export default function FacultyRatingsCard({
                 key={star}
                 className={`text-lg motion-safe:transition-transform motion-safe:transition-opacity ${
                   star <= Math.round(ratingSummary.overallAverage || 0)
-                    ? "scale-105 opacity-100 text-[var(--primary)]"
-                    : "opacity-30 text-[var(--muted)]"
+                    ? "scale-105 opacity-100 text-(--primary)"
+                    : "opacity-30 text-(--muted)"
                 }`}
               >
                 <FontAwesomeIcon icon={faStar} />
               </span>
             ))}
           </div>
-          <p className="mt-2 text-xs font-medium text-[var(--muted)]">
+          <p className="mt-2 text-xs font-medium text-(--muted)">
             {ratingSummary.totalRatings}{" "}
             {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
           </p>
@@ -99,7 +99,7 @@ export default function FacultyRatingsCard({
       {hasRatings && (
         <div className="mt-6 space-y-3">
           {sectionAverages.theory != null && (
-            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+            <div className="rounded-xl border border-(--line) overflow-hidden">
               <button
                 type="button"
                 onClick={() =>
@@ -108,14 +108,14 @@ export default function FacultyRatingsCard({
                     theory: !prev.theory,
                   }))
                 }
-                className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-[var(--text)]">
+                  <span className="font-semibold text-(--text)">
                     Theory
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-[var(--primary)]">
+                    <span className="font-bold text-(--primary)">
                       {sectionAverages.theory.toFixed(1)}
                     </span>
                     <div className="flex gap-0.5">
@@ -124,8 +124,8 @@ export default function FacultyRatingsCard({
                           key={star}
                           className={`text-xs ${
                             star <= Math.round(sectionAverages.theory || 0)
-                              ? "text-[var(--primary)]"
-                              : "text-[var(--line)]"
+                              ? "text-(--primary)"
+                              : "text-(--line)"
                           }`}
                         >
                           ★
@@ -134,7 +134,7 @@ export default function FacultyRatingsCard({
                     </div>
                   </div>
                 </div>
-                <span className="text-[var(--muted)] ml-2">
+                <span className="text-(--muted) ml-2">
                   <FontAwesomeIcon
                     icon={faChevronDown}
                     className={`h-3 w-3 transition-transform duration-200 ${
@@ -144,7 +144,7 @@ export default function FacultyRatingsCard({
                 </span>
               </button>
               {expandedSections.theory && (
-                <div className="bg-[var(--bg-elev)] p-4 space-y-2.5">
+                <div className="bg-(--bg-elev) p-4 space-y-2.5">
                   {THEORY_FIELDS.map((field) => {
                     const value = averages[field.key];
                     return (
@@ -152,11 +152,11 @@ export default function FacultyRatingsCard({
                         key={field.key}
                         className="flex items-center justify-between"
                       >
-                        <span className="text-xs font-medium text-[var(--text)]">
+                        <span className="text-xs font-medium text-(--text)">
                           {field.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[var(--primary)]">
+                          <span className="text-xs font-bold text-(--primary)">
                             {value != null ? value.toFixed(1) : "—"}
                           </span>
                           <div className="flex gap-0.5">
@@ -165,8 +165,8 @@ export default function FacultyRatingsCard({
                                 key={star}
                                 className={`text-xs ${
                                   star <= Math.round(value || 0)
-                                    ? "text-[var(--primary)]"
-                                    : "text-[var(--line)]"
+                                    ? "text-(--primary)"
+                                    : "text-(--line)"
                                 }`}
                               >
                                 ★
@@ -183,18 +183,18 @@ export default function FacultyRatingsCard({
           )}
 
           {sectionAverages.lab != null && (
-            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+            <div className="rounded-xl border border-(--line) overflow-hidden">
               <button
                 type="button"
                 onClick={() =>
                   setExpandedSections((prev) => ({ ...prev, lab: !prev.lab }))
                 }
-                className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-[var(--text)]">Lab</span>
+                  <span className="font-semibold text-(--text)">Lab</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-[var(--primary)]">
+                    <span className="font-bold text-(--primary)">
                       {sectionAverages.lab.toFixed(1)}
                     </span>
                     <div className="flex gap-0.5">
@@ -203,8 +203,8 @@ export default function FacultyRatingsCard({
                           key={star}
                           className={`text-xs ${
                             star <= Math.round(sectionAverages.lab || 0)
-                              ? "text-[var(--primary)]"
-                              : "text-[var(--line)]"
+                              ? "text-(--primary)"
+                              : "text-(--line)"
                           }`}
                         >
                           ★
@@ -213,7 +213,7 @@ export default function FacultyRatingsCard({
                     </div>
                   </div>
                 </div>
-                <span className="text-[var(--muted)] ml-2">
+                <span className="text-(--muted) ml-2">
                   <FontAwesomeIcon
                     icon={faChevronDown}
                     className={`h-3 w-3 transition-transform duration-200 ${
@@ -223,7 +223,7 @@ export default function FacultyRatingsCard({
                 </span>
               </button>
               {expandedSections.lab && (
-                <div className="bg-[var(--bg-elev)] p-4 space-y-2.5">
+                <div className="bg-(--bg-elev) p-4 space-y-2.5">
                   {LAB_FIELDS.map((field) => {
                     const value = averages[field.key];
                     return (
@@ -231,11 +231,11 @@ export default function FacultyRatingsCard({
                         key={field.key}
                         className="flex items-center justify-between"
                       >
-                        <span className="text-xs font-medium text-[var(--text)]">
+                        <span className="text-xs font-medium text-(--text)">
                           {field.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[var(--primary)]">
+                          <span className="text-xs font-bold text-(--primary)">
                             {value != null ? value.toFixed(1) : "—"}
                           </span>
                           <div className="flex gap-0.5">
@@ -244,8 +244,8 @@ export default function FacultyRatingsCard({
                                 key={star}
                                 className={`text-xs ${
                                   star <= Math.round(value || 0)
-                                    ? "text-[var(--primary)]"
-                                    : "text-[var(--line)]"
+                                    ? "text-(--primary)"
+                                    : "text-(--line)"
                                 }`}
                               >
                                 ★
@@ -262,20 +262,20 @@ export default function FacultyRatingsCard({
           )}
 
           {sectionAverages.ecs != null && (
-            <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+            <div className="rounded-xl border border-(--line) overflow-hidden">
               <button
                 type="button"
                 onClick={() =>
                   setExpandedSections((prev) => ({ ...prev, ecs: !prev.ecs }))
                 }
-                className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-[var(--text)]">
+                  <span className="font-semibold text-(--text)">
                     ECS / Capstone
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-[var(--primary)]">
+                    <span className="font-bold text-(--primary)">
                       {sectionAverages.ecs.toFixed(1)}
                     </span>
                     <div className="flex gap-0.5">
@@ -284,8 +284,8 @@ export default function FacultyRatingsCard({
                           key={star}
                           className={`text-xs ${
                             star <= Math.round(sectionAverages.ecs || 0)
-                              ? "text-[var(--primary)]"
-                              : "text-[var(--line)]"
+                              ? "text-(--primary)"
+                              : "text-(--line)"
                           }`}
                         >
                           ★
@@ -294,7 +294,7 @@ export default function FacultyRatingsCard({
                     </div>
                   </div>
                 </div>
-                <span className="text-[var(--muted)] ml-2">
+                <span className="text-(--muted) ml-2">
                   <FontAwesomeIcon
                     icon={faChevronDown}
                     className={`h-3 w-3 transition-transform duration-200 ${
@@ -304,7 +304,7 @@ export default function FacultyRatingsCard({
                 </span>
               </button>
               {expandedSections.ecs && (
-                <div className="bg-[var(--bg-elev)] p-4 space-y-2.5">
+                <div className="bg-(--bg-elev) p-4 space-y-2.5">
                   {ECS_FIELDS.map((field) => {
                     const value = averages[field.key];
                     return (
@@ -312,11 +312,11 @@ export default function FacultyRatingsCard({
                         key={field.key}
                         className="flex items-center justify-between"
                       >
-                        <span className="text-xs font-medium text-[var(--text)]">
+                        <span className="text-xs font-medium text-(--text)">
                           {field.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[var(--primary)]">
+                          <span className="text-xs font-bold text-(--primary)">
                             {value != null ? value.toFixed(1) : "—"}
                           </span>
                           <div className="flex gap-0.5">
@@ -325,8 +325,8 @@ export default function FacultyRatingsCard({
                                 key={star}
                                 className={`text-xs ${
                                   star <= Math.round(value || 0)
-                                    ? "text-[var(--primary)]"
-                                    : "text-[var(--line)]"
+                                    ? "text-(--primary)"
+                                    : "text-(--line)"
                                 }`}
                               >
                                 ★
@@ -346,3 +346,4 @@ export default function FacultyRatingsCard({
     </div>
   );
 }
+

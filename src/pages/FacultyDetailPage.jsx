@@ -1,4 +1,4 @@
-// eslint-disable tailwindcss/no-custom-classname
+﻿// eslint-disable tailwindcss/no-custom-classname
 // eslint-disable no-irregular-whitespace
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -471,7 +471,7 @@ function FacultyDetailPage({ currentUser }) {
 
   if (loading)
     return (
-      <p className="text-sm text-[var(--muted)]">Loading faculty profile...</p>
+      <p className="text-sm text-(--muted)">Loading faculty profile...</p>
     );
   if (!faculty)
     return (
@@ -484,7 +484,7 @@ function FacultyDetailPage({ currentUser }) {
     <div className="space-y-6">
       <Link
         to="/faculty"
-        className="inline-flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+        className="inline-flex items-center gap-1 text-xs text-(--muted) hover:text-(--text)"
       >
         {"<- Back to Faculty Search"}
       </Link>
@@ -497,11 +497,11 @@ function FacultyDetailPage({ currentUser }) {
 
       {/* Main Layout: Masonry Layout */}
       <div className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-2">
-        <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)] break-inside-avoid">
+        <div className="overflow-hidden rounded-xl border border-(--line) bg-(--bg-elev) shadow-(--shadow-card) break-inside-avoid">
           <FacultyProfileCard faculty={faculty} />
         </div>
         {!showFeedbackForm ? (
-          <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)] break-inside-avoid">
+          <div className="rounded-xl border border-(--line) bg-(--bg-elev) shadow-(--shadow-card) break-inside-avoid">
             <FacultyRatingsCard
               ratingSummary={ratingSummary}
               sectionAverages={sectionAverages}
@@ -526,23 +526,23 @@ function FacultyDetailPage({ currentUser }) {
             />
           </div>
         ) : editingReviewOnly && hasUser ? (
-          <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)] break-inside-avoid">
+          <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow-card) break-inside-avoid">
             <form onSubmit={submitReviewOnly} className="space-y-6">
               <div>
-                <h2 className="mb-1 text-2xl font-bold text-[var(--text)]">
+                <h2 className="mb-1 text-2xl font-bold text-(--text)">
                   Edit Your Review
                 </h2>
-                <p className="text-sm text-[var(--muted)]">
+                <p className="text-sm text-(--muted)">
                   Update your feedback for {facultyName}
                 </p>
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <label className="block text-sm font-semibold text-[var(--text)]">
+                  <label className="block text-sm font-semibold text-(--text)">
                     Your Review
                   </label>
-                  <span className="text-xs text-[var(--muted)]">
+                  <span className="text-xs text-(--muted)">
                     {feedbackForm.review.length}/500
                   </span>
                 </div>
@@ -557,11 +557,11 @@ function FacultyDetailPage({ currentUser }) {
                   rows={4}
                   maxLength={500}
                   placeholder={`Tell us about ${facultyName}: teaching style, grading fairness, and accessibility.`}
-                  className="w-full rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--text)] outline-none"
+                  className="w-full rounded-2xl border border-(--line) bg-(--panel) px-4 py-3 text-sm text-(--text) outline-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-[var(--line)] pt-6">
+              <div className="flex justify-end gap-3 border-t border-(--line) pt-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -569,14 +569,14 @@ function FacultyDetailPage({ currentUser }) {
                     setCurrentEditingReviewId(null);
                     setShowFeedbackForm(false);
                   }}
-                  className="rounded-full border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--text)] hover:bg-[var(--panel)]"
+                  className="rounded-full border border-(--line) px-6 py-3 text-sm font-semibold text-(--text) hover:bg-(--panel)"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-full bg-[var(--primary)] px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
+                  className="rounded-full bg-(--primary) px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
                 >
                   {saving ? "Saving..." : "Save Review"}
                 </button>
@@ -584,19 +584,19 @@ function FacultyDetailPage({ currentUser }) {
             </form>
           </div>
         ) : hasUser && isEditing ? (
-          <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow-card)] break-inside-avoid">
+          <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow-card) break-inside-avoid">
             <form onSubmit={submitFeedback} className="space-y-6">
               <div>
-                <h2 className="mb-1 text-2xl font-bold text-[var(--text)]">
+                <h2 className="mb-1 text-2xl font-bold text-(--text)">
                   Share Your Experience
                 </h2>
-                <p className="text-sm text-[var(--muted)]">
+                <p className="text-sm text-(--muted)">
                   Help fellow students by rating your time with {facultyName}
                 </p>
               </div>
 
               {/* Theory Section */}
-              <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+              <div className="rounded-xl border border-(--line) overflow-hidden">
                 <button
                   type="button"
                   onClick={() =>
@@ -605,12 +605,12 @@ function FacultyDetailPage({ currentUser }) {
                       theory: !prev.theory,
                     }))
                   }
-                  className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                  className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                 >
-                  <span className="font-semibold text-[var(--text)]">
+                  <span className="font-semibold text-(--text)">
                     Theory
                   </span>
-                  <span className="text-[var(--muted)]">
+                  <span className="text-(--muted)">
                     <FontAwesomeIcon
                       icon={faChevronDown}
                       className={`h-3 w-3 transition-transform duration-200 ${
@@ -620,7 +620,7 @@ function FacultyDetailPage({ currentUser }) {
                   </span>
                 </button>
                 {expandedSections.theory && (
-                  <div className="bg-[var(--bg-elev)] p-4 space-y-4">
+                  <div className="bg-(--bg-elev) p-4 space-y-4">
                     {THEORY_FIELDS.map((field) => (
                       <RatingSlider
                         key={field.key}
@@ -636,12 +636,12 @@ function FacultyDetailPage({ currentUser }) {
                       />
                     ))}
                     <div>
-                      <p className="mb-3 text-sm font-semibold text-[var(--text)]">
+                      <p className="mb-3 text-sm font-semibold text-(--text)">
                         Theory Notes Provided?
                       </p>
-                      <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
+                      <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                         <div
-                          className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+                          className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-[left] duration-200 ease-out"
                           style={{
                             width: "calc((100% - 1rem) / 2)",
                             left: `calc(0.5rem + (100% - 1rem) * ${
@@ -649,14 +649,14 @@ function FacultyDetailPage({ currentUser }) {
                             })`,
                           }}
                         />
-                        <div className="relative z-[2] grid h-full flex-1 grid-cols-2 items-center gap-0">
+                        <div className="relative z-2 grid h-full flex-1 grid-cols-2 items-center gap-0">
                           {THEORY_NOTE_OPTIONS.map((label, idx) => (
                             <span
                               key={label}
                               className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
                                 (feedbackForm.theoryNotes ? 1 : 0) === idx
-                                  ? "opacity-100 text-[var(--text)]"
-                                  : "opacity-50 text-[var(--muted)]"
+                                  ? "opacity-100 text-(--text)"
+                                  : "opacity-50 text-(--muted)"
                               }`}
                             >
                               {label}
@@ -675,7 +675,7 @@ function FacultyDetailPage({ currentUser }) {
                               theoryNotes: Number(e.target.value) === 1,
                             }))
                           }
-                          className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
+                          className="absolute inset-0 z-3 m-0 w-full cursor-pointer opacity-0"
                           aria-label="Theory notes provided"
                         />
                       </div>
@@ -685,16 +685,16 @@ function FacultyDetailPage({ currentUser }) {
               </div>
 
               {/* Lab Section */}
-              <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+              <div className="rounded-xl border border-(--line) overflow-hidden">
                 <button
                   type="button"
                   onClick={() =>
                     setExpandedSections((prev) => ({ ...prev, lab: !prev.lab }))
                   }
-                  className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                  className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                 >
-                  <span className="font-semibold text-[var(--text)]">Lab</span>
-                  <span className="text-[var(--muted)]">
+                  <span className="font-semibold text-(--text)">Lab</span>
+                  <span className="text-(--muted)">
                     <FontAwesomeIcon
                       icon={faChevronDown}
                       className={`h-3 w-3 transition-transform duration-200 ${
@@ -704,7 +704,7 @@ function FacultyDetailPage({ currentUser }) {
                   </span>
                 </button>
                 {expandedSections.lab && (
-                  <div className="bg-[var(--bg-elev)] p-4 space-y-4">
+                  <div className="bg-(--bg-elev) p-4 space-y-4">
                     {LAB_FIELDS.map((field) => (
                       <RatingSlider
                         key={field.key}
@@ -720,12 +720,12 @@ function FacultyDetailPage({ currentUser }) {
                       />
                     ))}
                     <div>
-                      <p className="mb-3 text-sm font-semibold text-[var(--text)]">
+                      <p className="mb-3 text-sm font-semibold text-(--text)">
                         Lab Materials Provided?
                       </p>
-                      <div className="relative flex h-14 items-center rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-2 py-1">
+                      <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                         <div
-                          className="absolute h-10 rounded-xl border-2 border-[var(--bg-elev)] bg-[var(--primary)] shadow-md transition-[left] duration-200 ease-out"
+                          className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-[left] duration-200 ease-out"
                           style={{
                             width: "calc((100% - 1rem) / 4)",
                             left: `calc(0.5rem + (100% - 1rem) * ${
@@ -738,7 +738,7 @@ function FacultyDetailPage({ currentUser }) {
                             })`,
                           }}
                         />
-                        <div className="relative z-[2] grid h-full flex-1 grid-cols-4 items-center gap-0">
+                        <div className="relative z-2 grid h-full flex-1 grid-cols-4 items-center gap-0">
                           {LAB_NOTE_OPTIONS.map((opt, idx) => (
                             <span
                               key={opt.value}
@@ -750,8 +750,8 @@ function FacultyDetailPage({ currentUser }) {
                                       item.value === feedbackForm.labNotes,
                                   ),
                                 ) === idx
-                                  ? "opacity-100 text-[var(--text)]"
-                                  : "opacity-50 text-[var(--muted)]"
+                                  ? "opacity-100 text-(--text)"
+                                  : "opacity-50 text-(--muted)"
                               }`}
                             >
                               {opt.label}
@@ -777,7 +777,7 @@ function FacultyDetailPage({ currentUser }) {
                                   ?.value || "None",
                             }))
                           }
-                          className="absolute inset-0 z-[3] m-0 w-full cursor-pointer opacity-0"
+                          className="absolute inset-0 z-3 m-0 w-full cursor-pointer opacity-0"
                           aria-label="Lab materials provided"
                         />
                       </div>
@@ -787,18 +787,18 @@ function FacultyDetailPage({ currentUser }) {
               </div>
 
               {/* ECS Section */}
-              <div className="rounded-xl border border-[var(--line)] overflow-hidden">
+              <div className="rounded-xl border border-(--line) overflow-hidden">
                 <button
                   type="button"
                   onClick={() =>
                     setExpandedSections((prev) => ({ ...prev, ecs: !prev.ecs }))
                   }
-                  className="flex w-full items-center justify-between bg-[var(--panel)] px-4 py-3 transition-colors hover:bg-[var(--bg-elev)]"
+                  className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                 >
-                  <span className="font-semibold text-[var(--text)]">
+                  <span className="font-semibold text-(--text)">
                     ECS / Capstone
                   </span>
-                  <span className="text-[var(--muted)]">
+                  <span className="text-(--muted)">
                     <FontAwesomeIcon
                       icon={faChevronDown}
                       className={`h-3 w-3 transition-transform duration-200 ${
@@ -808,7 +808,7 @@ function FacultyDetailPage({ currentUser }) {
                   </span>
                 </button>
                 {expandedSections.ecs && (
-                  <div className="bg-[var(--bg-elev)] p-4 space-y-4">
+                  <div className="bg-(--bg-elev) p-4 space-y-4">
                     {ECS_FIELDS.map((field) => (
                       <RatingSlider
                         key={field.key}
@@ -827,8 +827,8 @@ function FacultyDetailPage({ currentUser }) {
                 )}
               </div>
 
-              <div className="relative border-t border-[var(--line)] pt-6">
-                <label className="mb-2 block text-sm font-semibold text-[var(--text)]">
+              <div className="relative border-t border-(--line) pt-6">
+                <label className="mb-2 block text-sm font-semibold text-(--text)">
                   Which Course?
                 </label>
                 <input
@@ -842,16 +842,16 @@ function FacultyDetailPage({ currentUser }) {
                       setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                     }
                   }}
-                  className="w-full rounded-full border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm outline-none"
+                  className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 text-sm outline-none"
                 />
                 {courseSuggestions.length > 0 ? (
-                  <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-lg">
+                  <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-lg">
                     {courseSuggestions.map((course) => (
                       <button
                         key={course.$id}
                         type="button"
                         onClick={() => selectCourse(course)}
-                        className="block w-full border-b border-[var(--line)] px-4 py-2 text-left text-xs hover:bg-[var(--panel)] last:border-b-0"
+                        className="block w-full border-b border-(--line) px-4 py-2 text-left text-xs hover:bg-(--panel) last:border-b-0"
                       >
                         {course.courseCode} - {course.courseName}
                       </button>
@@ -862,10 +862,10 @@ function FacultyDetailPage({ currentUser }) {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <label className="block text-sm font-semibold text-[var(--text)]">
+                  <label className="block text-sm font-semibold text-(--text)">
                     Your Review
                   </label>
-                  <span className="text-xs text-[var(--muted)]">
+                  <span className="text-xs text-(--muted)">
                     {feedbackForm.review.length}/500
                   </span>
                 </div>
@@ -880,25 +880,25 @@ function FacultyDetailPage({ currentUser }) {
                   rows={4}
                   maxLength={500}
                   placeholder={`Tell us about ${facultyName}: teaching style, grading fairness, and accessibility.`}
-                  className="w-full rounded-2xl border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--text)] outline-none"
+                  className="w-full rounded-2xl border border-(--line) bg-(--panel) px-4 py-3 text-sm text-(--text) outline-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-[var(--line)] pt-6">
+              <div className="flex justify-end gap-3 border-t border-(--line) pt-6">
                 <button
                   type="button"
                   onClick={() => {
                     setShowFeedbackForm(false);
                     setIsEditing(false);
                   }}
-                  className="rounded-full border border-[var(--line)] px-6 py-3 text-sm font-semibold text-[var(--text)] hover:bg-[var(--panel)]"
+                  className="rounded-full border border-(--line) px-6 py-3 text-sm font-semibold text-(--text) hover:bg-(--panel)"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-full bg-[var(--primary)] px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
+                  className="rounded-full bg-(--primary) px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
                 >
                   {saving ? "Saving..." : "Save Feedback"}
                 </button>
@@ -912,7 +912,7 @@ function FacultyDetailPage({ currentUser }) {
           feedbackList.some(
             (row) => String(row.review || "").trim().length > 0,
           ) && (
-            <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)] break-inside-avoid">
+            <div className="rounded-xl border border-(--line) bg-(--bg-elev) shadow-(--shadow-card) break-inside-avoid">
               <FeedbackList
                 feedbackList={feedbackList}
                 courseLookup={courseLookup}
@@ -975,3 +975,4 @@ function FacultyDetailPage({ currentUser }) {
 }
 
 export default FacultyDetailPage;
+

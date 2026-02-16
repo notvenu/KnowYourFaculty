@@ -6,10 +6,10 @@ export default function LoginOverlay({ open, onClose, authError, onSignIn, signi
   return (
     <Overlay open={open} onClose={onClose}>
       <div className="p-6 sm:p-8">
-        <h2 className="text-xl font-bold text-[var(--text)] sm:text-2xl">Sign in</h2>
-        <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
-          Only <strong className="text-[var(--text)]">VIT-AP students</strong> can sign in.
-          Use your <strong className="text-[var(--primary)]">@{ALLOWED_DOMAIN}</strong> account only.
+        <h2 className="text-xl font-bold text-(--text) sm:text-2xl">Sign in</h2>
+        <p className="mt-3 text-sm leading-relaxed text-(--muted)">
+          Only <strong className="text-(--text)">VIT-AP students</strong> can sign in.
+          Use your <strong className="text-(--primary)">@{ALLOWED_DOMAIN}</strong> account only.
         </p>
         {authError ? (
           <p className="mt-4 rounded-lg border border-red-300 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-600">
@@ -21,14 +21,14 @@ export default function LoginOverlay({ open, onClose, authError, onSignIn, signi
             type="button"
             onClick={onSignIn}
             disabled={signingIn}
-            className="rounded-[var(--radius)] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] transition hover:shadow-[var(--shadow-hover)] hover:opacity-90 disabled:opacity-60"
+            className="rounded-(--radius) bg-(--primary) px-5 py-2.5 text-sm font-semibold text-white shadow-(--shadow) transition hover:shadow-(--shadow-hover) hover:opacity-90 disabled:opacity-60"
           >
             {signingIn ? "Signing in…" : "Sign in with Google"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-5 py-2.5 text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium text-(--text) transition hover:border-(--primary) hover:bg-(--primary-soft)"
           >
             Cancel
           </button>
@@ -37,3 +37,4 @@ export default function LoginOverlay({ open, onClose, authError, onSignIn, signi
     </Overlay>
   );
 }
+

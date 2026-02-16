@@ -1,4 +1,4 @@
-// eslint-disable tailwindcss/no-custom-classname
+﻿// eslint-disable tailwindcss/no-custom-classname
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faGithub,
@@ -23,7 +23,7 @@ function ContactPage() {
       href: "https://github.com/notvenu",
       icon: faGithub,
       bgColor: "bg-gray-100",
-      iconColor: "text-[var(--text)]",
+      iconColor: "text-(--text)",
     },
     {
       title: "LinkedIn",
@@ -47,10 +47,10 @@ function ContactPage() {
     <div className="animate-fadeIn w-full max-w-4xl mx-auto px-4 py-8">
       {/* Contact Us Section */}
       <div className="mb-12">
-        <h1 className="text-4xl font-bold text-[var(--text)] mb-4">
+        <h1 className="text-4xl font-bold text-(--text) mb-4">
           Contact Us
         </h1>
-        <p className="text-lg text-[var(--muted)] mb-8">
+        <p className="text-lg text-(--muted) mb-8">
           Have questions or suggestions? Feel free to reach out through any of
           these channels:
         </p>
@@ -63,17 +63,17 @@ function ContactPage() {
               href={channel.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 rounded-xl border border-[var(--line)] bg-[var(--bg-elev)] hover:border-[var(--primary)] transition-all hover:shadow-md"
+              className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--primary) transition-all hover:shadow-md"
             >
               <FontAwesomeIcon
                 icon={channel.icon}
                 className={`text-2xl shrink-0 ${channel.iconColor}`}
               />
               <div className="flex-1">
-                <p className="font-semibold text-[var(--text)]">
+                <p className="font-semibold text-(--text)">
                   {channel.title}
                 </p>
-                <p className="text-sm text-[var(--muted)]">
+                <p className="text-sm text-(--muted)">
                   {channel.subtitle}
                 </p>
               </div>
@@ -83,14 +83,14 @@ function ContactPage() {
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[var(--line)] my-12"></div>
+      <div className="border-t border-(--line) my-12"></div>
 
       {/* Contribute Section */}
       <div>
-        <h2 className="text-3xl font-bold text-[var(--text)] mb-4">
+        <h2 className="text-3xl font-bold text-(--text) mb-4">
           Contribute on GitHub
         </h2>
-        <p className="text-lg text-[var(--muted)] mb-8">
+        <p className="text-lg text-(--muted) mb-8">
           Found a bug or have a feature idea? Contribute to the project:
         </p>
 
@@ -112,10 +112,10 @@ function ContactPage() {
               className="text-2xl text-red-600 mt-1 shrink-0"
             />
             <div className="flex-1">
-              <p className="font-semibold text-[var(--text)]">
+              <p className="font-semibold text-(--text)">
                 Report an Issue
               </p>
-              <p className="text-sm text-[var(--muted)]">
+              <p className="text-sm text-(--muted)">
                 Found a bug? Let us know
               </p>
             </div>
@@ -137,10 +137,10 @@ function ContactPage() {
               className="text-2xl text-blue-600 mt-1 shrink-0"
             />
             <div className="flex-1">
-              <p className="font-semibold text-[var(--text)]">
+              <p className="font-semibold text-(--text)">
                 Submit a Pull Request
               </p>
-              <p className="text-sm text-[var(--muted)]">
+              <p className="text-sm text-(--muted)">
                 Got improvements? Submit a PR
               </p>
             </div>
@@ -152,3 +152,4 @@ function ContactPage() {
 }
 
 export default ContactPage;
+

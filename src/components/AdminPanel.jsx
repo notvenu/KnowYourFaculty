@@ -116,16 +116,16 @@ function AdminPanel() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text)]">
+        <h1 className="text-3xl font-extrabold tracking-tight text-(--text)">
           Admin Dashboard
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="mt-1 text-sm text-(--muted)">
           Manage course uploads and view faculty feedback stats.
         </p>
       </div>
 
       {loading ? (
-        <p className="text-sm font-medium text-[var(--muted)]">Loading…</p>
+        <p className="text-sm font-medium text-(--muted)">Loading…</p>
       ) : null}
       {error ? (
         <p className="rounded-xl border border-red-300 bg-red-500/10 p-4 text-sm font-medium text-red-600">
@@ -138,20 +138,20 @@ function AdminPanel() {
           {statsCards.map((card) => (
             <div
               key={card.label}
-              className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-elev)] p-5 shadow-[var(--shadow)]"
+              className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow)"
             >
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
                 {card.label}
               </p>
-              <p className="mt-2 text-2xl font-bold text-[var(--text)]">{card.value}</p>
+              <p className="mt-2 text-2xl font-bold text-(--text)">{card.value}</p>
             </div>
           ))}
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow)]">
-          <h2 className="mb-4 text-lg font-bold text-[var(--text)]">
+        <div className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+          <h2 className="mb-4 text-lg font-bold text-(--text)">
             Upload course PDF
           </h2>
           <form onSubmit={handleSubmitCourse} className="space-y-4">
@@ -161,39 +161,39 @@ function AdminPanel() {
               onChange={(e) =>
                 setCourseForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))
               }
-              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--text)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--primary)] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+              className="w-full rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5 text-sm text-(--text) file:mr-3 file:rounded-lg file:border-0 file:bg-(--primary) file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
               required
             />
             <button
               type="submit"
               disabled={uploading}
-              className="rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] disabled:opacity-60"
+              className="rounded-xl bg-(--primary) px-5 py-2.5 text-sm font-semibold text-white shadow-(--shadow) disabled:opacity-60"
             >
               {uploading ? "Parsing…" : "Parse PDF and save courses"}
             </button>
             {uploadMessage ? (
-              <p className="text-sm text-[var(--muted)]">{uploadMessage}</p>
+              <p className="text-sm text-(--muted)">{uploadMessage}</p>
             ) : null}
           </form>
         </div>
 
-        <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow)]">
-          <h2 className="mb-4 text-lg font-bold text-[var(--text)]">
+        <div className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+          <h2 className="mb-4 text-lg font-bold text-(--text)">
             Top faculty by feedback count
           </h2>
           {topFaculty.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">No feedback yet.</p>
+            <p className="text-sm text-(--muted)">No feedback yet.</p>
           ) : (
             <div className="space-y-3">
               {topFaculty.map((item) => (
                 <div
                   key={item.facultyId}
-                  className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5"
+                  className="flex items-center justify-between rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5"
                 >
-                  <span className="text-sm font-medium text-[var(--text)] truncate">
+                  <span className="text-sm font-medium text-(--text) truncate">
                     {item.facultyName}
                   </span>
-                  <span className="text-sm font-bold text-[var(--primary)]">
+                  <span className="text-sm font-bold text-(--primary)">
                     {item.count}
                   </span>
                 </div>
@@ -203,21 +203,21 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-[var(--shadow)]">
-        <h2 className="mb-4 text-lg font-bold text-[var(--text)]">Recent courses</h2>
+      <div className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+        <h2 className="mb-4 text-lg font-bold text-(--text)">Recent courses</h2>
         {courses.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">No courses.</p>
+          <p className="text-sm text-(--muted)">No courses.</p>
         ) : (
           <div className="space-y-2">
             {courses.map((course) => (
               <div
                 key={course.$id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm"
+                className="flex items-center justify-between gap-2 rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5 text-sm"
               >
-                <span className="font-medium text-[var(--text)] truncate">
+                <span className="font-medium text-(--text) truncate">
                   {course.courseCode} – {course.courseName}
                 </span>
-                <span className="text-xs text-[var(--muted)]">Course</span>
+                <span className="text-xs text-(--muted)">Course</span>
               </div>
             ))}
           </div>
@@ -228,3 +228,4 @@ function AdminPanel() {
 }
 
 export default AdminPanel;
+
