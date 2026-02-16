@@ -347,6 +347,17 @@ select:focus {
   -webkit-backdrop-filter: blur(16px);
 }
 
+/* Rating slider responsive positioning */
+.rating-slider-indicator {
+  left: calc(0.375rem + (100% - 0.75rem) * var(--slider-position));
+}
+
+@media (min-width: 640px) {
+  .rating-slider-indicator {
+    left: calc(0.5rem + (100% - 1rem) * var(--slider-position));
+  }
+}
+
 /* Stagger children animation */
 @keyframes staggerIn {
   from {

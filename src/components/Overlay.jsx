@@ -23,7 +23,7 @@ export default function Overlay({ open, onClose, children }) {
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-md"
+        className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_40%,transparent)] backdrop-blur-md"
         onClick={onClose}
         onKeyDown={(e) => e.key === "Enter" && onClose?.()}
         role="button"

@@ -1,5 +1,17 @@
 import { Link, NavLink } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { 
+  faHome, 
+  faChalkboardUser, 
+  faEnvelope, 
+  faGear, 
+  faSignOutAlt, 
+  faSun, 
+  faMoon,
+  faChevronRight,
+  faCircle
+} from "@fortawesome/free-solid-svg-icons";
 
 export default function SiteNav({
   currentUser,
@@ -12,22 +24,26 @@ export default function SiteNav({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
       }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        setIsMobileMenuOpen(false);
+      }
     };
 
-    if (showDropdown) {
+    if (showDropdown || isMobileMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showDropdown]);
+  }, [showDropdown, isMobileMenuOpen]);
 
   const getInitial = () => {
     if (currentUser?.name) {
@@ -46,9 +62,25 @@ export default function SiteNav({
         : "text-[var(--muted)] hover:bg-[var(--panel)] hover:text-[var(--text)]"
     }`;
 
+  const mobileNavClass = ({ isActive }) =>
+    `rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+      isActive
+        ? "bg-gradient-to-r from-[var(--primary-soft)] to-transparent text-[var(--primary)] font-semibold shadow-sm border-l-2 border-[var(--primary)]"
+        : "text-[var(--text)] hover:bg-[var(--panel)] hover:text-[var(--primary)]"
+    }`;
+
   return (
-    <header className="glass-panel sticky top-0 z-40 border-b border-[var(--line)] transition-colors duration-300">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+    <>
+      {/* Backdrop overlay for mobile menu */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      
+      <header className="glass-panel sticky top-0 z-40 border-b border-[var(--line)] transition-colors duration-300">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <Link
           to="/"
           className="inline-flex items-center gap-3 text-[var(--text)] transition hover:opacity-90"
@@ -80,14 +112,20 @@ export default function SiteNav({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+              className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2 text-xs font-medium text-[var(--text)] transition-all duration-200 hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] hover:shadow-md active:scale-95"
               title={
                 theme === "dark"
                   ? "Switch to light mode"
                   : "Switch to dark mode"
               }
             >
-              {theme === "dark" ? "Light" : "Dark"}
+              <span className="flex items-center gap-1.5">
+                <FontAwesomeIcon 
+                  icon={theme === "dark" ? faSun : faMoon} 
+                  className="w-3.5 h-3.5"
+                />
+                <span>{theme === "dark" ? "Light" : "Dark"}</span>
+              </span>
             </button>
 
             {currentUser ? (
@@ -95,23 +133,29 @@ export default function SiteNav({
                 <button
                   type="button"
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--primary)] text-white font-semibold text-sm transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2"
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[color-mix(in_srgb,var(--primary)_80%,transparent)] text-white font-bold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2 ${
+                    showDropdown ? "ring-2 ring-[var(--primary)] ring-offset-2" : ""
+                  }`}
                   aria-label="User menu"
                 >
                   {getInitial()}
                 </button>
 
                 <div
-                  className={`absolute right-0 mt-2 w-48 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] shadow-lg z-50 origin-top-right transform transition-all duration-200 ease-out ${
+                  className={`absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] shadow-2xl backdrop-blur-xl z-50 origin-top-right transform transition-all duration-300 ease-out ${
                     showDropdown
-                      ? "opacity-100 translate-y-0"
-                      : "pointer-events-none opacity-0 -translate-y-2"
+                      ? "opacity-100 translate-y-0 scale-100"
+                      : "pointer-events-none opacity-0 -translate-y-2 scale-95"
                   }`}
                 >
-                  <div className="border-b border-[var(--line)] px-4 py-3">
-                    <p className="truncate text-sm font-medium text-[var(--text)]">
+                  {/* Gradient accent */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-soft)]/20 via-transparent to-transparent pointer-events-none" />
+                  
+                  <div className="relative z-10 border-b border-[var(--line)] bg-gradient-to-r from-[var(--primary-soft)]/10 to-transparent px-4 py-3">
+                    <p className="truncate text-sm font-semibold text-[var(--text)]">
                       {currentUser.name || currentUser.email}
                     </p>
+                    <p className="text-xs text-[var(--muted)] mt-0.5">Account</p>
                   </div>
                   <button
                     type="button"
@@ -119,9 +163,12 @@ export default function SiteNav({
                       setShowDropdown(false);
                       onLogout();
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-500 transition hover:bg-red-500/10"
+                    className="w-full px-4 py-3 text-left text-sm font-medium text-red-500 transition-all hover:bg-red-500/10 hover:pl-6 active:bg-red-500/20"
                   >
-                    Logout
+                    <span className="flex items-center gap-2">
+                      <FontAwesomeIcon icon={faSignOutAlt} className="w-3.5 h-3.5" />
+                      <span>Logout</span>
+                    </span>
                   </button>
                 </div>
               </div>
@@ -132,119 +179,157 @@ export default function SiteNav({
                   setIsMobileMenuOpen(false);
                   onOpenLoginOverlay();
                 }}
-                className="hidden rounded-[var(--radius)] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow)] transition hover:shadow-[var(--shadow-hover)] sm:inline-flex"
+                className="hidden rounded-xl bg-gradient-to-r from-[var(--primary)] to-[color-mix(in_srgb,var(--primary)_80%,transparent)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 active:scale-95 sm:inline-flex items-center gap-2"
               >
-                Sign in
+                <span>Sign in</span>
+                <FontAwesomeIcon icon={faChevronRight} className="w-3 h-3" />
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] lg:hidden"
-              aria-label="Toggle navigation menu"
-              aria-expanded={isMobileMenuOpen}
-            >
-              <span className="sr-only">Open navigation</span>
-              <span className="flex h-3.5 w-5 flex-col justify-between">
-                <span
-                  className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-transform ${
-                    isMobileMenuOpen ? "translate-y-1.5 rotate-45" : ""
-                  }`}
-                />
-                <span
-                  className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-opacity ${
-                    isMobileMenuOpen ? "opacity-0" : "opacity-100"
-                  }`}
-                />
-                <span
-                  className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-transform ${
-                    isMobileMenuOpen ? "-translate-y-1.5 -rotate-45" : ""
-                  }`}
-                />
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={`fixed inset-0 z-30 transform transition-all duration-300 ease-out lg:hidden ${
-          isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"
-        }`}
-      >
-        <div
-          className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity ${
-            isMobileMenuOpen ? "opacity-100" : "opacity-0"
-          }`}
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-        <div
-          className={`absolute inset-y-0 right-0 w-72 max-w-[80vw] border-l border-[var(--line)] bg-[var(--bg-elev)] shadow-[var(--shadow-card)] transition-transform duration-300 ease-out ${
-            isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-        >
-          <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
-            <span className="text-sm font-semibold text-[var(--text)]">
-              Menu
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--panel)] text-[var(--text)]"
-              aria-label="Close navigation menu"
-            >
-              ×
-            </button>
-          </div>
-          <nav className="flex flex-col gap-1 px-4 py-4">
-            <NavLink
-              to="/"
-              end
-              className={navClass}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Home
-            </NavLink>
-            <NavLink
-              to="/faculty"
-              className={navClass}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Find Professors
-            </NavLink>
-            <NavLink
-              to="/contact"
-              className={navClass}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Contact
-            </NavLink>
-            {isAdminUser ? (
-              <NavLink
-                to="/admin"
-                className={navClass}
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Admin
-              </NavLink>
-            ) : null}
-
-            {!currentUser ? (
+            <div className="relative lg:hidden" ref={mobileMenuRef}>
               <button
                 type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenLoginOverlay();
-                }}
-                className="mt-2 rounded-[var(--radius)] bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white shadow-[var(--shadow)] transition hover:shadow-[var(--shadow-hover)]"
+                onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 transition-all duration-200 ease-out active:scale-95 ${
+                  isMobileMenuOpen
+                    ? "border-[var(--primary)] bg-[var(--primary-soft)] shadow-md"
+                    : "border-[var(--line)] bg-[var(--panel)] hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+                }`}
+                aria-label="Toggle navigation menu"
+                aria-expanded={isMobileMenuOpen}
               >
-                Sign in
+                <span className="sr-only">Open navigation</span>
+                <span className="flex h-4 w-5 flex-col justify-between">
+                  <span
+                    className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-all duration-300 ease-in-out ${
+                      isMobileMenuOpen ? "translate-y-1.5 rotate-45" : ""
+                    }`}
+                  />
+                  <span
+                    className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-opacity duration-300 ${
+                      isMobileMenuOpen ? "opacity-0" : "opacity-100"
+                    }`}
+                  />
+                  <span
+                    className={`block h-0.5 w-full rounded-full bg-[var(--text)] transition-all duration-300 ease-in-out ${
+                      isMobileMenuOpen ? "-translate-y-1.5 -rotate-45" : ""
+                    }`}
+                  />
+                </span>
               </button>
-            ) : null}
-          </nav>
+
+              {/* Mobile Dropdown Menu */}
+              <div
+                className={`absolute right-0 mt-2 w-64 origin-top-right transform transition-all duration-300 ease-out lg:hidden z-50 ${
+                  isMobileMenuOpen
+                    ? "pointer-events-auto opacity-100 scale-100 translate-y-0"
+                    : "pointer-events-none opacity-0 scale-95 -translate-y-2"
+                }`}
+              >
+                <div className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] shadow-2xl backdrop-blur-xl">
+                  {/* Gradient accent */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-soft)]/30 via-transparent to-transparent pointer-events-none" />
+                  
+                  {/* Content */}
+                  <div className="relative z-10">
+                    {/* Header */}
+                    <div className="border-b border-[var(--line)] bg-gradient-to-r from-[var(--primary-soft)]/20 to-transparent px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
+                          <FontAwesomeIcon icon={faCircle} className="w-1.5 h-1.5 text-[var(--primary)] animate-pulse" />
+                          Menu
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--panel)] text-[var(--text)] transition-all hover:border-[var(--primary)] hover:bg-[var(--primary-soft)] active:scale-95"
+                          aria-label="Close navigation menu"
+                        >
+                          <span className="text-lg leading-none">×</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Navigation Links */}
+                    <nav className="flex flex-col gap-1 p-2">
+                      <NavLink
+                        to="/"
+                        end
+                        className={mobileNavClass}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <FontAwesomeIcon icon={faHome} className="w-4 h-4 text-[var(--primary)]" />
+                          Home
+                        </span>
+                      </NavLink>
+                      <NavLink
+                        to="/faculty"
+                        className={mobileNavClass}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <FontAwesomeIcon icon={faChalkboardUser} className="w-4 h-4 text-[var(--primary)]" />
+                          Find Professors
+                        </span>
+                      </NavLink>
+                      <NavLink
+                        to="/contact"
+                        className={mobileNavClass}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <FontAwesomeIcon icon={faEnvelope} className="w-4 h-4 text-[var(--primary)]" />
+                          Contact
+                        </span>
+                      </NavLink>
+                      {isAdminUser ? (
+                        <NavLink
+                          to="/admin"
+                          className={mobileNavClass}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <FontAwesomeIcon icon={faGear} className="w-4 h-4 text-[var(--primary)]" />
+                            Admin
+                          </span>
+                        </NavLink>
+                      ) : null}
+
+                      {/* Sign in button for non-logged users */}
+                      {!currentUser ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            onOpenLoginOverlay();
+                          }}
+                          className="mt-2 mx-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[color-mix(in_srgb,var(--primary)_80%,transparent)] px-4 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span>Sign in</span>
+                            <FontAwesomeIcon icon={faChevronRight} className="w-3 h-3" />
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="mt-2 mx-2 border-t border-[var(--line)] pt-2">
+                          <div className="rounded-xl bg-[var(--panel)] px-4 py-3">
+                            <p className="text-xs font-medium text-[var(--muted)] mb-1">Signed in as</p>
+                            <p className="text-sm font-semibold text-[var(--text)] truncate">
+                              {currentUser.name || currentUser.email}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
+    </>
   );
 }

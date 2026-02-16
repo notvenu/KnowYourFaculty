@@ -1,4 +1,4 @@
-import { THEORY_FIELDS, LAB_FIELDS, ECS_FIELDS } from "../lib/ratingConfig.js";
+import { THEORY_FIELDS, LAB_FIELDS, ECS_FIELDS, getTierFromRating, getTierColor, TIER_SYSTEM } from "../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faStar } from "@fortawesome/free-solid-svg-icons";
 
@@ -27,23 +27,26 @@ export default function FacultyRatingsCard({
         )}
       </div>
       <div className="border-b border-[var(--line)] pb-4 text-center sm:pb-5">
-        <div className="text-4xl font-extrabold text-[var(--primary)] sm:text-5xl">
-          {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
-        </div>
-        <div className="mt-2 flex justify-center gap-0.5">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <span
-              key={star}
-              className={`text-lg motion-safe:transition-transform motion-safe:transition-opacity ${
-                star <= Math.round(ratingSummary.overallAverage || 0)
-                  ? "scale-105 opacity-100 text-[var(--primary)]"
-                  : "opacity-30 text-[var(--muted)]"
-              }`}
-            >
-              <FontAwesomeIcon icon={faStar} />
-            </span>
-          ))}
-        </div>
+        {ratingSummary.overallAverage != null ? (
+          <>
+            <div className="mb-2">
+              <span
+                className="inline-block rounded-xl px-6 py-3 text-5xl sm:text-6xl font-black"
+                style={{
+                  color: getTierColor(getTierFromRating(ratingSummary.overallAverage)),
+                  backgroundColor: `${getTierColor(getTierFromRating(ratingSummary.overallAverage))}15`,
+                }}
+              >
+                {getTierFromRating(ratingSummary.overallAverage)}
+              </span>
+            </div>
+            <div className="text-sm font-semibold text-[var(--muted)] mb-2">
+              {ratingSummary.overallAverage.toFixed(1)} / 5.0
+            </div>
+          </>
+        ) : (
+          <div className="text-4xl font-extrabold text-[var(--muted)] sm:text-5xl">—</div>
+        )}
         <p className="mt-2 text-xs font-medium text-[var(--muted)]">
           {ratingSummary.totalRatings}{" "}
           {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
@@ -54,11 +57,19 @@ export default function FacultyRatingsCard({
         <section>
           <h3 className="mb-3 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-[var(--muted)]">
             Theory
-            <span className="font-bold normal-case text-[var(--primary)]">
-              {sectionAverages.theory != null
-                ? sectionAverages.theory.toFixed(1)
-                : "—"}
-            </span>
+            {sectionAverages.theory != null ? (
+              <span
+                className="font-bold normal-case px-2 py-1 rounded"
+                style={{
+                  color: getTierColor(getTierFromRating(sectionAverages.theory)),
+                  backgroundColor: `${getTierColor(getTierFromRating(sectionAverages.theory))}15`,
+                }}
+              >
+                {getTierFromRating(sectionAverages.theory)} ({sectionAverages.theory.toFixed(1)})
+              </span>
+            ) : (
+              <span className="font-bold normal-case text-[var(--muted)]">—</span>
+            )}
           </h3>
           <div className="space-y-2.5">
             {THEORY_FIELDS.map((field) => {
@@ -69,9 +80,19 @@ export default function FacultyRatingsCard({
                     <span className="text-xs font-medium text-[var(--text)]">
                       {field.label}
                     </span>
-                    <span className="text-xs font-bold text-[var(--primary)]">
-                      {value != null ? value.toFixed(1) : "—"}
-                    </span>
+                    {value != null ? (
+                      <span
+                        className="text-xs font-bold px-2 py-0.5 rounded"
+                        style={{
+                          color: getTierColor(getTierFromRating(value)),
+                          backgroundColor: `${getTierColor(getTierFromRating(value))}15`,
+                        }}
+                      >
+                        {getTierFromRating(value)} ({value.toFixed(1)})
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-[var(--muted)]">—</span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
@@ -94,11 +115,19 @@ export default function FacultyRatingsCard({
         <section>
           <h3 className="mb-3 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-[var(--muted)]">
             Lab
-            <span className="font-bold normal-case text-[var(--primary)]">
-              {sectionAverages.lab != null
-                ? sectionAverages.lab.toFixed(1)
-                : "—"}
-            </span>
+            {sectionAverages.lab != null ? (
+              <span
+                className="font-bold normal-case px-2 py-1 rounded"
+                style={{
+                  color: getTierColor(getTierFromRating(sectionAverages.lab)),
+                  backgroundColor: `${getTierColor(getTierFromRating(sectionAverages.lab))}15`,
+                }}
+              >
+                {getTierFromRating(sectionAverages.lab)} ({sectionAverages.lab.toFixed(1)})
+              </span>
+            ) : (
+              <span className="font-bold normal-case text-[var(--muted)]">—</span>
+            )}
           </h3>
           <div className="space-y-2.5">
             {LAB_FIELDS.map((field) => {
@@ -109,9 +138,19 @@ export default function FacultyRatingsCard({
                     <span className="text-xs font-medium text-[var(--text)]">
                       {field.label}
                     </span>
-                    <span className="text-xs font-bold text-[var(--primary)]">
-                      {value != null ? value.toFixed(1) : "—"}
-                    </span>
+                    {value != null ? (
+                      <span
+                        className="text-xs font-bold px-2 py-0.5 rounded"
+                        style={{
+                          color: getTierColor(getTierFromRating(value)),
+                          backgroundColor: `${getTierColor(getTierFromRating(value))}15`,
+                        }}
+                      >
+                        {getTierFromRating(value)} ({value.toFixed(1)})
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-[var(--muted)]">—</span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
@@ -134,11 +173,19 @@ export default function FacultyRatingsCard({
         <section>
           <h3 className="mb-3 flex items-center justify-between text-sm font-bold uppercase tracking-wider text-[var(--muted)]">
             ECS / Capstone
-            <span className="font-bold normal-case text-[var(--primary)]">
-              {sectionAverages.ecs != null
-                ? sectionAverages.ecs.toFixed(1)
-                : "—"}
-            </span>
+            {sectionAverages.ecs != null ? (
+              <span
+                className="font-bold normal-case px-2 py-1 rounded"
+                style={{
+                  color: getTierColor(getTierFromRating(sectionAverages.ecs)),
+                  backgroundColor: `${getTierColor(getTierFromRating(sectionAverages.ecs))}15`,
+                }}
+              >
+                {getTierFromRating(sectionAverages.ecs)} ({sectionAverages.ecs.toFixed(1)})
+              </span>
+            ) : (
+              <span className="font-bold normal-case text-[var(--muted)]">—</span>
+            )}
           </h3>
           <div className="space-y-2.5">
             {ECS_FIELDS.map((field) => {
@@ -149,9 +196,19 @@ export default function FacultyRatingsCard({
                     <span className="text-xs font-medium text-[var(--text)]">
                       {field.label}
                     </span>
-                    <span className="text-xs font-bold text-[var(--primary)]">
-                      {value != null ? value.toFixed(1) : "—"}
-                    </span>
+                    {value != null ? (
+                      <span
+                        className="text-xs font-bold px-2 py-0.5 rounded"
+                        style={{
+                          color: getTierColor(getTierFromRating(value)),
+                          backgroundColor: `${getTierColor(getTierFromRating(value))}15`,
+                        }}
+                      >
+                        {getTierFromRating(value)} ({value.toFixed(1)})
+                      </span>
+                    ) : (
+                      <span className="text-xs font-bold text-[var(--muted)]">—</span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (

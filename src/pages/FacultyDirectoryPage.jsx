@@ -4,9 +4,10 @@ import { Query } from "appwrite";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown, faSort, faSortAmountDown, faSortAmountUp } from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
 import FacultyCard from "../components/FacultyCard.jsx";
+import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
 
 const FACULTY_PER_PAGE = 40;
 
@@ -50,6 +51,8 @@ function FacultyDirectoryPage() {
     department: "all",
     alpha: "all",
     topRated: false,
+    tier: "all",
+    sortBy: "none", // none, rating-high, rating-low
   });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,6 +154,8 @@ function FacultyDirectoryPage() {
       const dept = String(item.department || "").toLowerCase();
       const designation = String(item.designation || "").toLowerCase();
       const research = String(item.researchArea || "").toLowerCase();
+      const rating = ratingLookup[facultyId] || 0;
+      const tier = getTierFromRating(rating);
 
       const matchesText =
         !keyword ||
@@ -161,7 +166,9 @@ function FacultyDirectoryPage() {
       const matchesDepartment =
         filters.department === "all" || item.department === filters.department;
       const matchesTopRated =
-        !filters.topRated || (ratingLookup[facultyId] || 0) >= 4;
+        !filters.topRated || rating >= 4;
+      const matchesTier =
+        filters.tier === "all" || tier === filters.tier;
       const matchesCourse =
         !selectedCourse ||
         Boolean(
@@ -170,11 +177,24 @@ function FacultyDirectoryPage() {
         );
 
       return (
-        matchesText && matchesDepartment && matchesTopRated && matchesCourse
+        matchesText && matchesDepartment && matchesTopRated && matchesTier && matchesCourse
       );
     });
 
-    if (filters.alpha === "az") {
+    // Apply sorting
+    if (filters.sortBy === "rating-high") {
+      rows = [...rows].sort((a, b) => {
+        const ratingA = ratingLookup[String(a.employeeId || "")] || 0;
+        const ratingB = ratingLookup[String(b.employeeId || "")] || 0;
+        return ratingB - ratingA;
+      });
+    } else if (filters.sortBy === "rating-low") {
+      rows = [...rows].sort((a, b) => {
+        const ratingA = ratingLookup[String(a.employeeId || "")] || 0;
+        const ratingB = ratingLookup[String(b.employeeId || "")] || 0;
+        return ratingA - ratingB;
+      });
+    } else if (filters.alpha === "az") {
       rows = [...rows].sort((a, b) =>
         String(a.name || "").localeCompare(String(b.name || "")),
       );
@@ -194,6 +214,8 @@ function FacultyDirectoryPage() {
     filters.department,
     filters.alpha,
     filters.topRated,
+    filters.tier,
+    filters.sortBy,
     selectedCourse,
   ]);
 
@@ -211,6 +233,8 @@ function FacultyDirectoryPage() {
     if (filters.department !== "all") n += 1;
     if (filters.alpha !== "all") n += 1;
     if (filters.topRated) n += 1;
+    if (filters.tier !== "all") n += 1;
+    if (filters.sortBy !== "none") n += 1;
     if (selectedCourse) n += 1;
     if (String(filters.search || "").trim()) n += 1;
     return n;
@@ -228,9 +252,9 @@ function FacultyDirectoryPage() {
         </p>
       </section>
 
-      <section className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-4 shadow-[var(--shadow-card)] sm:p-6">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--bg-elev)] p-3 sm:p-4 md:p-6 shadow-[var(--shadow-card)]">
         {/* Search Bar and Filter Toggle */}
-        <div className="mb-4 flex flex-wrap items-stretch gap-3">
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row items-stretch gap-2 sm:gap-3">
           <input
             type="text"
             placeholder="Search name, department, role, research"
@@ -238,19 +262,19 @@ function FacultyDirectoryPage() {
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, search: e.target.value }))
             }
-            className="min-w-0 flex-1 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm outline-none focus:border-[var(--primary)]"
+            className="w-full sm:min-w-0 sm:flex-1 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-3 sm:px-4 py-2 sm:py-3 text-sm outline-none focus:border-[var(--primary)]"
           />
           <button
             type="button"
             onClick={() => setShowFilterPanel((prev) => !prev)}
-            className="inline-flex shrink-0 items-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-[var(--text)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]"
           >
-            <span aria-hidden>
-              <FontAwesomeIcon icon={faChevronDown} />
+            <span aria-hidden className="inline-flex items-center">
+              <FontAwesomeIcon icon={faChevronDown} className={`text-xs sm:text-sm transition-transform duration-200 ${showFilterPanel ? 'rotate-180' : ''}`} />
             </span>
-            Filters
+            <span className="hidden xs:inline">Filters</span>
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-[var(--primary)] px-2.5 py-0.5 text-xs font-bold text-white">
+              <span className="rounded-full bg-[var(--primary)] px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-white">
                 {activeFilterCount}
               </span>
             ) : null}
@@ -258,13 +282,13 @@ function FacultyDirectoryPage() {
         </div>
 
         {showFilterPanel ? (
-          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             <select
               value={filters.department}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, department: e.target.value }))
               }
-              className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
             >
               <option value="all">All Departments</option>
               {departments.map((dept) => (
@@ -273,18 +297,40 @@ function FacultyDirectoryPage() {
                 </option>
               ))}
             </select>
+            
             <select
-              value={filters.alpha}
+              value={filters.tier}
               onChange={(e) =>
-                setFilters((prev) => ({ ...prev, alpha: e.target.value }))
+                setFilters((prev) => ({ ...prev, tier: e.target.value }))
               }
-              className="rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
             >
-              <option value="all">No Alphabetic Sort</option>
-              <option value="az">A to Z</option>
-              <option value="za">Z to A</option>
+              <option value="all">All Tiers</option>
+              {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
+                <option key={tier} value={tier}>
+                  Tier {tier} - {info.description}
+                </option>
+              ))}
             </select>
-            <label className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm">
+
+            <select
+              value={filters.sortBy}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
+              }
+              className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
+            >
+              <option value="none">No Sort</option>
+              <option value="rating-high">
+                <FontAwesomeIcon icon={faSortAmountDown} /> Rating: High to Low
+              </option>
+              <option value="rating-low">Rating: Low to High</option>
+              <option value="az">Name: A to Z</option>
+              <option value="za">Name: Z to A</option>
+            </select>
+
+
+            <label className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm cursor-pointer hover:bg-[var(--bg-elev)] transition-colors">
               <input
                 type="checkbox"
                 checked={filters.topRated}
@@ -294,9 +340,11 @@ function FacultyDirectoryPage() {
                     topRated: e.target.checked,
                   }))
                 }
+                className="cursor-pointer"
               />
-              Top Rated Only (4.0+)
+              <span className="text-xs sm:text-sm">Top Rated Only (A+)</span>
             </label>
+            
             <div className="relative">
               <input
                 type="text"
@@ -310,7 +358,7 @@ function FacultyDirectoryPage() {
                   setSelectedCourse(null);
                   setCourseQuery(e.target.value);
                 }}
-                className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+                className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-3 py-2.5 text-sm outline-none focus:border-[var(--primary)]"
               />
               {courseSuggestions.length > 0 ? (
                 <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-[var(--line)] bg-[var(--bg)] shadow-xl">
@@ -362,7 +410,7 @@ function FacultyDirectoryPage() {
         </p>
       )}
 
-      <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {paginatedFaculty.map((item) => {
           const facultyId = String(item.employeeId || "");
           const overall = ratingLookup[facultyId];

@@ -300,7 +300,7 @@ function FacultyList({ currentUser = null }) {
       )}
 
       {facultyData.loading && facultyData.faculty.length > 0 && (
-        <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-[color-mix(in_srgb,var(--text)_40%,transparent)] backdrop-blur-sm flex items-center justify-center z-50">
           <div className="animate-fadeIn rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] p-6 shadow-xl">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)] mx-auto mb-2"></div>
             <p className="flex items-center justify-center gap-2 text-[var(--muted)]">

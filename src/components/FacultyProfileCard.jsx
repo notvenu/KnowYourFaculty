@@ -43,15 +43,6 @@ export default function FacultyProfileCard({ faculty }) {
           <DetailRow label="Department" value={faculty.department} />
           <DetailRow label="ID" value={faculty.employeeId} />
         </div>
-        {(faculty.educationUG || faculty.educationPG || faculty.educationPhD || faculty.educationOther) ? (
-          <div className="space-y-0.5 pt-2 border-t border-[var(--line)] text-xs text-[var(--muted)]">
-            <span className="font-bold text-[var(--text)] uppercase tracking-wider">Education</span>
-            <DetailRow label="UG" value={faculty.educationUG} />
-            <DetailRow label="PG" value={faculty.educationPG} />
-            <DetailRow label="PhD" value={faculty.educationPhD} />
-            <DetailRow label="Other" value={faculty.educationOther} />
-          </div>
-        ) : null}
         {researchArea ? (
           <div className="pt-2 border-t border-[var(--line)] text-xs text-[var(--muted)]">
             <span className="font-bold text-[var(--text)] uppercase tracking-wider">Research</span>

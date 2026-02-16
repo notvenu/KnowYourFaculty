@@ -16,7 +16,7 @@ export default function FacultyCard({ faculty, overallRating }) {
     <Link
       to={`/faculty/${faculty.employeeId}`}
       data-card
-      className="group block overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--bg-elev)] min-w-0 transition-[box-shadow,border-color] hover:border-[var(--primary)]/50"
+      className="group block overflow-hidden rounded-[var(--radius-lg)] border-b border-[var(--line)] sm:border sm:border-[var(--line)] hover:border-[var(--primary)]/40 min-w-0"
     >
       <div className="aspect-[4/3] overflow-hidden rounded-t-[var(--radius-lg)] bg-[var(--panel)]">
         <img
@@ -29,7 +29,7 @@ export default function FacultyCard({ faculty, overallRating }) {
           }}
         />
       </div>
-      <div className="space-y-2 p-4 sm:space-y-3 sm:p-5">
+      <div className="space-y-2 p-3 sm:space-y-3 sm:p-4 md:p-5">
         <h2 className="line-clamp-2 text-base font-bold text-[var(--text)] sm:text-lg">{faculty.name}</h2>
         <p className="line-clamp-1 text-xs text-[var(--muted)] sm:text-sm">{faculty.designation || "—"}</p>
         <p className="line-clamp-1 text-xs text-[var(--muted)] sm:text-sm">{formatDeptShort(faculty.department)}</p>
