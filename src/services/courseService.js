@@ -40,6 +40,11 @@ class CourseService {
   tablesDB;
   initialized = false;
   initError = null;
+  allCoursesCache = null;
+  allCoursesCacheExpiry = 0;
+  allCoursesInflight = null;
+  courseByIdCache = new Map();
+  CACHE_TTL_MS = 5 * 60 * 1000;
 
   constructor() {
     // Validate required configuration
@@ -97,56 +102,80 @@ class CourseService {
 
   async createRow(data) {
     try {
-      return await this.tablesDB.createRow(
+      const created = await this.tablesDB.createRow(
         clientConfig.appwriteDBId,
         this.coursesTableId,
         ID.unique(),
         data,
       );
+      this.clearCourseCache();
+      return created;
     } catch {
-      return this.databases.createDocument(
+      const created = await this.databases.createDocument(
         clientConfig.appwriteDBId,
         this.coursesTableId,
         ID.unique(),
         data,
       );
+      this.clearCourseCache();
+      return created;
     }
   }
 
   async updateRow(rowId, data) {
     try {
-      return await this.tablesDB.updateRow(
+      const updated = await this.tablesDB.updateRow(
         clientConfig.appwriteDBId,
         this.coursesTableId,
         rowId,
         data,
       );
+      this.clearCourseCache();
+      return updated;
     } catch {
-      return this.databases.updateDocument(
+      const updated = await this.databases.updateDocument(
         clientConfig.appwriteDBId,
         this.coursesTableId,
         rowId,
         data,
       );
+      this.clearCourseCache();
+      return updated;
     }
+  }
+
+  clearCourseCache() {
+    this.allCoursesCache = null;
+    this.allCoursesCacheExpiry = 0;
+    this.allCoursesInflight = null;
+    this.courseByIdCache.clear();
   }
 
   async getCourseById(courseId) {
     const id = normalizeText(courseId);
     if (!id) return null;
+
+    if (this.courseByIdCache.has(id)) {
+      return this.courseByIdCache.get(id);
+    }
+
     try {
-      return await this.tablesDB.getRow(
+      const row = await this.tablesDB.getRow(
         clientConfig.appwriteDBId,
         this.coursesTableId,
         id,
       );
+      this.courseByIdCache.set(id, row);
+      return row;
     } catch {
       try {
-        return await this.databases.getDocument(
+        const row = await this.databases.getDocument(
           clientConfig.appwriteDBId,
           this.coursesTableId,
           id,
         );
+        this.courseByIdCache.set(id, row);
+        return row;
       } catch {
         return null;
       }
@@ -185,11 +214,39 @@ class CourseService {
   }
 
   async getAllCourses(limit = 5000) {
-    const response = await this.listRows([
-      Query.orderAsc("courseCode"),
-      Query.limit(limit),
-    ]);
-    return response.rows || [];
+    if (
+      this.allCoursesCache &&
+      this.allCoursesCacheExpiry > Date.now() &&
+      this.allCoursesCacheLimit === limit
+    ) {
+      return this.allCoursesCache;
+    }
+
+    if (this.allCoursesInflight && this.allCoursesCacheLimit === limit) {
+      return this.allCoursesInflight;
+    }
+
+    this.allCoursesCacheLimit = limit;
+    this.allCoursesInflight = (async () => {
+      const response = await this.listRows([
+        Query.orderAsc("courseCode"),
+        Query.limit(limit),
+      ]);
+      const rows = response.rows || [];
+      this.allCoursesCache = rows;
+      this.allCoursesCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+      for (const row of rows) {
+        const rowId = normalizeText(row?.$id);
+        if (rowId) this.courseByIdCache.set(rowId, row);
+      }
+      return rows;
+    })();
+
+    try {
+      return await this.allCoursesInflight;
+    } finally {
+      this.allCoursesInflight = null;
+    }
   }
 
   async searchCourses(query, limit = 10) {

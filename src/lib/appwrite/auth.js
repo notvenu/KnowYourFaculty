@@ -31,6 +31,26 @@ function setAuthCheckFlag(enabled) {
   }
 }
 
+function getCurrentRouteUrl() {
+  if (typeof window === "undefined") return "/";
+  return `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function getFailureRouteUrl() {
+  if (typeof window === "undefined") return "/";
+  const failureUrl = new URL(getCurrentRouteUrl());
+  failureUrl.searchParams.set("auth", "failed");
+  return failureUrl.toString();
+}
+
+export function hasPendingAuthCheck() {
+  return getAuthCheckFlag();
+}
+
+export function clearPendingAuthCheck() {
+  setAuthCheckFlag(false);
+}
+
 export class AuthService {
   client = new Client();
   account;
@@ -66,8 +86,8 @@ export class AuthService {
       setAuthCheckFlag(true);
       const session = await this.account.createOAuth2Session(
         OAuthProvider.Google,
-        `${window.location.origin}/`, // Success URL
-        `${window.location.origin}/`, // Failure URL
+        getCurrentRouteUrl(),
+        getFailureRouteUrl(),
       );
       return session;
     } catch (error) {
@@ -87,19 +107,25 @@ export class AuthService {
       if (!isAllowedEmailInternal(user?.email)) {
         await this.account.deleteSessions();
         setAuthCheckFlag(false);
-        return null;
+        const error = new Error(
+          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
+        );
+        error.type = "disallowed_email_domain";
+        throw error;
       }
       // User is valid, make sure flag is set
       setAuthCheckFlag(true);
       return user;
     } catch (error) {
+      if (
+        String(error?.type || "").toLowerCase() === "disallowed_email_domain"
+      ) {
+        throw error;
+      }
       const code = Number(error?.code || 0);
       const type = String(error?.type || "");
       const isExpectedGuest401 =
         code === 401 || type.includes("general_unauthorized_scope");
-      if (isExpectedGuest401) {
-        setAuthCheckFlag(false);
-      }
       if (!isExpectedGuest401) {
         console.error("Get current user error:", error);
       }

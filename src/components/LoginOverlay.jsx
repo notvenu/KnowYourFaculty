@@ -2,20 +2,40 @@ import Overlay from "./Overlay.jsx";
 
 const ALLOWED_DOMAIN = "vitapstudent.ac.in";
 
-export default function LoginOverlay({ open, onClose, authError, onSignIn, signingIn = false }) {
+export default function LoginOverlay({
+  open,
+  onClose,
+  authError,
+  onSignIn,
+  signingIn = false,
+}) {
   return (
     <Overlay open={open} onClose={onClose}>
       <div className="p-6 sm:p-8">
         <h2 className="text-xl font-bold text-(--text) sm:text-2xl">Sign in</h2>
         <p className="mt-3 text-sm leading-relaxed text-(--muted)">
-          Only <strong className="text-(--text)">VIT-AP students</strong> can sign in.
-          Use your <strong className="text-(--primary)">@{ALLOWED_DOMAIN}</strong> account only.
+          Only <strong className="text-(--text)">VIT-AP students</strong> can
+          sign in. Use your{" "}
+          <strong className="text-(--primary)">@{ALLOWED_DOMAIN}</strong>{" "}
+          account only.
         </p>
-        {authError ? (
-          <p className="mt-4 rounded-lg border border-red-300 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-600">
-            {authError}
+        <div
+          className={`mt-4 overflow-hidden transition-all duration-300 ease-out ${
+            authError
+              ? "max-h-24 translate-y-0 opacity-100"
+              : "max-h-0 -translate-y-2 opacity-0"
+          }`}
+          aria-live="polite"
+        >
+          <p
+            className={`rounded-lg border border-red-300 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-600 transition-transform duration-300 ${
+              authError ? "translate-y-0 animate-shake" : "-translate-y-2"
+            }`}
+            role={authError ? "alert" : undefined}
+          >
+            {authError || " "}
           </p>
-        ) : null}
+        </div>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="button"
@@ -37,4 +57,3 @@ export default function LoginOverlay({ open, onClose, authError, onSignIn, signi
     </Overlay>
   );
 }
-

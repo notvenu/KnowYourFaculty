@@ -1,6 +1,6 @@
 import publicFacultyService from "../services/publicFacultyService.js";
 
-function DetailRow({value }) {
+function DetailRow({ value }) {
   if (value == null || String(value).trim() === "") return null;
   return (
     <p>
@@ -19,12 +19,12 @@ export default function FacultyProfileCard({ faculty }) {
     : null;
 
   return (
-    <div className="flex flex-col p-3 sm:p-4 md:p-5">
-      <div className="aspect-[4/3] w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--panel)">
+    <div className="flex flex-col rounded-xl border border-(--line) bg-(--panel-dark) p-3 shadow-lg sm:p-4 md:p-5 pb-6">
+      <div className="aspect-4/3 w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--panel-dark)">
         <img
           src={photoUrl}
           alt={faculty.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-[50%_10%]"
           onError={(e) => {
             e.currentTarget.src = placeholderUrl;
           }}
@@ -68,4 +68,3 @@ export default function FacultyProfileCard({ faculty }) {
     </div>
   );
 }
-

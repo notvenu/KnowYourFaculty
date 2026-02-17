@@ -1,10 +1,15 @@
 // eslint-disable tailwindcss/no-custom-classname
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Query } from "appwrite";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faSort, faSortAmountDown, faSortAmountUp } from "@fortawesome/free-solid-svg-icons";
+import {
+  faChevronDown,
+  faSort,
+  faSortAmountDown,
+  faSortAmountUp,
+} from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
 import FacultyCard from "../components/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
@@ -42,6 +47,7 @@ function FacultyDirectoryPage() {
   const [faculty, setFaculty] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [ratingLookup, setRatingLookup] = useState({});
+  const [ratingCountLookup, setRatingCountLookup] = useState({});
   const [courseFacultyLookup, setCourseFacultyLookup] = useState({});
   const [courseQuery, setCourseQuery] = useState("");
   const [courseSuggestions, setCourseSuggestions] = useState([]);
@@ -56,6 +62,7 @@ function FacultyDirectoryPage() {
   });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const deferredSearch = useDeferredValue(filters.search);
 
   useEffect(() => {
     loadDirectory();
@@ -99,7 +106,10 @@ function FacultyDirectoryPage() {
           publicFacultyService.getDepartments(),
           facultyFeedbackService.listRows(
             facultyFeedbackService.feedbackTableId,
-            [Query.limit(5000)],
+            [
+              Query.select(["facultyId", "courseId", ...RATING_FIELDS]),
+              Query.limit(5000),
+            ],
           ),
         ],
       );
@@ -128,13 +138,16 @@ function FacultyDirectoryPage() {
       }
 
       const mappedRatings = {};
+      const mappedRatingCounts = {};
       for (const [facultyId, item] of Object.entries(ratingAgg)) {
         mappedRatings[facultyId] = Number((item.total / item.count).toFixed(2));
+        mappedRatingCounts[facultyId] = item.count;
       }
 
       setFaculty(allFaculty);
       setDepartments(departmentRows || []);
       setRatingLookup(mappedRatings);
+      setRatingCountLookup(mappedRatingCounts);
       setCourseFacultyLookup(courseLookup);
     } catch (loadError) {
       setError(loadError?.message || "Failed to load faculty directory.");
@@ -148,6 +161,10 @@ function FacultyDirectoryPage() {
       .trim()
       .toLowerCase();
 
+    const deferredKeyword = String(deferredSearch || "")
+      .trim()
+      .toLowerCase();
+
     let rows = faculty.filter((item) => {
       const facultyId = String(item.employeeId || "").trim();
       const name = String(item.name || "").toLowerCase();
@@ -158,17 +175,15 @@ function FacultyDirectoryPage() {
       const tier = getTierFromRating(rating);
 
       const matchesText =
-        !keyword ||
-        name.includes(keyword) ||
-        dept.includes(keyword) ||
-        designation.includes(keyword) ||
-        research.includes(keyword);
+        !deferredKeyword ||
+        name.includes(deferredKeyword) ||
+        dept.includes(deferredKeyword) ||
+        designation.includes(deferredKeyword) ||
+        research.includes(deferredKeyword);
       const matchesDepartment =
         filters.department === "all" || item.department === filters.department;
-      const matchesTopRated =
-        !filters.topRated || rating >= 4;
-      const matchesTier =
-        filters.tier === "all" || tier === filters.tier;
+      const matchesTopRated = !filters.topRated || rating >= 4;
+      const matchesTier = filters.tier === "all" || tier === filters.tier;
       const matchesCourse =
         !selectedCourse ||
         Boolean(
@@ -177,7 +192,11 @@ function FacultyDirectoryPage() {
         );
 
       return (
-        matchesText && matchesDepartment && matchesTopRated && matchesTier && matchesCourse
+        matchesText &&
+        matchesDepartment &&
+        matchesTopRated &&
+        matchesTier &&
+        matchesCourse
       );
     });
 
@@ -205,7 +224,14 @@ function FacultyDirectoryPage() {
     }
 
     return rows;
-  }, [faculty, filters, ratingLookup, selectedCourse, courseFacultyLookup]);
+  }, [
+    faculty,
+    filters,
+    deferredSearch,
+    ratingLookup,
+    selectedCourse,
+    courseFacultyLookup,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -270,7 +296,10 @@ function FacultyDirectoryPage() {
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-(--text) transition hover:border-(--primary) hover:bg-(--primary-soft)"
           >
             <span aria-hidden className="inline-flex items-center">
-              <FontAwesomeIcon icon={faChevronDown} className={`text-xs sm:text-sm transition-transform duration-200 ${showFilterPanel ? 'rotate-180' : ''}`} />
+              <FontAwesomeIcon
+                icon={faChevronDown}
+                className={`text-xs sm:text-sm transition-transform duration-200 ${showFilterPanel ? "rotate-180" : ""}`}
+              />
             </span>
             <span className="hidden xs:inline">Filters</span>
             {activeFilterCount > 0 ? (
@@ -297,7 +326,7 @@ function FacultyDirectoryPage() {
                 </option>
               ))}
             </select>
-            
+
             <select
               value={filters.tier}
               onChange={(e) =>
@@ -329,7 +358,6 @@ function FacultyDirectoryPage() {
               <option value="za">Name: Z to A</option>
             </select>
 
-
             <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
               <input
                 type="checkbox"
@@ -344,7 +372,7 @@ function FacultyDirectoryPage() {
               />
               <span className="text-xs sm:text-sm">Top Rated Only (A+)</span>
             </label>
-            
+
             <div className="relative">
               <input
                 type="text"
@@ -414,11 +442,13 @@ function FacultyDirectoryPage() {
         {paginatedFaculty.map((item) => {
           const facultyId = String(item.employeeId || "");
           const overall = ratingLookup[facultyId];
+          const ratingCount = ratingCountLookup[facultyId] || 0;
           return (
             <FacultyCard
               key={item.$id}
               faculty={item}
               overallRating={overall}
+              ratingCount={ratingCount}
             />
           );
         })}
@@ -452,4 +482,3 @@ function FacultyDirectoryPage() {
 }
 
 export default FacultyDirectoryPage;
-

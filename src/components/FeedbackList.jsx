@@ -35,7 +35,7 @@ const RATING_KEYS = [
 
 function getAverageRating(row) {
   const values = RATING_KEYS.map((k) => Number(row[k])).filter(
-    (n) => Number.isFinite(n) && n >= 1 && n <= 5
+    (n) => Number.isFinite(n) && n >= 1 && n <= 5,
   );
   if (values.length === 0) return 3;
   return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
@@ -46,6 +46,12 @@ export default function FeedbackList({
   courseLookup,
   maxItems = 10,
   currentUser = null,
+  courseFilter = "",
+  setCourseFilter = null,
+  timeFilter = "all",
+  setTimeFilter = null,
+  ratingFilter = "all",
+  setRatingFilter = null,
   onDeleteReview = null,
   onEditReview = null,
   deleting = false,
@@ -53,24 +59,87 @@ export default function FeedbackList({
   if (!feedbackList?.length) return null;
 
   // Filter to only show feedback with review text
-  const feedbackWithReviews = feedbackList.filter((row) => {
+  let feedbackWithReviews = feedbackList.filter((row) => {
     const rawReview = String(row.review || "").trim();
     return rawReview.length > 0;
   });
 
+  // Apply course filter
+  if (courseFilter && courseFilter !== "") {
+    feedbackWithReviews = feedbackWithReviews.filter(
+      (row) => row.courseId === courseFilter,
+    );
+  }
+
+  // Apply time filter
+  if (timeFilter !== "all") {
+    const now = new Date();
+    const cutoffTime = new Date();
+
+    if (timeFilter === "1week") {
+      cutoffTime.setDate(now.getDate() - 7);
+    } else if (timeFilter === "1month") {
+      cutoffTime.setMonth(now.getMonth() - 1);
+    }
+
+    feedbackWithReviews = feedbackWithReviews.filter((row) => {
+      const createdDate = row.$createdAt ? new Date(row.$createdAt) : null;
+      return createdDate && createdDate >= cutoffTime;
+    });
+  }
+
+  // Apply rating filter
+  if (ratingFilter && ratingFilter !== "all") {
+    feedbackWithReviews = feedbackWithReviews.filter((row) => {
+      const avgRating = getAverageRating(row);
+      const ratingLabel =
+        RATING_LABELS[Math.max(1, Math.min(5, avgRating))] ?? RATING_LABELS[3];
+      return ratingLabel === ratingFilter;
+    });
+  }
+
   if (!feedbackWithReviews.length) return null;
 
+  // Get unique courses from feedbackList for filter dropdown
+  const uniqueCourses = [
+    ...new Set(
+      feedbackList.filter((row) => row.courseId).map((row) => row.courseId),
+    ),
+  ];
+
   return (
-    <div className="p-4 sm:p-5 md:p-6">
-      <h2 className="mb-3 sm:mb-4 text-xl font-bold text-(--text) sm:text-2xl">What students say</h2>
+    <div className="rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+      <div>
+        <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
+          What students say
+        </h2>
+      </div>
+
       <div className="space-y-3 sm:space-y-4">
         {feedbackWithReviews.slice(0, maxItems).map((row) => {
           const avgRating = getAverageRating(row);
-          const ratingLabel = RATING_LABELS[Math.max(1, Math.min(5, avgRating))] ?? RATING_LABELS[3];
+          const ratingLabel =
+            RATING_LABELS[Math.max(1, Math.min(5, avgRating))] ??
+            RATING_LABELS[3];
           const rawReview = String(row.review || "").trim();
           const reviewText = rawReview ? censorReviewText(rawReview) : "";
-          const isOwnReview = Boolean(currentUser?.$id && row.userId === currentUser.$id);
-          const when = timeAgo(row.$createdAt);
+          const isOwnReview = Boolean(
+            currentUser?.$id && row.userId === currentUser.$id,
+          );
+
+          // Determine if review was edited and which timestamp to show
+          const createdTime = row.$createdAt ? new Date(row.$createdAt) : null;
+          const updatedTime = row.$updatedAt ? new Date(row.$updatedAt) : null;
+          const wasEdited =
+            createdTime &&
+            updatedTime &&
+            Math.abs(updatedTime.getTime() - createdTime.getTime()) > 1000; // More than 1 second difference
+
+          const displayTime =
+            wasEdited && updatedTime ? row.$updatedAt : row.$createdAt;
+          const timePrefix = wasEdited ? "(Edited)" : null;
+          const when = timeAgo(displayTime);
+
           return (
             <div
               key={row.$id}
@@ -79,20 +148,29 @@ export default function FeedbackList({
               <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-(--text)">{isOwnReview ? "Your review" : "Anonymous"}</span>
+                    <span className="font-semibold text-(--text)">
+                      {isOwnReview ? "Your review" : "Anonymous"}
+                    </span>
                     {row.courseId && courseLookup[row.courseId] && (
                       <span className="rounded-lg bg-(--primary-soft) px-2 py-0.5 text-xs font-medium text-(--primary)">
                         {courseLookup[row.courseId].courseCode}
                       </span>
                     )}
                     {when ? (
-                      <span className="text-xs text-(--muted)" title={row.$createdAt}>
-                        {when}
+                      <span
+                        className="text-xs text-(--muted)"
+                        title={displayTime}
+                      >
+                        {when} {timePrefix}
                       </span>
                     ) : null}
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-(--muted)">
-                    &ldquo;{reviewText.length > 200 ? reviewText.substring(0, 200) + "…" : reviewText}&rdquo;
+                    &ldquo;
+                    {reviewText.length > 200
+                      ? reviewText.substring(0, 200) + "…"
+                      : reviewText}
+                    &rdquo;
                   </p>
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-2">
@@ -134,4 +212,3 @@ export default function FeedbackList({
     </div>
   );
 }
-

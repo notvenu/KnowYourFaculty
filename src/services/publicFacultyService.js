@@ -13,6 +13,9 @@ class PublicFacultyService {
   tablesDB;
   initialized = false;
   initError = null;
+  queryCache = new Map();
+  inflightRequests = new Map();
+  CACHE_TTL_MS = 60 * 1000;
 
   constructor() {
     // Validate required configuration
@@ -43,31 +46,64 @@ class PublicFacultyService {
     if (!this.initialized || !this.tablesDB) {
       throw new Error(this.initError || "Appwrite service not initialized");
     }
-    try {
-      const response = await this.tablesDB.listRows(
-        clientConfig.appwriteDBId,
-        clientConfig.appwriteTableId,
-        queries,
-      );
-      return {
-        records: response.rows || [],
-        total: response.total || 0,
-      };
-    } catch (tablesError) {
-      if (!this.databases) {
-        throw new Error(
-          this.initError || "Appwrite databases service not initialized",
+
+    const cacheKey = JSON.stringify(queries || []);
+    const cached = this.queryCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    if (this.inflightRequests.has(cacheKey)) {
+      return this.inflightRequests.get(cacheKey);
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        const response = await this.tablesDB.listRows(
+          clientConfig.appwriteDBId,
+          clientConfig.appwriteTableId,
+          queries,
         );
+        const value = {
+          records: response.rows || [],
+          total: response.total || 0,
+        };
+        this.queryCache.set(cacheKey, {
+          value,
+          expiresAt: Date.now() + this.CACHE_TTL_MS,
+        });
+        return value;
+      } catch (tablesError) {
+        if (!this.databases) {
+          throw new Error(
+            this.initError || "Appwrite databases service not initialized",
+          );
+        }
+        const response = await this.databases.listDocuments(
+          clientConfig.appwriteDBId,
+          clientConfig.appwriteTableId,
+          queries,
+        );
+        const value = {
+          records: response.documents || [],
+          total: response.total || 0,
+        };
+        this.queryCache.set(cacheKey, {
+          value,
+          expiresAt: Date.now() + this.CACHE_TTL_MS,
+        });
+        return value;
+      } finally {
+        this.inflightRequests.delete(cacheKey);
       }
-      const response = await this.databases.listDocuments(
-        clientConfig.appwriteDBId,
-        clientConfig.appwriteTableId,
-        queries,
-      );
-      return {
-        records: response.documents || [],
-        total: response.total || 0,
-      };
+    })();
+
+    this.inflightRequests.set(cacheKey, fetchPromise);
+
+    try {
+      return await fetchPromise;
+    } catch (error) {
+      throw error;
     }
   }
 

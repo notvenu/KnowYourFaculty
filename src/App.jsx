@@ -7,7 +7,11 @@ import SiteFooter from "./components/SiteFooter.jsx";
 import LoginOverlay from "./components/LoginOverlay.jsx";
 import AdminPanel from "./components/AdminPanel.jsx";
 import publicFacultyService from "./services/publicFacultyService.js";
-import authService, { ALLOWED_EMAIL_DOMAIN } from "./lib/appwrite/auth.js";
+import authService, {
+  ALLOWED_EMAIL_DOMAIN,
+  clearPendingAuthCheck,
+  hasPendingAuthCheck,
+} from "./lib/appwrite/auth.js";
 import clientConfig from "./config/client.js";
 import "./App.css";
 
@@ -41,6 +45,20 @@ function App() {
   useEffect(() => {
     checkDatabaseAccess();
     loadCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const pageUrl = new URL(window.location.href);
+    if (pageUrl.searchParams.get("auth") !== "failed") return;
+    setAuthError(
+      `Login failed. Please sign in using your @${ALLOWED_EMAIL_DOMAIN} account.`,
+    );
+    setShowLoginOverlay(true);
+    clearPendingAuthCheck();
+    pageUrl.searchParams.delete("auth");
+    const cleanUrl = `${pageUrl.pathname}${pageUrl.search}${pageUrl.hash}`;
+    window.history.replaceState({}, "", cleanUrl);
   }, []);
 
   useEffect(() => {
@@ -83,6 +101,13 @@ function App() {
       try {
         const user = await authService.getCurrentUser();
         if (!user) {
+          if (hasPendingAuthCheck()) {
+            setAuthError(
+              `Login failed. Please sign in using your @${ALLOWED_EMAIL_DOMAIN} account.`,
+            );
+            setShowLoginOverlay(true);
+            clearPendingAuthCheck();
+          }
           setCurrentUser(null);
           return true;
         }
@@ -99,6 +124,17 @@ function App() {
         setCurrentUser(user);
         return true;
       } catch (error) {
+        const errorType = String(error?.type || "").toLowerCase();
+        if (errorType === "disallowed_email_domain") {
+          setCurrentUser(null);
+          setAuthError(
+            `Login failed. Please sign in using your @${ALLOWED_EMAIL_DOMAIN} account.`,
+          );
+          setShowLoginOverlay(true);
+          clearPendingAuthCheck();
+          return true;
+        }
+
         // If this is a retry attempt, give up
         if (retries >= maxRetries) {
           setAuthError("Unable to verify login state.");

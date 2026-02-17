@@ -196,10 +196,7 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-(--text)">
-              <FontAwesomeIcon
-                icon={faChartBar}
-                className="text-(--primary)"
-              />
+              <FontAwesomeIcon icon={faChartBar} className="text-(--primary)" />
               <span>Sort By</span>
             </label>
             <select
@@ -216,10 +213,7 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-(--text)">
-              <FontAwesomeIcon
-                icon={faSort}
-                className="text-(--primary)"
-              />
+              <FontAwesomeIcon icon={faSort} className="text-(--primary)" />
               <span>Order</span>
             </label>
             <select
@@ -355,7 +349,7 @@ function FacultyCard({ faculty }) {
           <img
             src={photoUrl}
             alt={faculty.name}
-            className="h-full w-full object-cover transition-transform hover:scale-105"
+            className="h-full w-full object-cover object-[50%_20%] transition-transform hover:scale-105"
             loading="lazy"
             decoding="async"
             onError={handleImageError}
@@ -450,13 +444,13 @@ function Pagination({
   const maxVisiblePages = 5;
   const startPage = Math.max(
     1,
-    Math.min(currentPage - 2, totalPages - maxVisiblePages + 1)
+    Math.min(currentPage - 2, totalPages - maxVisiblePages + 1),
   );
   const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
   const pages = Array.from(
     { length: endPage - startPage + 1 },
-    (_, i) => startPage + i
+    (_, i) => startPage + i,
   );
 
   if (totalPages <= 1) return null;
@@ -515,4 +509,3 @@ function Pagination({
 }
 
 export default FacultyList;
-

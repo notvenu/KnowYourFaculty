@@ -16,6 +16,7 @@ div {
   --bg: #f8fafc;
   --bg-elev: #ffffff;
   --panel: #f1f5f9;
+  --panel-dark: #e2e8f0;
   --text: #0f172a;
   --muted: #64748b;
   --line: #e2e8f0;
@@ -39,6 +40,7 @@ div {
   --bg: #0f172a;
   --bg-elev: #1e293b;
   --panel: #334155;
+  --panel-dark: #1e293b;
   --text: #f8fafc;
   --muted: #94a3b8;
   --line: #475569;
@@ -78,14 +80,17 @@ body {
   font-family: "Plus Jakarta Sans", "Inter", "Segoe UI", system-ui, sans-serif;
   font-size: 0.95rem;
   line-height: 1.5;
-  background: radial-gradient(
+  background:
+    radial-gradient(
       ellipse 100% 80% at 50% -10%,
       color-mix(in srgb, var(--primary) 8%, transparent),
       transparent 50%
     ),
     var(--bg);
   color: var(--text);
-  transition: background 0.25s ease, color 0.25s ease;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
 }
 
 @media (min-width: 768px) {
@@ -101,7 +106,8 @@ body {
 }
 
 [data-theme="dark"] body {
-  background: radial-gradient(
+  background:
+    radial-gradient(
       ellipse 80% 50% at 50% -20%,
       color-mix(in srgb, var(--primary) 12%, transparent),
       transparent 45%
@@ -115,8 +121,12 @@ a,
 input,
 textarea,
 select {
-  transition: color 0.2s ease, background-color 0.2s ease,
-    border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease,
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
     opacity 0.2s ease;
 }
 
@@ -142,7 +152,9 @@ button:active:not(:disabled) {
 /* Card / article */
 article,
 [data-card] {
-  transition: transform 0.25s ease, box-shadow 0.25s ease,
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
     border-color 0.2s ease;
   box-shadow: var(--shadow-card);
 }
@@ -285,7 +297,8 @@ select:focus {
   border-radius: 999px;
   background: var(--primary);
   border: 3px solid var(--bg-elev);
-  box-shadow: 0 0 0 2px var(--primary),
+  box-shadow:
+    0 0 0 2px var(--primary),
     0 4px 12px color-mix(in srgb, var(--primary) 40%, transparent);
   cursor: grab;
   transition: all 0.2s ease;
@@ -293,7 +306,8 @@ select:focus {
 
 .kyf-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
-  box-shadow: 0 0 0 3px var(--primary),
+  box-shadow:
+    0 0 0 3px var(--primary),
     0 6px 16px color-mix(in srgb, var(--primary) 50%, transparent);
 }
 
@@ -308,7 +322,8 @@ select:focus {
   border-radius: 999px;
   background: var(--primary);
   border: 3px solid var(--bg-elev);
-  box-shadow: 0 0 0 2px var(--primary),
+  box-shadow:
+    0 0 0 2px var(--primary),
     0 4px 12px color-mix(in srgb, var(--primary) 40%, transparent);
   cursor: grab;
   transition: all 0.2s ease;
@@ -329,7 +344,9 @@ select:focus {
     color-mix(in srgb, var(--primary) 10%, var(--bg-elev)),
     color-mix(in srgb, var(--primary) 4%, var(--bg-elev))
   );
-  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 [data-theme="dark"] .hero-surface {
   background: linear-gradient(
@@ -337,7 +354,9 @@ select:focus {
     color-mix(in srgb, var(--primary) 18%, var(--bg-elev)),
     color-mix(in srgb, var(--primary) 6%, var(--bg-elev))
   );
-  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* Glass panel (nav, overlays) */

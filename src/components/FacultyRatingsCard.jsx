@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { THEORY_FIELDS, LAB_FIELDS, ECS_FIELDS } from "../lib/ratingConfig.js";
+import {
+  THEORY_FIELDS,
+  LAB_FIELDS,
+  ECS_FIELDS,
+  getTierFromRating,
+  getTierColor,
+} from "../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faStar, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 
@@ -10,6 +16,8 @@ export default function FacultyRatingsCard({
   hasUser,
   alreadySubmitted,
   onShareFeedback,
+  canAddReview = false,
+  onAddReview,
   onEditRating,
   onDeleteRating,
   deleting = false,
@@ -22,11 +30,8 @@ export default function FacultyRatingsCard({
   });
 
   return (
-    <div className="p-4 sm:p-5 md:p-6">
-      <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
-          Ratings
-        </h2>
+    <div className="rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+      <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-end gap-2">
         {hasUser && (
           <div className="flex flex-wrap items-center gap-2">
             {!alreadySubmitted && (
@@ -45,6 +50,15 @@ export default function FacultyRatingsCard({
                 className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
               >
                 Edit ratings
+              </button>
+            )}
+            {alreadySubmitted && canAddReview && onAddReview && (
+              <button
+                type="button"
+                onClick={onAddReview}
+                className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+              >
+                Add review
               </button>
             )}
             {alreadySubmitted && onDeleteRating && (
@@ -72,22 +86,46 @@ export default function FacultyRatingsCard({
         </div>
       ) : (
         <div className="border-b border-(--line) pb-4 text-center sm:pb-5">
-          <div className="text-4xl font-extrabold text-(--primary) sm:text-5xl">
-            {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
+          <div className="flex flex-col items-center justify-center gap-2">
+            <span
+              className="text-5xl font-bold sm:text-6xl"
+              style={{
+                color: getTierColor(
+                  getTierFromRating(ratingSummary.overallAverage),
+                ),
+              }}
+            >
+              {getTierFromRating(ratingSummary.overallAverage)}
+            </span>
+            <div className="text-2xl font-extrabold text-(--primary) sm:text-3xl">
+              {ratingSummary.overallAverage?.toFixed(1) ?? "—"} / 5
+            </div>
           </div>
           <div className="mt-2 flex justify-center gap-0.5">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <span
-                key={star}
-                className={`text-lg motion-safe:transition-transform motion-safe:transition-opacity ${
-                  star <= Math.round(ratingSummary.overallAverage || 0)
-                    ? "scale-105 opacity-100 text-(--primary)"
-                    : "opacity-30 text-(--muted)"
-                }`}
-              >
-                <FontAwesomeIcon icon={faStar} />
-              </span>
-            ))}
+            {[1, 2, 3, 4, 5].map((starIndex) => {
+              const rating = ratingSummary.overallAverage || 0;
+              const fillPercentage = Math.min(
+                100,
+                Math.max(0, (rating - (starIndex - 1)) * 100),
+              );
+
+              return (
+                <span key={starIndex} className="relative inline-block text-lg">
+                  {/* Background star (empty/muted) */}
+                  <FontAwesomeIcon
+                    icon={faStar}
+                    className="text-(--muted) opacity-30"
+                  />
+                  {/* Foreground star (filled) clipped to percentage */}
+                  <span
+                    className="absolute left-0 top-0 overflow-hidden text-(--primary)"
+                    style={{ width: `${fillPercentage}%` }}
+                  >
+                    <FontAwesomeIcon icon={faStar} />
+                  </span>
+                </span>
+              );
+            })}
           </div>
           <p className="mt-2 text-xs font-medium text-(--muted)">
             {ratingSummary.totalRatings}{" "}
@@ -111,22 +149,31 @@ export default function FacultyRatingsCard({
                 className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-(--text)">
-                    Theory
-                  </span>
+                  <span className="font-semibold text-(--text)">Theory</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-(--primary)">
+                    <span
+                      className="font-bold"
+                      style={{
+                        color: getTierColor(
+                          getTierFromRating(sectionAverages.theory),
+                        ),
+                      }}
+                    >
                       {sectionAverages.theory.toFixed(1)}
                     </span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <span
                           key={star}
-                          className={`text-xs ${
-                            star <= Math.round(sectionAverages.theory || 0)
-                              ? "text-(--primary)"
-                              : "text-(--line)"
-                          }`}
+                          className="text-xs"
+                          style={{
+                            color:
+                              star <= Math.round(sectionAverages.theory || 0)
+                                ? getTierColor(
+                                    getTierFromRating(sectionAverages.theory),
+                                  )
+                                : "var(--line)",
+                          }}
                         >
                           ★
                         </span>
@@ -156,18 +203,29 @@ export default function FacultyRatingsCard({
                           {field.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-(--primary)">
+                          <span
+                            className="text-xs font-bold"
+                            style={{
+                              color:
+                                value != null
+                                  ? getTierColor(getTierFromRating(value))
+                                  : "var(--primary)",
+                            }}
+                          >
                             {value != null ? value.toFixed(1) : "—"}
                           </span>
                           <div className="flex gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <span
                                 key={star}
-                                className={`text-xs ${
-                                  star <= Math.round(value || 0)
-                                    ? "text-(--primary)"
-                                    : "text-(--line)"
-                                }`}
+                                className="text-xs"
+                                style={{
+                                  color:
+                                    value != null &&
+                                    star <= Math.round(value || 0)
+                                      ? getTierColor(getTierFromRating(value))
+                                      : "var(--line)",
+                                }}
                               >
                                 ★
                               </span>
@@ -194,18 +252,29 @@ export default function FacultyRatingsCard({
                 <div className="flex items-center justify-between w-full">
                   <span className="font-semibold text-(--text)">Lab</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-(--primary)">
+                    <span
+                      className="font-bold"
+                      style={{
+                        color: getTierColor(
+                          getTierFromRating(sectionAverages.lab),
+                        ),
+                      }}
+                    >
                       {sectionAverages.lab.toFixed(1)}
                     </span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <span
                           key={star}
-                          className={`text-xs ${
-                            star <= Math.round(sectionAverages.lab || 0)
-                              ? "text-(--primary)"
-                              : "text-(--line)"
-                          }`}
+                          className="text-xs"
+                          style={{
+                            color:
+                              star <= Math.round(sectionAverages.lab || 0)
+                                ? getTierColor(
+                                    getTierFromRating(sectionAverages.lab),
+                                  )
+                                : "var(--line)",
+                          }}
                         >
                           ★
                         </span>
@@ -235,18 +304,29 @@ export default function FacultyRatingsCard({
                           {field.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-(--primary)">
+                          <span
+                            className="text-xs font-bold"
+                            style={{
+                              color:
+                                value != null
+                                  ? getTierColor(getTierFromRating(value))
+                                  : "var(--primary)",
+                            }}
+                          >
                             {value != null ? value.toFixed(1) : "—"}
                           </span>
                           <div className="flex gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <span
                                 key={star}
-                                className={`text-xs ${
-                                  star <= Math.round(value || 0)
-                                    ? "text-(--primary)"
-                                    : "text-(--line)"
-                                }`}
+                                className="text-xs"
+                                style={{
+                                  color:
+                                    value != null &&
+                                    star <= Math.round(value || 0)
+                                      ? getTierColor(getTierFromRating(value))
+                                      : "var(--line)",
+                                }}
                               >
                                 ★
                               </span>
@@ -275,18 +355,29 @@ export default function FacultyRatingsCard({
                     ECS / Capstone
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-(--primary)">
+                    <span
+                      className="font-bold"
+                      style={{
+                        color: getTierColor(
+                          getTierFromRating(sectionAverages.ecs),
+                        ),
+                      }}
+                    >
                       {sectionAverages.ecs.toFixed(1)}
                     </span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <span
                           key={star}
-                          className={`text-xs ${
-                            star <= Math.round(sectionAverages.ecs || 0)
-                              ? "text-(--primary)"
-                              : "text-(--line)"
-                          }`}
+                          className="text-xs"
+                          style={{
+                            color:
+                              star <= Math.round(sectionAverages.ecs || 0)
+                                ? getTierColor(
+                                    getTierFromRating(sectionAverages.ecs),
+                                  )
+                                : "var(--line)",
+                          }}
                         >
                           ★
                         </span>
@@ -316,18 +407,29 @@ export default function FacultyRatingsCard({
                           {field.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-(--primary)">
+                          <span
+                            className="text-xs font-bold"
+                            style={{
+                              color:
+                                value != null
+                                  ? getTierColor(getTierFromRating(value))
+                                  : "var(--primary)",
+                            }}
+                          >
                             {value != null ? value.toFixed(1) : "—"}
                           </span>
                           <div className="flex gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <span
                                 key={star}
-                                className={`text-xs ${
-                                  star <= Math.round(value || 0)
-                                    ? "text-(--primary)"
-                                    : "text-(--line)"
-                                }`}
+                                className="text-xs"
+                                style={{
+                                  color:
+                                    value != null &&
+                                    star <= Math.round(value || 0)
+                                      ? getTierColor(getTierFromRating(value))
+                                      : "var(--line)",
+                                }}
                               >
                                 ★
                               </span>
@@ -346,4 +448,3 @@ export default function FacultyRatingsCard({
     </div>
   );
 }
-

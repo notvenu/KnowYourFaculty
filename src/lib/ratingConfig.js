@@ -23,11 +23,11 @@ export const RATING_FIELDS = [...THEORY_FIELDS, ...LAB_FIELDS, ...ECS_FIELDS];
 
 // Tier-based rating system: S, A, B, C, D
 export const TIER_SYSTEM = {
-  S: { value: 5, label: "S", color: "#9333ea", description: "Exceptional" },
-  A: { value: 4, label: "A", color: "#3b82f6", description: "Excellent" },
-  B: { value: 3, label: "B", color: "#10b981", description: "Good" },
-  C: { value: 2, label: "C", color: "#f59e0b", description: "Average" },
-  D: { value: 1, label: "D", color: "#ef4444", description: "Poor" },
+  S: { value: 5, label: "S", color: "#16a34a", description: "Exceptional" },
+  A: { value: 4, label: "A", color: "#65a30d", description: "Excellent" },
+  B: { value: 3, label: "B", color: "#ca8a04", description: "Good" },
+  C: { value: 2, label: "C", color: "#ea580c", description: "Average" },
+  D: { value: 1, label: "D", color: "#dc2626", description: "Poor" },
 };
 
 // Legacy support - map numeric ratings to tiers
