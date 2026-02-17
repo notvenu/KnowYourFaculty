@@ -83,16 +83,14 @@ export class AuthService {
       return null;
     }
     try {
-      if (!getAuthCheckFlag()) {
-        return null;
-      }
-
       const user = await this.account.get();
       if (!isAllowedEmailInternal(user?.email)) {
         await this.account.deleteSessions();
         setAuthCheckFlag(false);
         return null;
       }
+      // User is valid, make sure flag is set
+      setAuthCheckFlag(true);
       return user;
     } catch (error) {
       const code = Number(error?.code || 0);

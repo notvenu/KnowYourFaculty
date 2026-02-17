@@ -12,8 +12,8 @@ import clientConfig from "./config/client.js";
 import "./App.css";
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
-const FacultyDirectoryPage = lazy(() =>
-  import("./pages/FacultyDirectoryPage.jsx")
+const FacultyDirectoryPage = lazy(
+  () => import("./pages/FacultyDirectoryPage.jsx"),
 );
 const FacultyDetailPage = lazy(() => import("./pages/FacultyDetailPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
@@ -76,28 +76,44 @@ function App() {
   };
 
   const loadCurrentUser = async () => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) {
-        setCurrentUser(null);
-        return;
-      }
+    let retries = 0;
+    const maxRetries = 3;
 
-      if (!authService.isAllowedEmail(user.email)) {
-        await authService.logout();
-        setCurrentUser(null);
-        setAuthError(
-          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`
-        );
-        return;
-      }
+    const tryLoadUser = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        if (!user) {
+          setCurrentUser(null);
+          return true;
+        }
 
-      setCurrentUser(user);
-    } catch {
-      setAuthError("Unable to verify login state.");
-    } finally {
-      setAuthChecked(true);
-    }
+        if (!authService.isAllowedEmail(user.email)) {
+          await authService.logout();
+          setCurrentUser(null);
+          setAuthError(
+            `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
+          );
+          return true;
+        }
+
+        setCurrentUser(user);
+        return true;
+      } catch (error) {
+        // If this is a retry attempt, give up
+        if (retries >= maxRetries) {
+          setAuthError("Unable to verify login state.");
+          return true;
+        }
+
+        // Retry after a short delay
+        retries++;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return await tryLoadUser();
+      }
+    };
+
+    await tryLoadUser();
+    setAuthChecked(true);
   };
 
   const handleGoogleLogin = async () => {
@@ -105,6 +121,8 @@ function App() {
     setLoginInProgress(true);
     try {
       await authService.googleSignIn();
+      // Add small delay to ensure session is properly established
+      await new Promise((resolve) => setTimeout(resolve, 500));
       await loadCurrentUser();
     } catch {
       setAuthError("Google login failed. Check Appwrite OAuth settings.");
@@ -134,12 +152,12 @@ function App() {
     () =>
       Boolean(
         currentUser?.email &&
-          (clientConfig.adminEmails.length === 0 ||
-            clientConfig.adminEmails.includes(
-              String(currentUser.email).trim().toLowerCase()
-            ))
+        (clientConfig.adminEmails.length === 0 ||
+          clientConfig.adminEmails.includes(
+            String(currentUser.email).trim().toLowerCase(),
+          )),
       ),
-    [currentUser]
+    [currentUser],
   );
 
   if (!setupChecked || !authChecked) {
@@ -147,9 +165,7 @@ function App() {
       <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">
         <div className="animate-fadeIn text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)"></div>
-          <p className="text-sm text-(--muted)">
-            Setting things up for you...
-          </p>
+          <p className="text-sm text-(--muted)">Setting things up for you...</p>
         </div>
       </div>
     );
@@ -228,4 +244,3 @@ function App() {
 }
 
 export default App;
-
