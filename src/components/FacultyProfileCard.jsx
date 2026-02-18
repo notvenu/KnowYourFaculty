@@ -1,10 +1,10 @@
 import publicFacultyService from "../services/publicFacultyService.js";
 
-function DetailRow({ value }) {
+function DetailRow({ label, value }) {
   if (value == null || String(value).trim() === "") return null;
   return (
     <p>
-      <span className="font-semibold text-(--text)"></span>{" "}
+      <span className="font-semibold text-(--text)">{label}:</span>{" "}
       {String(value).trim()}
     </p>
   );
@@ -19,8 +19,8 @@ export default function FacultyProfileCard({ faculty }) {
     : null;
 
   return (
-    <div className="flex flex-col rounded-xl border border-(--line) bg-(--panel-dark) p-3 shadow-lg sm:p-4 md:p-5 pb-6">
-      <div className="aspect-4/3 w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--panel-dark)">
+    <div className="flex flex-col rounded-xl border border-(--line) bg-(--bg-elev) p-3 shadow-lg sm:p-4 md:p-5 pb-6">
+      <div className="aspect-4/3 w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--bg-elev)">
         <img
           src={photoUrl}
           alt={faculty.name}

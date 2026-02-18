@@ -3,6 +3,7 @@ import { Query } from "appwrite";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
+import ConfirmOverlay from "./ConfirmOverlay.jsx";
 
 function buildFacultyLookup(facultyRows) {
   const lookup = {};
@@ -21,6 +22,7 @@ function AdminPanel() {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState(null);
   const [courseForm, setCourseForm] = useState({ file: null });
+  const [showUploadConfirm, setShowUploadConfirm] = useState(false);
 
   const statsCards = useMemo(() => {
     if (!stats) return [];
@@ -37,18 +39,24 @@ function AdminPanel() {
       setLoading(true);
       setError(null);
 
-      const [facultyListResponse, feedbackResponse, courseRows] = await Promise.all([
-        publicFacultyService.getFacultyList({ page: 1, limit: 5000 }),
-        facultyFeedbackService.listRows(facultyFeedbackService.feedbackTableId, [Query.limit(5000)]),
-        courseService.getAllCourses(5000),
-      ]);
+      const [facultyListResponse, feedbackResponse, courseRows] =
+        await Promise.all([
+          publicFacultyService.getFacultyList({ page: 1, limit: 5000 }),
+          facultyFeedbackService.listRows(
+            facultyFeedbackService.feedbackTableId,
+            [Query.limit(5000)],
+          ),
+          courseService.getAllCourses(5000),
+        ]);
 
       const facultyRows = facultyListResponse.faculty || [];
       const feedbackRows = feedbackResponse.rows || [];
       const facultyLookup = buildFacultyLookup(facultyRows);
 
       const uniqueUsers = new Set();
-      const reviewRows = feedbackRows.filter((row) => String(row.review || "").trim());
+      const reviewRows = feedbackRows.filter((row) =>
+        String(row.review || "").trim(),
+      );
       const facultyCounts = {};
 
       for (const row of feedbackRows) {
@@ -88,21 +96,28 @@ function AdminPanel() {
 
   const handleSubmitCourse = async (event) => {
     event.preventDefault();
+    if (!courseForm.file) {
+      setUploadMessage("Please choose a PDF file.");
+      return;
+    }
+    setShowUploadConfirm(true);
+  };
+
+  const confirmUploadCourse = async () => {
     try {
-      if (!courseForm.file) {
-        throw new Error("Please choose a PDF file.");
-      }
+      setShowUploadConfirm(false);
       setUploading(true);
       setUploadMessage(null);
 
-      const { extractCoursesFromPdf } = await import("../lib/parsers/coursePdfParser.js");
+      const { extractCoursesFromPdf } =
+        await import("../lib/parsers/coursePdfParser.js");
       const parsed = await extractCoursesFromPdf(courseForm.file);
       const result = await courseService.upsertCoursesFromPdf({
         courses: parsed.courses,
       });
 
       setUploadMessage(
-        `Processed ${parsed.linesScanned} lines. Extracted ${result.parsedCount}, merged to ${result.mergedCount}, created ${result.created}, updated ${result.updated}.`
+        `Processed ${parsed.linesScanned} lines. Extracted ${result.parsedCount}, merged to ${result.mergedCount}, created ${result.created}, updated ${result.updated}.`,
       );
       setCourseForm({ file: null });
       await loadAdminData();
@@ -138,19 +153,21 @@ function AdminPanel() {
           {statsCards.map((card) => (
             <div
               key={card.label}
-              className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow)"
+              className="rounded-lg border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow)"
             >
               <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
                 {card.label}
               </p>
-              <p className="mt-2 text-2xl font-bold text-(--text)">{card.value}</p>
+              <p className="mt-2 text-2xl font-bold text-(--text)">
+                {card.value}
+              </p>
             </div>
           ))}
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+        <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
           <h2 className="mb-4 text-lg font-bold text-(--text)">
             Upload course PDF
           </h2>
@@ -159,7 +176,10 @@ function AdminPanel() {
               type="file"
               accept=".pdf,application/pdf"
               onChange={(e) =>
-                setCourseForm((prev) => ({ ...prev, file: e.target.files?.[0] || null }))
+                setCourseForm((prev) => ({
+                  ...prev,
+                  file: e.target.files?.[0] || null,
+                }))
               }
               className="w-full rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5 text-sm text-(--text) file:mr-3 file:rounded-lg file:border-0 file:bg-(--primary) file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
               required
@@ -177,7 +197,7 @@ function AdminPanel() {
           </form>
         </div>
 
-        <div className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+        <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
           <h2 className="mb-4 text-lg font-bold text-(--text)">
             Top faculty by feedback count
           </h2>
@@ -203,7 +223,7 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="rounded-(--radius-lg) border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
         <h2 className="mb-4 text-lg font-bold text-(--text)">Recent courses</h2>
         {courses.length === 0 ? (
           <p className="text-sm text-(--muted)">No courses.</p>
@@ -223,9 +243,18 @@ function AdminPanel() {
           </div>
         )}
       </div>
+
+      <ConfirmOverlay
+        open={showUploadConfirm}
+        title="Upload Course PDF"
+        message={`Are you sure you want to upload and parse "${courseForm.file?.name}"? This will update the course database.`}
+        confirmLabel="Upload"
+        cancelLabel="Cancel"
+        onConfirm={confirmUploadCourse}
+        onCancel={() => setShowUploadConfirm(false)}
+      />
     </div>
   );
 }
 
 export default AdminPanel;
-

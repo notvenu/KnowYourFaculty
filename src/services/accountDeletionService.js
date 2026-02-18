@@ -1,5 +1,5 @@
 const STORAGE_KEY = "kyf_account_deletion_v1";
-const DELETION_DELAY_MS = 3 * 24 * 60 * 60 * 1000;
+const DELETION_DELAY_MS = 1 * 24 * 60 * 60 * 1000;
 
 function hasStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);

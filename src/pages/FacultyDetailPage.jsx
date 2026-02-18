@@ -837,7 +837,7 @@ function FacultyDetailPage({ currentUser }) {
             </div>
           ) : null}
           {showFeedbackForm && editingReviewOnly && hasUser ? (
-            <div className="mb-8 rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
               <form onSubmit={submitReviewOnly} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
                   <h2 className="mb-1 text-2xl font-bold text-(--text)">
@@ -904,7 +904,7 @@ function FacultyDetailPage({ currentUser }) {
               </form>
             </div>
           ) : editingRatingsOnly && hasUser ? (
-            <div className="mb-8 rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
               <form onSubmit={submitRatingsOnly} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
                   <h2 className="mb-1 text-2xl font-bold text-(--text)">
@@ -1226,7 +1226,7 @@ function FacultyDetailPage({ currentUser }) {
               </form>
             </div>
           ) : hasUser && isEditing && showFeedbackForm ? (
-            <div className="mb-8 rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
               <form onSubmit={submitFeedback} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
                   <h2 className="mb-1 text-2xl font-bold text-(--text)">

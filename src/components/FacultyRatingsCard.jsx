@@ -46,7 +46,7 @@ export default function FacultyRatingsCard({
   });
 
   return (
-    <div className="rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+    <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
       {showFiltersOverlay && (setTimeFilter || setCourseFilter) && (
         <>
           <div

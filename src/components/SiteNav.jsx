@@ -14,7 +14,9 @@ import {
   faBars,
   faX,
   faUser,
+  faTrophy,
 } from "@fortawesome/free-solid-svg-icons";
+import ConfirmOverlay from "./ConfirmOverlay.jsx";
 
 export default function SiteNav({
   currentUser,
@@ -28,6 +30,7 @@ export default function SiteNav({
   const isDashboardPage = location.pathname === "/dashboard";
   const [showDropdown, setShowDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
@@ -106,6 +109,11 @@ export default function SiteNav({
               <NavLink to="/faculty" className={navClass}>
                 Find Professors
               </NavLink>
+              {currentUser ? (
+                <NavLink to="/rankings" className={navClass}>
+                  Rankings
+                </NavLink>
+              ) : null}
               <NavLink to="/contact" className={navClass}>
                 Contact
               </NavLink>
@@ -176,7 +184,7 @@ export default function SiteNav({
                       type="button"
                       onClick={() => {
                         setShowDropdown(false);
-                        onLogout();
+                        setShowLogoutConfirm(true);
                       }}
                       className="w-full px-4 py-3 text-left text-sm font-medium text-red-500 transition-all hover:bg-red-500/10 hover:pl-6 active:bg-red-500/20"
                     >
@@ -317,6 +325,21 @@ export default function SiteNav({
                             </span>
                           </NavLink>
                         ) : null}
+                        {currentUser ? (
+                          <NavLink
+                            to="/rankings"
+                            className={mobileNavClass}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="flex items-center gap-2">
+                              <FontAwesomeIcon
+                                icon={faTrophy}
+                                className="w-4 h-4 text-(--primary)"
+                              />
+                              Rankings
+                            </span>
+                          </NavLink>
+                        ) : null}
                         {isAdminUser ? (
                           <NavLink
                             to="/admin"
@@ -353,7 +376,7 @@ export default function SiteNav({
                           </button>
                         ) : (
                           <div className="mt-2 mx-2 border-t border-(--line) pt-2">
-                            <div className="rounded-xl bg-(--panel) px-4 py-3">
+                            <div className="rounded-xl bg-(--panel) px-4 py-3 mb-2">
                               <p className="text-xs font-medium text-(--muted) mb-1">
                                 Signed in as
                               </p>
@@ -361,6 +384,22 @@ export default function SiteNav({
                                 {currentUser.name || currentUser.email}
                               </p>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsMobileMenuOpen(false);
+                                setShowLogoutConfirm(true);
+                              }}
+                              className="w-full rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500 transition-all hover:bg-red-500/20 active:scale-[0.98]"
+                            >
+                              <span className="flex items-center justify-center gap-2">
+                                <FontAwesomeIcon
+                                  icon={faSignOutAlt}
+                                  className="w-3.5 h-3.5"
+                                />
+                                <span>Logout</span>
+                              </span>
+                            </button>
                           </div>
                         )}
                       </nav>
@@ -372,6 +411,19 @@ export default function SiteNav({
           </div>
         </div>
       </header>
+
+      <ConfirmOverlay
+        open={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmLabel="Logout"
+        cancelLabel="Stay"
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          onLogout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 }

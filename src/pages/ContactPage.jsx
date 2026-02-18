@@ -28,7 +28,7 @@ function ContactPage() {
     {
       title: "LinkedIn",
       subtitle: "Venu Bhargava Jishith Kasibhatia",
-      href: "https://linkedin.com",
+      href: "https://linkedin.com/in/venu-kasibhatla",
       icon: faLinkedin,
       bgColor: "bg-blue-100",
       iconColor: "text-blue-600",
@@ -36,7 +36,7 @@ function ContactPage() {
     {
       title: "Instagram",
       subtitle: "@veeennuuu",
-      href: "https://instagram.com",
+      href: "https://instagram.com/veeennnuuu",
       icon: faInstagram,
       bgColor: "bg-pink-100",
       iconColor: "text-pink-600",

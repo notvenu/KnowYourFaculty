@@ -23,6 +23,7 @@ const FacultyDirectoryPage = lazy(
 );
 const FacultyDetailPage = lazy(() => import("./pages/FacultyDetailPage.jsx"));
 const UserDashboardPage = lazy(() => import("./pages/UserDashboardPage.jsx"));
+const RankingPage = lazy(() => import("./pages/RankingPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.jsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.jsx"));
@@ -282,6 +283,10 @@ function App() {
                     <Navigate to="/faculty" replace />
                   )
                 }
+              />
+              <Route
+                path="/rankings"
+                element={<RankingPage currentUser={currentUser} />}
               />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/privacy-policy" element={<PrivacyPage />} />

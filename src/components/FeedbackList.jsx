@@ -127,7 +127,7 @@ export default function FeedbackList({
   }
 
   return (
-    <div className="rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
+    <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
       {showFiltersOverlay &&
         (setCourseFilter || setTimeFilter || setRatingFilter) && (
           <>
@@ -291,8 +291,8 @@ export default function FeedbackList({
               key={row.$id}
               className="border-b border-(--line) py-3 sm:py-4 last:border-b-0"
             >
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3">
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-(--text)">
                       {isOwnReview ? "Your review" : "Anonymous"}
@@ -311,38 +311,6 @@ export default function FeedbackList({
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-(--muted)">
-                    &ldquo;
-                    {reviewText.length > 200
-                      ? reviewText.substring(0, 200) + "…"
-                      : reviewText}
-                    &rdquo;
-                  </p>
-                </div>
-                <div className="shrink-0 flex flex-col items-end gap-2">
-                  {isOwnReview && (onDeleteReview || onEditReview) && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {onEditReview && (
-                        <button
-                          type="button"
-                          onClick={() => onEditReview(row.$id)}
-                          className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {onDeleteReview && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteReview(row.$id)}
-                          disabled={deleting}
-                          className="rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-60"
-                        >
-                          {deleting ? "Removing…" : "Delete"}
-                        </button>
-                      )}
-                    </div>
-                  )}
                   <span
                     className="rounded-lg bg-(--primary-soft) px-2 py-1 text-xs font-semibold text-(--primary)"
                     aria-hidden
@@ -350,6 +318,36 @@ export default function FeedbackList({
                     {ratingLabel}
                   </span>
                 </div>
+                <p className="text-sm leading-relaxed text-(--muted)">
+                  &ldquo;
+                  {reviewText.length > 200
+                    ? reviewText.substring(0, 200) + "…"
+                    : reviewText}
+                  &rdquo;
+                </p>
+                {isOwnReview && (onDeleteReview || onEditReview) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {onEditReview && (
+                      <button
+                        type="button"
+                        onClick={() => onEditReview(row.$id)}
+                        className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {onDeleteReview && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteReview(row.$id)}
+                        disabled={deleting}
+                        className="rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-60"
+                      >
+                        {deleting ? "Removing…" : "Delete"}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
