@@ -1,4 +1,4 @@
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -13,6 +13,7 @@ import {
   faCircle,
   faBars,
   faX,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function SiteNav({
@@ -23,6 +24,8 @@ export default function SiteNav({
   theme,
   onToggleTheme,
 }) {
+  const location = useLocation();
+  const isDashboardPage = location.pathname === "/dashboard";
   const [showDropdown, setShowDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -136,7 +139,7 @@ export default function SiteNav({
                     type="button"
                     onClick={() => setShowDropdown(!showDropdown)}
                     className={`flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-(--primary) to-[color-mix(in_srgb,var(--primary)_80%,transparent)] text-white font-bold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-(--primary) focus:ring-offset-2 ${
-                      showDropdown
+                      showDropdown || isDashboardPage
                         ? "ring-2 ring-(--primary) ring-offset-2"
                         : ""
                     }`}
@@ -161,6 +164,14 @@ export default function SiteNav({
                       </p>
                       <p className="text-xs text-(--muted) mt-0.5">Account</p>
                     </div>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setShowDropdown(false)}
+                      className="relative z-10 flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-(--text) transition-all hover:bg-(--panel) hover:pl-6"
+                    >
+                      <FontAwesomeIcon icon={faUser} className="w-3.5 h-3.5" />
+                      <span>My Profile</span>
+                    </Link>
                     <button
                       type="button"
                       onClick={() => {
@@ -291,6 +302,21 @@ export default function SiteNav({
                             Contact
                           </span>
                         </NavLink>
+                        {currentUser ? (
+                          <NavLink
+                            to="/dashboard"
+                            className={mobileNavClass}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="flex items-center gap-2">
+                              <FontAwesomeIcon
+                                icon={faUser}
+                                className="w-4 h-4 text-(--primary)"
+                              />
+                              Dashboard
+                            </span>
+                          </NavLink>
+                        ) : null}
                         {isAdminUser ? (
                           <NavLink
                             to="/admin"

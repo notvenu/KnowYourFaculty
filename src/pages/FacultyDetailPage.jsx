@@ -6,7 +6,7 @@ import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faAngleLeft, faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import FacultyProfileCard from "../components/FacultyProfileCard.jsx";
 import FacultyRatingsCard from "../components/FacultyRatingsCard.jsx";
 import FeedbackList from "../components/FeedbackList.jsx";
@@ -19,10 +19,15 @@ import {
   ECS_FIELDS,
   THEORY_NOTE_OPTIONS,
   LAB_NOTE_OPTIONS,
-  RATING_LABELS,
   getTierFromRating,
 } from "../lib/ratingConfig.js";
 import { stripEmoji, containsDisallowed } from "../lib/reviewFilter.js";
+
+const byPrefixAndName = {
+  fas: {
+    "angle-left": faAngleLeft,
+  },
+};
 
 const INITIAL_FEEDBACK_FORM = {
   courseId: "",
@@ -83,10 +88,24 @@ function FacultyDetailPage({ currentUser }) {
   const [currentEditingReviewId, setCurrentEditingReviewId] = useState(null);
   const [deletingRatingsOnly, setDeletingRatingsOnly] = useState(false);
   const [deletingReviewOnly, setDeletingReviewOnly] = useState(false);
-  const [courseFilter, setCourseFilter] = useState("");
-  const [timeFilter, setTimeFilter] = useState("all");
-  const [ratingFilter, setRatingFilter] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [ratingsTimeFilter, setRatingsTimeFilter] = useState("all");
+  const [ratingsCourseFilter, setRatingsCourseFilter] = useState("");
+  const [reviewsCourseFilter, setReviewsCourseFilter] = useState("");
+  const [reviewsTimeFilter, setReviewsTimeFilter] = useState("all");
+  const [reviewsRatingBandFilter, setReviewsRatingBandFilter] = useState("all");
+
+  const ratingsCourseOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          feedbackList.filter((row) => row.courseId).map((row) => row.courseId),
+        ),
+      ].map((courseId) => ({
+        value: courseId,
+        label: courseLookup[courseId]?.courseCode || courseId,
+      })),
+    [feedbackList, courseLookup],
+  );
 
   const hasUser = Boolean(currentUser?.$id);
   const facultyName = faculty?.name || "Faculty";
@@ -114,19 +133,14 @@ function FacultyDetailPage({ currentUser }) {
   const filteredRatingSummary = useMemo(() => {
     let filtered = feedbackList;
 
-    // Apply course filter
-    if (courseFilter && courseFilter !== "") {
-      filtered = filtered.filter((row) => row.courseId === courseFilter);
-    }
-
     // Apply time filter
-    if (timeFilter !== "all") {
+    if (ratingsTimeFilter !== "all") {
       const now = new Date();
       const cutoffTime = new Date();
 
-      if (timeFilter === "1week") {
+      if (ratingsTimeFilter === "1week") {
         cutoffTime.setDate(now.getDate() - 7);
-      } else if (timeFilter === "1month") {
+      } else if (ratingsTimeFilter === "1month") {
         cutoffTime.setMonth(now.getMonth() - 1);
       }
 
@@ -136,29 +150,9 @@ function FacultyDetailPage({ currentUser }) {
       });
     }
 
-    // Apply rating filter
-    if (ratingFilter && ratingFilter !== "all") {
-      filtered = filtered.filter((row) => {
-        const ratingKeys = [
-          "theoryTeaching",
-          "theoryAttendance",
-          "theoryClass",
-          "theoryCorrection",
-          "labClass",
-          "labCorrection",
-          "labAttendance",
-          "ecsCapstoneSDP",
-        ];
-        const values = ratingKeys
-          .map((k) => Number(row[k]))
-          .filter((n) => Number.isFinite(n) && n >= 1 && n <= 5);
-        if (values.length === 0) return false;
-        const avgRating = Math.round(
-          values.reduce((a, b) => a + b, 0) / values.length,
-        );
-        const ratingLabel = RATING_LABELS[avgRating] ?? RATING_LABELS[3];
-        return ratingLabel === ratingFilter;
-      });
+    // Apply course filter
+    if (ratingsCourseFilter && ratingsCourseFilter !== "") {
+      filtered = filtered.filter((row) => row.courseId === ratingsCourseFilter);
     }
 
     // Build summary for filtered ratings
@@ -227,7 +221,7 @@ function FacultyDetailPage({ currentUser }) {
       sectionAverages,
       averages,
     };
-  }, [feedbackList, courseFilter, timeFilter, ratingFilter]);
+  }, [feedbackList, ratingsTimeFilter, ratingsCourseFilter]);
 
   useEffect(() => {
     loadFaculty();
@@ -551,6 +545,17 @@ function FacultyDetailPage({ currentUser }) {
           facultyId,
         );
       if (existingFeedback) {
+        const isFirstReviewAdd =
+          !String(existingFeedback.review || "").trim() &&
+          String(reviewText || "").trim().length > 0;
+
+        if (isFirstReviewAdd) {
+          await facultyFeedbackService.deleteUserFacultyFeedback(
+            currentUser.$id,
+            facultyId,
+          );
+        }
+
         await facultyFeedbackService.submitFeedback({
           ...existingFeedback,
           userId: currentUser.$id,
@@ -689,26 +694,11 @@ function FacultyDetailPage({ currentUser }) {
         );
 
       if (existingFeedback) {
-        // First, delete the entire feedback
+        // Delete the entire feedback row (ratings + review)
         await facultyFeedbackService.deleteUserFacultyFeedback(
           currentUser.$id,
           facultyId,
         );
-
-        // If there's a review, re-submit with just the review (no ratings)
-        if (existingFeedback.review && existingFeedback.review.trim()) {
-          const reviewText = stripEmoji(existingFeedback.review).trim();
-          const disallowed = containsDisallowed(reviewText);
-
-          if (!disallowed.blocked) {
-            await facultyFeedbackService.submitFeedback({
-              userId: currentUser.$id,
-              facultyId,
-              courseId: existingFeedback.courseId || "",
-              review: reviewText,
-            });
-          }
-        }
       }
       setShowDeleteConfirm(false);
       setShowFeedbackForm(false);
@@ -743,7 +733,8 @@ function FacultyDetailPage({ currentUser }) {
         to="/faculty"
         className="inline-flex items-center gap-1 text-xs text-(--muted) hover:text-(--text)"
       >
-        {"<- Back to Faculty Search"}
+        <FontAwesomeIcon icon={byPrefixAndName.fas["angle-left"]} />
+        <span>Back to Faculty Search</span>
       </Link>
 
       {error ? (
@@ -752,120 +743,15 @@ function FacultyDetailPage({ currentUser }) {
         </p>
       ) : null}
 
-      {/* Page Header with Filter Toggle */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold text-(--text)">
-          {faculty?.name || "Faculty Profile"}
-        </h1>
-
-        {/* Filter Toggle Button */}
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--bg-elev) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--panel) transition-colors"
-        >
-          <FontAwesomeIcon icon={faFilter} className="h-4 w-4" />
-          Filters
-        </button>
-      </div>
-
-      {/* Filter Controls - Modal Overlay */}
-      {showFilters && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/30 z-40"
-            onClick={() => setShowFilters(false)}
-          />
-
-          {/* Modal */}
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-11/12 max-w-md rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-(--text)">Filters</h3>
-              <button
-                type="button"
-                onClick={() => setShowFilters(false)}
-                className="text-xl text-(--muted) hover:text-(--text)"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-xs font-semibold text-(--muted)">
-                  Course
-                </label>
-                <select
-                  value={courseFilter}
-                  onChange={(e) => setCourseFilter(e.target.value)}
-                  className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
-                >
-                  <option value="">All Courses</option>
-                  {feedbackList
-                    .filter((row) => row.courseId)
-                    .map((row) => row.courseId)
-                    .filter((id, idx, arr) => arr.indexOf(id) === idx)
-                    .map((courseId) => {
-                      const course = courseLookup[courseId];
-                      return (
-                        <option key={courseId} value={courseId}>
-                          {course ? `${course.courseCode}` : courseId}
-                        </option>
-                      );
-                    })}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-semibold text-(--muted)">
-                  Time
-                </label>
-                <select
-                  value={timeFilter}
-                  onChange={(e) => setTimeFilter(e.target.value)}
-                  className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
-                >
-                  <option value="all">All Time</option>
-                  <option value="1week">Last Week</option>
-                  <option value="1month">Last Month</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-semibold text-(--muted)">
-                  Rating
-                </label>
-                <select
-                  value={ratingFilter}
-                  onChange={(e) => setRatingFilter(e.target.value)}
-                  className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
-                >
-                  <option value="all">All Ratings</option>
-                  <option value="S">S - Exceptional</option>
-                  <option value="A">A - Excellent</option>
-                  <option value="B">B - Good</option>
-                  <option value="C">C - Average</option>
-                  <option value="D">D - Poor</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowFilters(false)}
-              className="mt-5 w-full rounded-lg bg-(--primary) px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-            >
-              Apply Filters
-            </button>
-          </div>
-        </>
-      )}
-
       {/* Main Layout: Fixed Grid Layout */}
+      <div className="mb-3 lg:hidden">
+        <FacultyProfileCard faculty={faculty} />
+      </div>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="space-y-3">
-          <FacultyProfileCard faculty={faculty} />
+        <div className="order-2 space-y-3 lg:order-1">
+          <div className="hidden lg:block">
+            <FacultyProfileCard faculty={faculty} />
+          </div>
 
           {/* What students say */}
           {!showFeedbackForm &&
@@ -877,12 +763,12 @@ function FacultyDetailPage({ currentUser }) {
                 courseLookup={courseLookup}
                 maxItems={20}
                 currentUser={currentUser}
-                courseFilter={courseFilter}
-                setCourseFilter={setCourseFilter}
-                timeFilter={timeFilter}
-                setTimeFilter={setTimeFilter}
-                ratingFilter={ratingFilter}
-                setRatingFilter={setRatingFilter}
+                courseFilter={reviewsCourseFilter}
+                setCourseFilter={setReviewsCourseFilter}
+                timeFilter={reviewsTimeFilter}
+                setTimeFilter={setReviewsTimeFilter}
+                ratingFilter={reviewsRatingBandFilter}
+                setRatingFilter={setReviewsRatingBandFilter}
                 onDeleteReview={(reviewId) => {
                   setCurrentEditingReviewId(reviewId);
                   setShowDeleteConfirm(true);
@@ -898,9 +784,9 @@ function FacultyDetailPage({ currentUser }) {
             )}
         </div>
 
-        <div>
+        <div className="order-1 lg:order-2">
           {!showFeedbackForm ? (
-            <div className="mb-8">
+            <div className="mb-0 lg:mb-8">
               <FacultyRatingsCard
                 ratingSummary={filteredRatingSummary}
                 sectionAverages={{
@@ -909,6 +795,11 @@ function FacultyDetailPage({ currentUser }) {
                   ecs: filteredRatingSummary.sectionAverages?.ecs ?? null,
                 }}
                 averages={filteredRatingSummary.averages || {}}
+                timeFilter={ratingsTimeFilter}
+                setTimeFilter={setRatingsTimeFilter}
+                courseFilter={ratingsCourseFilter}
+                setCourseFilter={setRatingsCourseFilter}
+                courseOptions={ratingsCourseOptions}
                 hasUser={hasUser}
                 alreadySubmitted={alreadySubmitted}
                 canAddReview={Boolean(
@@ -1013,7 +904,7 @@ function FacultyDetailPage({ currentUser }) {
               </form>
             </div>
           ) : editingRatingsOnly && hasUser ? (
-            <div className="mb-8">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
               <form onSubmit={submitRatingsOnly} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
                   <h2 className="mb-1 text-2xl font-bold text-(--text)">
@@ -1274,8 +1165,22 @@ function FacultyDetailPage({ currentUser }) {
                       setCourseQuery(value);
                       setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                     }}
-                    className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 text-sm outline-none"
+                    className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 pr-10 text-sm outline-none"
                   />
+                  {String(courseQuery || "").trim() || feedbackForm.courseId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCourseQuery("");
+                        setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
+                        setCourseSuggestions([]);
+                      }}
+                      className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                      aria-label="Clear course search"
+                    >
+                      ×
+                    </button>
+                  ) : null}
                   {courseSuggestions.length > 0 ? (
                     <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-lg">
                       {courseSuggestions.map((course) => (
@@ -1321,7 +1226,7 @@ function FacultyDetailPage({ currentUser }) {
               </form>
             </div>
           ) : hasUser && isEditing && showFeedbackForm ? (
-            <div className="mb-8">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
               <form onSubmit={submitFeedback} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
                   <h2 className="mb-1 text-2xl font-bold text-(--text)">
@@ -1582,8 +1487,22 @@ function FacultyDetailPage({ currentUser }) {
                       setCourseQuery(value);
                       setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                     }}
-                    className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 text-sm outline-none"
+                    className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 pr-10 text-sm outline-none"
                   />
+                  {String(courseQuery || "").trim() || feedbackForm.courseId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCourseQuery("");
+                        setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
+                        setCourseSuggestions([]);
+                      }}
+                      className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                      aria-label="Clear course search"
+                    >
+                      ×
+                    </button>
+                  ) : null}
                   {courseSuggestions.length > 0 ? (
                     <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-lg">
                       {courseSuggestions.map((course) => (
@@ -1659,14 +1578,14 @@ function FacultyDetailPage({ currentUser }) {
         open={showDeleteConfirm}
         title={
           deletingRatingsOnly
-            ? "Delete your ratings"
+            ? "Delete your feedback"
             : deletingReviewOnly
               ? "Delete your review"
               : "Delete your feedback"
         }
         message={
           deletingRatingsOnly
-            ? "Are you sure you want to remove your ratings? Your review will be kept."
+            ? "Are you sure you want to remove your ratings? Your review will also be removed."
             : deletingReviewOnly
               ? "Are you sure you want to remove your review? Your ratings will be kept."
               : "Are you sure you want to remove your feedback for this faculty? This cannot be undone."

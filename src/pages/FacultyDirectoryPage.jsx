@@ -5,7 +5,8 @@ import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faChevronDown,
+  faFilter,
+  faXmark,
   faSort,
   faSortAmountDown,
   faSortAmountUp,
@@ -262,7 +263,6 @@ function FacultyDirectoryPage() {
     if (filters.tier !== "all") n += 1;
     if (filters.sortBy !== "none") n += 1;
     if (selectedCourse) n += 1;
-    if (String(filters.search || "").trim()) n += 1;
     return n;
   }, [filters, selectedCourse]);
 
@@ -278,30 +278,39 @@ function FacultyDirectoryPage() {
         </p>
       </section>
 
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-3 sm:p-4 md:p-6 shadow-(--shadow-card)">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-3 sm:p-4 md:p-5 shadow-(--shadow-card)">
         {/* Search Bar and Filter Toggle */}
-        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row items-stretch gap-2 sm:gap-3">
-          <input
-            type="text"
-            placeholder="Search name, department, role, research"
-            value={filters.search}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, search: e.target.value }))
-            }
-            className="w-full sm:min-w-0 sm:flex-1 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-sm outline-none focus:border-(--primary)"
-          />
+        <div className="flex flex-row items-center gap-2 sm:gap-3">
+          <div className="relative min-w-0 flex-1">
+            <input
+              type="text"
+              placeholder="Search name, department, role, research"
+              value={filters.search}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, search: e.target.value }))
+              }
+              className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 pr-10 text-sm outline-none focus:border-(--primary)"
+            />
+            {String(filters.search || "").trim() ? (
+              <button
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, search: "" }))}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                aria-label="Clear search"
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={() => setShowFilterPanel((prev) => !prev)}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-(--text) transition hover:border-(--primary) hover:bg-(--primary-soft)"
           >
             <span aria-hidden className="inline-flex items-center">
-              <FontAwesomeIcon
-                icon={faChevronDown}
-                className={`text-xs sm:text-sm transition-transform duration-200 ${showFilterPanel ? "rotate-180" : ""}`}
-              />
+              <FontAwesomeIcon icon={faFilter} className="text-xs sm:text-sm" />
             </span>
-            <span className="hidden xs:inline">Filters</span>
+            <span className="hidden lg:inline">Filters</span>
             {activeFilterCount > 0 ? (
               <span className="rounded-full bg-(--primary) px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-white">
                 {activeFilterCount}
@@ -311,103 +320,148 @@ function FacultyDirectoryPage() {
         </div>
 
         {showFilterPanel ? (
-          <div className="mt-3 sm:mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            <select
-              value={filters.department}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, department: e.target.value }))
-              }
-              className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
-            >
-              <option value="all">All Departments</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/30"
+              onClick={() => setShowFilterPanel(false)}
+            />
+            <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-4xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-2xl sm:p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-(--text)">Filters</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterPanel(false)}
+                  className="text-xl text-(--muted) hover:text-(--text)"
+                  aria-label="Close filters"
+                >
+                  <FontAwesomeIcon icon={faXmark} />
+                </button>
+              </div>
 
-            <select
-              value={filters.tier}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, tier: e.target.value }))
-              }
-              className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
-            >
-              <option value="all">All Tiers</option>
-              {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
-                <option key={tier} value={tier}>
-                  Tier {tier} - {info.description}
-                </option>
-              ))}
-            </select>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-4">
+                <select
+                  value={filters.department}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      department: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                >
+                  <option value="all">All Departments</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
 
-            <select
-              value={filters.sortBy}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
-              }
-              className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
-            >
-              <option value="none">No Sort</option>
-              <option value="rating-high">
-                <FontAwesomeIcon icon={faSortAmountDown} /> Rating: High to Low
-              </option>
-              <option value="rating-low">Rating: Low to High</option>
-              <option value="az">Name: A to Z</option>
-              <option value="za">Name: Z to A</option>
-            </select>
+                <select
+                  value={filters.tier}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, tier: e.target.value }))
+                  }
+                  className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                >
+                  <option value="all">All Tiers</option>
+                  {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
+                    <option key={tier} value={tier}>
+                      Tier {tier} - {info.description}
+                    </option>
+                  ))}
+                </select>
 
-            <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
-              <input
-                type="checkbox"
-                checked={filters.topRated}
-                onChange={(e) =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    topRated: e.target.checked,
-                  }))
-                }
-                className="cursor-pointer"
-              />
-              <span className="text-xs sm:text-sm">Top Rated Only (A+)</span>
-            </label>
+                <select
+                  value={filters.sortBy}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
+                  }
+                  className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                >
+                  <option value="none">No Sort</option>
+                  <option value="rating-high">Rating: High to Low</option>
+                  <option value="rating-low">Rating: Low to High</option>
+                  <option value="az">Name: A to Z</option>
+                  <option value="za">Name: Z to A</option>
+                </select>
 
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Filter by course"
-                value={
-                  selectedCourse
-                    ? `${selectedCourse.courseCode} - ${selectedCourse.courseName}`
-                    : courseQuery
-                }
-                onChange={(e) => {
-                  setSelectedCourse(null);
-                  setCourseQuery(e.target.value);
-                }}
-                className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
-              />
-              {courseSuggestions.length > 0 ? (
-                <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-(--line) bg-(--bg) shadow-xl">
-                  {courseSuggestions.map((course) => (
+                <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={filters.topRated}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        topRated: e.target.checked,
+                      }))
+                    }
+                    className="cursor-pointer"
+                  />
+                  <span className="text-xs sm:text-sm">
+                    Top Rated Only (A+)
+                  </span>
+                </label>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter by course"
+                    value={
+                      selectedCourse
+                        ? `${selectedCourse.courseCode} - ${selectedCourse.courseName}`
+                        : courseQuery
+                    }
+                    onChange={(e) => {
+                      setSelectedCourse(null);
+                      setCourseQuery(e.target.value);
+                    }}
+                    className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 pr-10 text-sm outline-none focus:border-(--primary)"
+                  />
+                  {String(courseQuery || "").trim() || selectedCourse ? (
                     <button
-                      key={course.$id}
                       type="button"
                       onClick={() => {
-                        setSelectedCourse(course);
+                        setSelectedCourse(null);
                         setCourseQuery("");
                         setCourseSuggestions([]);
                       }}
-                      className="block w-full border-b border-(--line) px-3 py-2 text-left text-xs hover:bg-(--panel) last:border-b-0"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                      aria-label="Clear course search"
                     >
-                      {course.courseCode} - {course.courseName}
+                      <FontAwesomeIcon icon={faXmark} />
                     </button>
-                  ))}
+                  ) : null}
+                  {courseSuggestions.length > 0 ? (
+                    <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-(--line) bg-(--bg) shadow-xl">
+                      {courseSuggestions.map((course) => (
+                        <button
+                          key={course.$id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCourse(course);
+                            setCourseQuery("");
+                            setCourseSuggestions([]);
+                          }}
+                          className="block w-full border-b border-(--line) px-3 py-2 text-left text-xs hover:bg-(--panel) last:border-b-0"
+                        >
+                          {course.courseCode} - {course.courseName}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowFilterPanel(false)}
+                className="mt-5 w-full rounded-lg bg-(--primary) px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Apply Filters
+              </button>
             </div>
-          </div>
+          </>
         ) : null}
 
         {selectedCourse ? (

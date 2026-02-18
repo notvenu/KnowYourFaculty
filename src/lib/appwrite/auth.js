@@ -149,6 +149,18 @@ export class AuthService {
     }
   }
 
+  async deleteCurrentAccount() {
+    if (!this.initialized || !this.account) {
+      throw new Error(this.initError || "Appwrite service not initialized");
+    }
+    if (typeof this.account.delete !== "function") {
+      throw new Error("Account deletion is not supported in this environment.");
+    }
+    await this.account.delete();
+    setAuthCheckFlag(false);
+    return true;
+  }
+
   // Check if user is logged in
   async isLoggedIn() {
     try {

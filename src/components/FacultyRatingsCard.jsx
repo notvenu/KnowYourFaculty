@@ -7,12 +7,21 @@ import {
   getTierColor,
 } from "../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faStar, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import {
+  faStar,
+  faChevronDown,
+  faFilter,
+} from "@fortawesome/free-solid-svg-icons";
 
 export default function FacultyRatingsCard({
   ratingSummary,
   sectionAverages,
   averages,
+  timeFilter = "all",
+  setTimeFilter,
+  courseFilter = "",
+  setCourseFilter,
+  courseOptions = [],
   hasUser,
   alreadySubmitted,
   onShareFeedback,
@@ -23,6 +32,13 @@ export default function FacultyRatingsCard({
   deleting = false,
 }) {
   const hasRatings = ratingSummary.totalRatings > 0;
+  const [showFiltersOverlay, setShowFiltersOverlay] = useState(false);
+  const activeFiltersCount =
+    (timeFilter !== "all" ? 1 : 0) + (courseFilter ? 1 : 0);
+  const clearFilters = () => {
+    if (setTimeFilter) setTimeFilter("all");
+    if (setCourseFilter) setCourseFilter("");
+  };
   const [expandedSections, setExpandedSections] = useState({
     theory: true,
     lab: false,
@@ -31,7 +47,105 @@ export default function FacultyRatingsCard({
 
   return (
     <div className="rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
-      <div className="mb-3 sm:mb-4 flex flex-wrap items-center justify-end gap-2">
+      {showFiltersOverlay && (setTimeFilter || setCourseFilter) && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/30"
+            onClick={() => setShowFiltersOverlay(false)}
+          />
+          <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-(--text)">
+                Rating Filters
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowFiltersOverlay(false)}
+                className="text-xl text-(--muted) hover:text-(--text)"
+                aria-label="Close rating filters"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {setTimeFilter && (
+                <div>
+                  <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                    Ratings Time
+                  </label>
+                  <select
+                    value={timeFilter}
+                    onChange={(e) => setTimeFilter(e.target.value)}
+                    className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="1week">Last Week</option>
+                    <option value="1month">Last Month</option>
+                  </select>
+                </div>
+              )}
+
+              {setCourseFilter && (
+                <div>
+                  <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                    Course
+                  </label>
+                  <select
+                    value={courseFilter}
+                    onChange={(e) => setCourseFilter(e.target.value)}
+                    className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                  >
+                    <option value="">All Courses</option>
+                    {courseOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFiltersOverlay(false)}
+              className="mt-5 w-full rounded-lg bg-(--primary) px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </>
+      )}
+
+      <div className="mb-3 sm:mb-4 flex flex-wrap items-start justify-between gap-2">
+        {(setTimeFilter || setCourseFilter) && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFiltersOverlay(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev)"
+            >
+              <FontAwesomeIcon icon={faFilter} className="h-3 w-3" />
+              <span className="hidden sm:inline">Filters</span>
+              {activeFiltersCount > 0 ? (
+                <span className="rounded-full bg-(--primary-soft) px-2 py-0.5 text-[10px] font-bold text-(--primary)">
+                  {activeFiltersCount}
+                </span>
+              ) : null}
+            </button>
+            {activeFiltersCount > 0 ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="hidden sm:inline-flex items-center rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--muted) hover:text-(--text) hover:bg-(--bg-elev)"
+                aria-label="Clear rating filters"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+        )}
         {hasUser && (
           <div className="flex flex-wrap items-center gap-2">
             {!alreadySubmitted && (
@@ -68,7 +182,7 @@ export default function FacultyRatingsCard({
                 disabled={deleting}
                 className="rounded-xl border border-red-400 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-500/20 disabled:opacity-60"
               >
-                {deleting ? "Removing…" : "Delete ratings"}
+                {deleting ? "Removing…" : "Delete feedback"}
               </button>
             )}
           </div>

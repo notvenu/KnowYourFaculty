@@ -7,6 +7,8 @@ import SiteFooter from "./components/SiteFooter.jsx";
 import LoginOverlay from "./components/LoginOverlay.jsx";
 import AdminPanel from "./components/AdminPanel.jsx";
 import publicFacultyService from "./services/publicFacultyService.js";
+import facultyFeedbackService from "./services/facultyFeedbackService.js";
+import accountDeletionService from "./services/accountDeletionService.js";
 import authService, {
   ALLOWED_EMAIL_DOMAIN,
   clearPendingAuthCheck,
@@ -20,6 +22,7 @@ const FacultyDirectoryPage = lazy(
   () => import("./pages/FacultyDirectoryPage.jsx"),
 );
 const FacultyDetailPage = lazy(() => import("./pages/FacultyDetailPage.jsx"));
+const UserDashboardPage = lazy(() => import("./pages/UserDashboardPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.jsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.jsx"));
@@ -119,6 +122,25 @@ function App() {
             `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
           );
           return true;
+        }
+
+        try {
+          const deletionResult =
+            await accountDeletionService.processDueDeletion({
+              user,
+              authService,
+              feedbackService: facultyFeedbackService,
+            });
+          if (deletionResult?.deleted) {
+            setCurrentUser(null);
+            setAuthError(
+              deletionResult.message ||
+                "Your account was deleted after the scheduled timeout.",
+            );
+            return true;
+          }
+        } catch (deletionError) {
+          console.error("Scheduled deletion processing failed:", deletionError);
         }
 
         setCurrentUser(user);
@@ -247,6 +269,19 @@ function App() {
               <Route
                 path="/faculty/:facultyId"
                 element={<FacultyDetailPage currentUser={currentUser} />}
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  currentUser ? (
+                    <UserDashboardPage
+                      currentUser={currentUser}
+                      onLogout={handleLogout}
+                    />
+                  ) : (
+                    <Navigate to="/faculty" replace />
+                  )
+                }
               />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/privacy-policy" element={<PrivacyPage />} />

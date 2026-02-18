@@ -163,13 +163,25 @@ function FacultyList({ currentUser = null }) {
               />
               <span>Search</span>
             </label>
-            <input
-              type="text"
-              placeholder="Type a name..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-all"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Type a name..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange("search", e.target.value)}
+                className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-2 pr-10 text-sm outline-none transition-all"
+              />
+              {String(filters.search || "").trim() ? (
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("search", "")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div>

@@ -252,6 +252,16 @@ class FacultyFeedbackService {
     return response.rows?.[0] || null;
   }
 
+  async getUserFeedbackEntries(userId, limit = 200) {
+    if (!String(userId || "").trim()) return [];
+    const response = await this.listRows(this.feedbackTableId, [
+      Query.equal("userId", String(userId)),
+      Query.orderDesc("$updatedAt"),
+      Query.limit(limit),
+    ]);
+    return response.rows || [];
+  }
+
   async submitFeedback({
     userId,
     facultyId,
@@ -381,6 +391,30 @@ class FacultyFeedbackService {
         existing.$id,
       );
     }
+  }
+
+  async deleteFeedbackById(rowId) {
+    if (!String(rowId || "").trim()) return null;
+    try {
+      return await this.tablesDB.deleteRow(
+        clientConfig.appwriteDBId,
+        this.feedbackTableId,
+        rowId,
+      );
+    } catch {
+      return this.databases.deleteDocument(
+        clientConfig.appwriteDBId,
+        this.feedbackTableId,
+        rowId,
+      );
+    }
+  }
+
+  async deleteAllUserFeedback(userId) {
+    const rows = await this.getUserFeedbackEntries(userId, 5000);
+    if (!rows.length) return 0;
+    await Promise.all(rows.map((row) => this.deleteFeedbackById(row.$id)));
+    return rows.length;
   }
 }
 

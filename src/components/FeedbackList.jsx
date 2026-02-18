@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { RATING_LABELS } from "../lib/ratingConfig.js";
 import { censorReviewText } from "../lib/reviewFilter.js";
 
@@ -57,6 +60,22 @@ export default function FeedbackList({
   deleting = false,
 }) {
   if (!feedbackList?.length) return null;
+  const [showFiltersOverlay, setShowFiltersOverlay] = useState(false);
+  const activeFiltersCount =
+    (courseFilter ? 1 : 0) +
+    (timeFilter !== "all" ? 1 : 0) +
+    (ratingFilter !== "all" ? 1 : 0);
+  const clearFilters = () => {
+    if (setCourseFilter) setCourseFilter("");
+    if (setTimeFilter) setTimeFilter("all");
+    if (setRatingFilter) setRatingFilter("all");
+  };
+
+  const uniqueCourses = [
+    ...new Set(
+      feedbackList.filter((row) => row.courseId).map((row) => row.courseId),
+    ),
+  ];
 
   // Filter to only show feedback with review text
   let feedbackWithReviews = feedbackList.filter((row) => {
@@ -98,24 +117,151 @@ export default function FeedbackList({
     });
   }
 
-  if (!feedbackWithReviews.length) return null;
-
-  // Get unique courses from feedbackList for filter dropdown
-  const uniqueCourses = [
-    ...new Set(
-      feedbackList.filter((row) => row.courseId).map((row) => row.courseId),
-    ),
-  ];
+  if (
+    !feedbackWithReviews.length &&
+    !courseFilter &&
+    timeFilter === "all" &&
+    ratingFilter === "all"
+  ) {
+    return null;
+  }
 
   return (
     <div className="rounded-xl border border-(--line) bg-(--panel-dark) p-4 shadow-lg sm:p-5 md:p-6">
-      <div>
+      {showFiltersOverlay &&
+        (setCourseFilter || setTimeFilter || setRatingFilter) && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/30"
+              onClick={() => setShowFiltersOverlay(false)}
+            />
+            <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-(--text)">
+                  Review Filters
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowFiltersOverlay(false)}
+                  className="text-xl text-(--muted) hover:text-(--text)"
+                  aria-label="Close review filters"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {setCourseFilter && (
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                      Review Course
+                    </label>
+                    <select
+                      value={courseFilter}
+                      onChange={(e) => setCourseFilter(e.target.value)}
+                      className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                    >
+                      <option value="">All Courses</option>
+                      {uniqueCourses.map((courseId) => {
+                        const course = courseLookup[courseId];
+                        return (
+                          <option key={courseId} value={courseId}>
+                            {course ? `${course.courseCode}` : courseId}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                {setTimeFilter && (
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                      Review Time
+                    </label>
+                    <select
+                      value={timeFilter}
+                      onChange={(e) => setTimeFilter(e.target.value)}
+                      className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                    >
+                      <option value="all">All Time</option>
+                      <option value="1week">Last Week</option>
+                      <option value="1month">Last Month</option>
+                    </select>
+                  </div>
+                )}
+
+                {setRatingFilter && (
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                      Rating Band
+                    </label>
+                    <select
+                      value={ratingFilter}
+                      onChange={(e) => setRatingFilter(e.target.value)}
+                      className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                    >
+                      <option value="all">All Ratings</option>
+                      <option value="S">S - Exceptional</option>
+                      <option value="A">A - Excellent</option>
+                      <option value="B">B - Good</option>
+                      <option value="C">C - Average</option>
+                      <option value="D">D - Poor</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowFiltersOverlay(false)}
+                className="mt-5 w-full rounded-lg bg-(--primary) px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </>
+        )}
+
+      <div className="mb-3 flex items-center justify-between sm:mb-4">
         <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
           What students say
         </h2>
+        {(setCourseFilter || setTimeFilter || setRatingFilter) && (
+          <div className="flex items-center gap-2">
+            {activeFiltersCount > 0 ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="hidden sm:inline-flex items-center rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--muted) hover:text-(--text) hover:bg-(--bg-elev)"
+                aria-label="Clear review filters"
+              >
+                Clear
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setShowFiltersOverlay(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev)"
+            >
+              <FontAwesomeIcon icon={faFilter} className="h-3 w-3" />
+              <span className="hidden sm:inline">Filters</span>
+              {activeFiltersCount > 0 ? (
+                <span className="rounded-full bg-(--primary-soft) px-2 py-0.5 text-[10px] font-bold text-(--primary)">
+                  {activeFiltersCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 sm:space-y-4">
+        {feedbackWithReviews.length === 0 ? (
+          <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
+            No reviews match these filters.
+          </p>
+        ) : null}
         {feedbackWithReviews.slice(0, maxItems).map((row) => {
           const avgRating = getAverageRating(row);
           const ratingLabel =
