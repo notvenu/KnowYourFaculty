@@ -297,34 +297,6 @@ export default function SiteNav({
                             Find Professors
                           </span>
                         </NavLink>
-                        <NavLink
-                          to="/contact"
-                          className={mobileNavClass}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          <span className="flex items-center gap-2">
-                            <FontAwesomeIcon
-                              icon={faEnvelope}
-                              className="w-4 h-4 text-(--primary)"
-                            />
-                            Contact
-                          </span>
-                        </NavLink>
-                        {currentUser ? (
-                          <NavLink
-                            to="/dashboard"
-                            className={mobileNavClass}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                          >
-                            <span className="flex items-center gap-2">
-                              <FontAwesomeIcon
-                                icon={faUser}
-                                className="w-4 h-4 text-(--primary)"
-                              />
-                              Dashboard
-                            </span>
-                          </NavLink>
-                        ) : null}
                         {currentUser ? (
                           <NavLink
                             to="/rankings"
@@ -340,6 +312,19 @@ export default function SiteNav({
                             </span>
                           </NavLink>
                         ) : null}
+                        <NavLink
+                          to="/contact"
+                          className={mobileNavClass}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <FontAwesomeIcon
+                              icon={faEnvelope}
+                              className="w-4 h-4 text-(--primary)"
+                            />
+                            Contact
+                          </span>
+                        </NavLink>
                         {isAdminUser ? (
                           <NavLink
                             to="/admin"
