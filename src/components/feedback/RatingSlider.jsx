@@ -1,6 +1,7 @@
-﻿import { RATING_LABELS, RATING_ORDER } from "../lib/ratingConfig.js";
+﻿import { memo } from "react";
+import { RATING_LABELS, RATING_ORDER } from "../../lib/ratingConfig.js";
 
-export default function RatingSlider({ label, value, onChange, name }) {
+function RatingSlider({ label, value, onChange, name }) {
   const getValueFromPointer = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const relativeX = event.clientX - rect.left;
@@ -55,3 +56,5 @@ export default function RatingSlider({ label, value, onChange, name }) {
     </div>
   );
 }
+
+export default memo(RatingSlider);

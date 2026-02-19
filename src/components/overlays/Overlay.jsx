@@ -1,6 +1,6 @@
-﻿import { useEffect } from "react";
+﻿import { useEffect, memo } from "react";
 
-export default function Overlay({ open, onClose, children }) {
+function Overlay({ open, onClose, children }) {
   useEffect(() => {
     if (!open) return;
     const handleEscape = (e) => {
@@ -36,3 +36,5 @@ export default function Overlay({ open, onClose, children }) {
     </div>
   );
 }
+
+export default memo(Overlay);

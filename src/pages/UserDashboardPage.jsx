@@ -1,12 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addToast } from "../store/uiSlice.js";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faPoll,
+  faChartBar,
+  faToggleOn,
+  faToggleOff,
+  faEdit,
+  faTrash,
+  faClock,
+  faVoteYea,
+} from "@fortawesome/free-solid-svg-icons";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import publicFacultyService from "../services/publicFacultyService.js";
 import courseService from "../services/courseService.js";
+import pollService from "../services/pollService.js";
 import accountDeletionService, {
   DELETION_DELAY_MS,
 } from "../services/accountDeletionService.js";
-import ConfirmOverlay from "../components/ConfirmOverlay.jsx";
+import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
+import CreatePollOverlay from "../components/overlays/CreatePollOverlay.jsx";
 
 const RATING_EDIT_FIELDS = [
   ["theoryTeaching", "Theory teaching"],
@@ -46,6 +61,7 @@ function toEditForm(entry) {
 }
 
 export default function UserDashboardPage({ currentUser, onLogout }) {
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -73,6 +89,17 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [expandedFaculty, setExpandedFaculty] = useState(new Set());
+
+  // Polls state
+  const [userPolls, setUserPolls] = useState([]);
+  const [pollResults, setPollResults] = useState({});
+  const [loadingPolls, setLoadingPolls] = useState(false);
+  const [pollFilter, setPollFilter] = useState("all"); // all, active, ended
+  const [showCreatePollOverlay, setShowCreatePollOverlay] = useState(false);
+  const [showEditPollOverlay, setShowEditPollOverlay] = useState(false);
+  const [editingPoll, setEditingPoll] = useState(null);
+  const [showDeletePollConfirm, setShowDeletePollConfirm] = useState(false);
+  const [deletingPoll, setDeletingPoll] = useState(null);
 
   const userId = String(currentUser?.$id || "").trim();
 
@@ -181,15 +208,22 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     const load = async () => {
       try {
         setLoading(true);
-        setError(null);
         await refreshEntries();
         if (!active) return;
         setDeletionSchedule(
           accountDeletionService.getScheduledDeletion(userId),
         );
+
+        // Load user polls
+        await loadUserPolls();
       } catch (loadError) {
         if (active) {
-          setError(loadError?.message || "Failed to load dashboard data.");
+          dispatch(
+            addToast({
+              message: loadError?.message || "Failed to load dashboard data.",
+              type: "error",
+            }),
+          );
         }
       } finally {
         if (active) setLoading(false);
@@ -236,6 +270,141 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     return <Navigate to="/faculty" replace />;
   }
 
+  const loadUserPolls = async () => {
+    if (!userId) return;
+    try {
+      setLoadingPolls(true);
+      const polls = await pollService.getUserPolls(userId);
+
+      // Auto-deactivate ended polls
+      const now = new Date();
+      for (const poll of polls) {
+        if (poll.isActive) {
+          const endTime = new Date(poll.pollEndTime);
+          if (now >= endTime) {
+            try {
+              await pollService.updatePollStatus(poll.$id, false);
+              poll.isActive = false;
+            } catch (err) {
+              console.error("Error auto-deactivating poll:", err);
+            }
+          }
+        }
+      }
+
+      setUserPolls(polls);
+
+      // Load results for each poll
+      const resultsPromises = polls.map((poll) =>
+        pollService.getPollResults(poll.$id),
+      );
+      const results = await Promise.all(resultsPromises);
+
+      const resultsMap = {};
+      polls.forEach((poll, index) => {
+        resultsMap[poll.$id] = results[index];
+      });
+      setPollResults(resultsMap);
+    } catch (err) {
+      console.error("Error loading user polls:", err);
+    } finally {
+      setLoadingPolls(false);
+    }
+  };
+
+  const handleTogglePollStatus = async (pollId, currentStatus, poll) => {
+    try {
+      // Check if poll has ended
+      const now = new Date();
+      const endTime = new Date(poll.pollEndTime);
+
+      // Prevent activating an ended poll
+      if (!currentStatus && now >= endTime) {
+        dispatch(
+          addToast({
+            message:
+              "Cannot activate a poll that has already ended. Please edit the end time first.",
+            type: "warning",
+            duration: 5000,
+          }),
+        );
+        return;
+      }
+
+      await pollService.updatePollStatus(pollId, !currentStatus);
+      dispatch(
+        addToast({
+          message: !currentStatus ? "Poll activated" : "Poll deactivated",
+          type: "success",
+        }),
+      );
+      await loadUserPolls();
+    } catch (err) {
+      console.error("Error toggling poll status:", err);
+      dispatch(
+        addToast({
+          message: err.message || "Failed to toggle poll status",
+          type: "error",
+        }),
+      );
+    }
+  };
+
+  const handleEditPoll = (poll) => {
+    setEditingPoll(poll);
+    setShowEditPollOverlay(true);
+  };
+
+  const handleDeletePoll = async () => {
+    if (!deletingPoll) return;
+    try {
+      await pollService.deletePoll(deletingPoll.$id);
+      setShowDeletePollConfirm(false);
+      setDeletingPoll(null);
+      dispatch(
+        addToast({ message: "Poll deleted successfully", type: "success" }),
+      );
+      await loadUserPolls();
+    } catch (err) {
+      console.error("Error deleting poll:", err);
+      dispatch(
+        addToast({
+          message: err.message || "Failed to delete poll",
+          type: "error",
+        }),
+      );
+    }
+  };
+
+  const handleConfirmDeletePoll = (poll) => {
+    setDeletingPoll(poll);
+    setShowDeletePollConfirm(true);
+  };
+
+  const handlePollCreatedOrUpdated = async () => {
+    dispatch(addToast({ message: "Poll saved successfully", type: "success" }));
+    await loadUserPolls();
+  };
+
+  const isPollActive = (poll) => {
+    if (poll.isActive === false) return false;
+    const now = new Date();
+    const endTime = new Date(poll.pollEndTime);
+    const startTime = poll.pollStartTime ? new Date(poll.pollStartTime) : null;
+    if (startTime && now < startTime) return false;
+    return now < endTime;
+  };
+
+  const formatPollDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    // Use user's local timezone automatically
+    return date.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  };
+
   const handleScheduleDeletion = () => {
     setShowDeleteAccountConfirm(true);
   };
@@ -268,14 +437,21 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     if (!pendingDeleteFeedback) return;
     try {
       setSaving(true);
-      setError(null);
       await facultyFeedbackService.deleteUserFacultyFeedback(
         userId,
         pendingDeleteFeedback.facultyId,
       );
       await refreshEntries();
+      dispatch(
+        addToast({ message: "Feedback deleted successfully", type: "success" }),
+      );
     } catch (deleteError) {
-      setError(deleteError?.message || "Failed to delete feedback.");
+      dispatch(
+        addToast({
+          message: deleteError?.message || "Failed to delete feedback.",
+          type: "error",
+        }),
+      );
     } finally {
       setSaving(false);
       setShowDeleteFeedbackConfirm(false);
@@ -296,7 +472,6 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     if (!pendingDeleteReview) return;
     try {
       setSaving(true);
-      setError(null);
       await facultyFeedbackService.submitFeedback({
         ...pendingDeleteReview,
         userId,
@@ -304,8 +479,16 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         review: "",
       });
       await refreshEntries();
+      dispatch(
+        addToast({ message: "Review deleted successfully", type: "success" }),
+      );
     } catch (deleteError) {
-      setError(deleteError?.message || "Failed to delete review.");
+      dispatch(
+        addToast({
+          message: deleteError?.message || "Failed to delete review.",
+          type: "error",
+        }),
+      );
     } finally {
       setSaving(false);
       setShowDeleteReviewConfirm(false);
@@ -401,7 +584,6 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     if (!editForm) return;
     try {
       setSaving(true);
-      setError(null);
       const payload = {
         userId,
         facultyId: entry.facultyId,
@@ -420,8 +602,16 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
 
       await facultyFeedbackService.submitFeedback(payload);
       await refreshEntries();
+      dispatch(
+        addToast({ message: "Feedback saved successfully", type: "success" }),
+      );
     } catch (saveError) {
-      setError(saveError?.message || "Failed to save feedback.");
+      dispatch(
+        addToast({
+          message: saveError?.message || "Failed to save feedback.",
+          type: "error",
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -491,7 +681,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
               <button
                 type="button"
                 onClick={handleScheduleDeletion}
-                className="rounded-xl border border-red-400 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-500/20"
+                className="rounded-xl border border-(--danger) bg-(--danger-light) px-4 py-2 text-sm font-semibold text-(--danger) hover:bg-(--danger-lighter)"
                 disabled={saving}
               >
                 Request account deletion
@@ -525,12 +715,6 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
             {entries.length} entries
           </span>
         </div>
-
-        {error ? (
-          <p className="mb-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
 
         {loading ? (
           <p className="text-sm text-(--muted)">Loading your feedback...</p>
@@ -619,7 +803,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteFeedback(entry)}
-                                    className="rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20"
+                                    className="rounded-lg border border-(--danger) bg-(--danger-light) px-3 py-1.5 text-xs font-medium text-(--danger) hover:bg-(--danger-lighter)"
                                     disabled={saving}
                                   >
                                     Delete Feedback
@@ -649,7 +833,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                       <button
                                         type="button"
                                         onClick={() => clearCourse(entry.$id)}
-                                        className="text-xs text-(--muted) hover:text-red-600"
+                                        className="text-xs text-(--muted) hover:text-(--danger)"
                                       >
                                         Remove
                                       </button>
@@ -793,6 +977,192 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
           </div>
         )}
       </section>
+
+      {/* My Polls Section */}
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow-card)">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-(--text)">My Polls</h2>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-(--muted)">
+              {userPolls.length} {userPolls.length === 1 ? "poll" : "polls"}
+            </span>
+            <button
+              onClick={() => setShowCreatePollOverlay(true)}
+              className="rounded-lg bg-(--primary) px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+            >
+              Create Poll
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-4 border-b border-(--border)">
+          <button
+            onClick={() => setPollFilter("all")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              pollFilter === "all"
+                ? "border-(--primary) text-(--primary)"
+                : "border-transparent text-(--muted) hover:text-(--text)"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setPollFilter("active")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              pollFilter === "active"
+                ? "border-(--primary) text-(--primary)"
+                : "border-transparent text-(--muted) hover:text-(--text)"
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setPollFilter("ended")}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+              pollFilter === "ended"
+                ? "border-(--primary) text-(--primary)"
+                : "border-transparent text-(--muted) hover:text-(--text)"
+            }`}
+          >
+            Ended
+          </button>
+        </div>
+
+        {loadingPolls ? (
+          <p className="text-sm text-(--muted)">Loading your polls...</p>
+        ) : userPolls.length === 0 ? (
+          <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
+            You haven't created any polls yet.
+          </p>
+        ) : (
+          (() => {
+            const filteredPolls = userPolls.filter((poll) => {
+              if (pollFilter === "all") return true;
+              const isActive = isPollActive(poll);
+              if (pollFilter === "active") return isActive;
+              if (pollFilter === "ended") return !isActive;
+              return true;
+            });
+
+            if (filteredPolls.length === 0) {
+              return (
+                <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
+                  No {pollFilter} polls found.
+                </p>
+              );
+            }
+
+            return (
+              <div className="space-y-3">
+                {filteredPolls.map((poll) => {
+                  const results = pollResults[poll.$id];
+                  const isActive = isPollActive(poll);
+
+                  return (
+                    <div
+                      key={poll.$id}
+                      className="rounded-lg border border-(--line) bg-(--panel) p-4"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <FontAwesomeIcon
+                              icon={faPoll}
+                              className="text-(--primary) text-sm"
+                            />
+                            <h3 className="text-sm font-semibold text-(--text)">
+                              Poll for Faculty/Course
+                            </h3>
+                          </div>
+                          <p className="text-xs text-(--muted)">
+                            {poll.pollType === 3 ? "3 Options" : "5 Options"}{" "}
+                            poll
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {isActive ? (
+                            <span className="px-2 py-1 rounded-full bg-(--success-light) text-(--success) text-xs font-medium flex items-center gap-1">
+                              <FontAwesomeIcon icon={faVoteYea} />
+                              Active
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full bg-(--secondary) text-(--text) text-xs font-medium flex items-center gap-1">
+                              <FontAwesomeIcon icon={faClock} />
+                              Ended
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mb-3 text-xs text-(--muted) space-y-1">
+                        <div>
+                          Started:{" "}
+                          {poll.pollStartTime
+                            ? formatPollDate(poll.pollStartTime)
+                            : "Immediately"}
+                        </div>
+                        <div>Ends: {formatPollDate(poll.pollEndTime)}</div>
+                      </div>
+
+                      {results && (
+                        <div className="mb-3 flex items-center gap-2 text-xs text-(--muted)">
+                          <FontAwesomeIcon icon={faChartBar} />
+                          <span>Total votes: {results.totalVotes || 0}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-(--line)">
+                        <button
+                          onClick={() =>
+                            handleTogglePollStatus(
+                              poll.$id,
+                              poll.isActive,
+                              poll,
+                            )
+                          }
+                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-2 ${
+                            poll.isActive
+                              ? "bg-(--success-light) text-(--success) hover:bg-(--success-lighter)"
+                              : "bg-(--secondary) text-(--text) hover:opacity-80"
+                          }`}
+                          title={
+                            poll.isActive ? "Deactivate poll" : "Activate poll"
+                          }
+                        >
+                          <FontAwesomeIcon
+                            icon={poll.isActive ? faToggleOn : faToggleOff}
+                          />
+                          {poll.isActive ? "Active" : "Inactive"}
+                        </button>
+
+                        <button
+                          onClick={() => handleEditPoll(poll)}
+                          className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--info-light) text-(--info) hover:bg-(--info-lighter) flex items-center gap-2"
+                          title="Edit poll"
+                        >
+                          <FontAwesomeIcon icon={faEdit} />
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() => handleConfirmDeletePoll(poll)}
+                          className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--danger-light) text-(--danger) hover:bg-(--danger-lighter) flex items-center gap-2"
+                          title="Delete poll"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()
+        )}
+      </section>
+
       <div className="flex justify-end">
         <button
           type="button"
@@ -889,6 +1259,39 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
           onLogout();
         }}
         onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      {/* Poll Management Overlays */}
+      <CreatePollOverlay
+        open={showCreatePollOverlay}
+        onClose={() => setShowCreatePollOverlay(false)}
+        currentUser={currentUser}
+        onPollCreated={handlePollCreatedOrUpdated}
+      />
+
+      <CreatePollOverlay
+        open={showEditPollOverlay}
+        onClose={() => {
+          setShowEditPollOverlay(false);
+          setEditingPoll(null);
+        }}
+        currentUser={currentUser}
+        onPollCreated={handlePollCreatedOrUpdated}
+        editMode={true}
+        existingPoll={editingPoll}
+      />
+
+      <ConfirmOverlay
+        open={showDeletePollConfirm}
+        title="Delete Poll"
+        message="Are you sure you want to delete this poll? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDeletePoll}
+        onCancel={() => {
+          setShowDeletePollConfirm(false);
+          setDeletingPoll(null);
+        }}
       />
     </div>
   );

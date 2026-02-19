@@ -1,4 +1,4 @@
-﻿// eslint-disable tailwindcss/no-custom-classname
+﻿﻿// eslint-disable tailwindcss/no-custom-classname
 // eslint-disable no-irregular-whitespace
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -7,11 +7,11 @@ import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faAngleLeft, faChevronDown } from "@fortawesome/free-solid-svg-icons";
-import FacultyProfileCard from "../components/FacultyProfileCard.jsx";
-import FacultyRatingsCard from "../components/FacultyRatingsCard.jsx";
-import FeedbackList from "../components/FeedbackList.jsx";
-import RatingSlider from "../components/RatingSlider.jsx";
-import ConfirmOverlay from "../components/ConfirmOverlay.jsx";
+import FacultyProfileCard from "../components/faculty/FacultyProfileCard.jsx";
+import FacultyRatingsCard from "../components/faculty/FacultyRatingsCard.jsx";
+import FeedbackList from "../components/feedback/FeedbackList.jsx";
+import RatingSlider from "../components/feedback/RatingSlider.jsx";
+import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
 import {
   RATING_FIELDS,
   THEORY_FIELDS,

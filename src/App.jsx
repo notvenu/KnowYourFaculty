@@ -1,12 +1,13 @@
-﻿/* eslint-disable no-unused-expressions */
+﻿﻿/* eslint-disable no-unused-expressions */
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import SetupHelper from "./components/SetupHelper.jsx";
-import SiteNav from "./components/SiteNav.jsx";
-import SiteFooter from "./components/SiteFooter.jsx";
-import LoginOverlay from "./components/LoginOverlay.jsx";
-import AdminPanel from "./components/AdminPanel.jsx";
+import SetupHelper from "./components/admin/SetupHelper.jsx";
+import SiteNav from "./components/layout/SiteNav.jsx";
+import SiteFooter from "./components/layout/SiteFooter.jsx";
+import LoginOverlay from "./components/overlays/LoginOverlay.jsx";
+import AdminPanel from "./components/admin/AdminPanel.jsx";
+import ToastContainer from "./components/ui/ToastContainer.jsx";
 import publicFacultyService from "./services/publicFacultyService.js";
 import {
   loadCurrentUser,
@@ -60,6 +61,11 @@ function App() {
     checkDatabaseAccess();
     dispatch(loadCurrentUser());
   }, [dispatch]);
+
+  // Set initial theme on document element
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -219,6 +225,7 @@ function App() {
         onSignIn={handleGoogleLogin}
         signingIn={loginInProgress}
       />
+      <ToastContainer />
     </div>
   );
 }

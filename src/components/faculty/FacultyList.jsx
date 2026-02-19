@@ -17,7 +17,7 @@ import {
   faUser,
   faUsers,
 } from "@fortawesome/free-solid-svg-icons";
-import publicFacultyService from "../services/publicFacultyService.js";
+import publicFacultyService from "../../services/publicFacultyService.js";
 
 function FacultyList({ currentUser = null }) {
   const [facultyData, setFacultyData] = useState({

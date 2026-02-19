@@ -252,50 +252,62 @@ export default function RankingPage({ currentUser }) {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8">
+    <div className="container mx-auto max-w-7xl px-3 sm:px-4 py-4 sm:py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="mb-2 text-3xl font-bold text-(--text) sm:text-4xl">
-          <FontAwesomeIcon icon={faTrophy} className="mr-3 text-(--primary)" />
-          Faculty Rankings
+      <div className="mb-6 sm:mb-8">
+        <h1 className="mb-1 sm:mb-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-(--text) flex items-center gap-2 sm:gap-3">
+          <FontAwesomeIcon
+            icon={faTrophy}
+            className="text-xl sm:text-2xl text-(--primary)"
+          />
+          <span>Faculty Rankings</span>
         </h1>
-        <p className="text-(--muted)">
+        <p className="text-sm sm:text-base text-(--muted)">
           Rankings based on overall ratings from student feedback
         </p>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-(--text)">
-            <FontAwesomeIcon icon={faFilter} className="mr-2" />
+      <div className="mb-4 sm:mb-6 rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg">
+        <div className="mb-3 sm:mb-4 flex items-center justify-between p-3 sm:p-4 lg:p-5 pb-0 sm:pb-0">
+          <h3 className="text-base sm:text-lg font-bold text-(--text)">
+            <FontAwesomeIcon
+              icon={faFilter}
+              className="mr-1.5 sm:mr-2 text-sm sm:text-base"
+            />
             Filters
           </h3>
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className="text-sm font-semibold text-(--primary) hover:underline sm:hidden"
+            className="text-xs sm:text-sm font-semibold text-(--primary) hover:underline sm:hidden"
           >
             {showFilters ? "Hide" : "Show"}
           </button>
         </div>
 
         <div
-          className={`space-y-4 ${showFilters ? "block" : "hidden"} sm:block`}
+          className={`space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-5 pt-0 sm:pt-0 ${showFilters ? "block" : "hidden"} sm:block`}
         >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-2 block text-xs font-semibold text-(--muted)">
+              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
                 Department
               </label>
               <select
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
               >
-                <option value="all">All Departments</option>
+                <option value="all" className="bg-(--bg-elev) text-(--text)">
+                  All Departments
+                </option>
                 {departments.map((dept) => (
-                  <option key={dept} value={dept}>
+                  <option
+                    key={dept}
+                    value={dept}
+                    className="bg-(--bg-elev) text-(--text)"
+                  >
                     {dept}
                   </option>
                 ))}
@@ -303,17 +315,23 @@ export default function RankingPage({ currentUser }) {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-semibold text-(--muted)">
+              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
                 Designation
               </label>
               <select
                 value={selectedDesignation}
                 onChange={(e) => setSelectedDesignation(e.target.value)}
-                className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
               >
-                <option value="all">All Designations</option>
+                <option value="all" className="bg-(--bg-elev) text-(--text)">
+                  All Designations
+                </option>
                 {designations.map((desig) => (
-                  <option key={desig} value={desig}>
+                  <option
+                    key={desig}
+                    value={desig}
+                    className="bg-(--bg-elev) text-(--text)"
+                  >
                     {desig}
                   </option>
                 ))}
@@ -321,17 +339,23 @@ export default function RankingPage({ currentUser }) {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-semibold text-(--muted)">
+              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
                 Course
               </label>
               <select
                 value={selectedCourse}
                 onChange={(e) => setSelectedCourse(e.target.value)}
-                className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
               >
-                <option value="all">All Courses</option>
+                <option value="all" className="bg-(--bg-elev) text-(--text)">
+                  All Courses
+                </option>
                 {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
+                  <option
+                    key={course.id}
+                    value={course.id}
+                    className="bg-(--bg-elev) text-(--text)"
+                  >
                     {course.name}
                   </option>
                 ))}
@@ -339,24 +363,34 @@ export default function RankingPage({ currentUser }) {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-semibold text-(--muted)">
+              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
                 Min. Ratings Required
               </label>
               <select
                 value={minRatings}
                 onChange={(e) => setMinRatings(Number(e.target.value))}
-                className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
+                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
               >
-                <option value="1">1+</option>
-                <option value="3">3+</option>
-                <option value="5">5+</option>
-                <option value="10">10+</option>
-                <option value="20">20+</option>
+                <option value="1" className="bg-(--bg-elev) text-(--text)">
+                  1+
+                </option>
+                <option value="3" className="bg-(--bg-elev) text-(--text)">
+                  3+
+                </option>
+                <option value="5" className="bg-(--bg-elev) text-(--text)">
+                  5+
+                </option>
+                <option value="10" className="bg-(--bg-elev) text-(--text)">
+                  10+
+                </option>
+                <option value="20" className="bg-(--bg-elev) text-(--text)">
+                  20+
+                </option>
               </select>
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-2">
             <button
               type="button"
               onClick={() => {
@@ -365,7 +399,7 @@ export default function RankingPage({ currentUser }) {
                 setSelectedCourse("all");
                 setMinRatings(3);
               }}
-              className="text-sm font-semibold text-(--muted) hover:text-(--text)"
+              className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"
             >
               Reset Filters
             </button>
@@ -374,8 +408,8 @@ export default function RankingPage({ currentUser }) {
       </div>
 
       {/* Results Summary */}
-      <div className="mb-6 text-center">
-        <p className="text-sm text-(--muted)">
+      <div className="mb-4 sm:mb-6 text-center">
+        <p className="text-xs sm:text-sm text-(--muted)">
           Showing{" "}
           <span className="font-semibold text-(--text)">
             {rankedFaculty.length}

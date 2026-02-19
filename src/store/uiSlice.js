@@ -13,6 +13,7 @@ const uiSlice = createSlice({
     showNavbar: false,
     isSetupMode: true,
     setupChecked: false,
+    toasts: [],
   },
   reducers: {
     setTheme: (state, action) => {
@@ -35,6 +36,20 @@ const uiSlice = createSlice({
     setSetupChecked: (state, action) => {
       state.setupChecked = action.payload;
     },
+    addToast: (state, action) => {
+      const id = Date.now() + Math.random();
+      state.toasts.push({
+        id,
+        message: action.payload.message,
+        type: action.payload.type || "info", // success, error, warning, info
+        duration: action.payload.duration || 3000,
+      });
+    },
+    removeToast: (state, action) => {
+      state.toasts = state.toasts.filter(
+        (toast) => toast.id !== action.payload,
+      );
+    },
   },
 });
 
@@ -44,5 +59,7 @@ export const {
   setShowNavbar,
   setIsSetupMode,
   setSetupChecked,
+  addToast,
+  removeToast,
 } = uiSlice.actions;
 export default uiSlice.reducer;

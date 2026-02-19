@@ -1,6 +1,7 @@
+import { memo } from "react";
 import Overlay from "./Overlay.jsx";
 
-export default function ConfirmOverlay({
+function ConfirmOverlay({
   open,
   title = "Confirm",
   message,
@@ -15,7 +16,9 @@ export default function ConfirmOverlay({
     <Overlay open={open} onClose={onCancel}>
       <div className="p-6 sm:p-8">
         {title ? (
-          <h2 className="text-xl font-bold text-(--text) sm:text-2xl">{title}</h2>
+          <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
+            {title}
+          </h2>
         ) : null}
         <p className="mt-3 text-sm leading-relaxed text-(--muted)">{message}</p>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -45,3 +48,4 @@ export default function ConfirmOverlay({
   );
 }
 
+export default memo(ConfirmOverlay);

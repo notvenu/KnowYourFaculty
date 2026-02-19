@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
+import { addToast } from "../store/uiSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChartBar,
@@ -14,12 +15,13 @@ import {
   faToggleOn,
   faToggleOff,
   faTrash,
-  faSearch,
-  faTimes,
+  faEdit,
 } from "@fortawesome/free-solid-svg-icons";
 import pollService from "../services/pollService.js";
 import publicFacultyService from "../services/publicFacultyService.js";
 import courseService from "../services/courseService.js";
+import CreatePollOverlay from "../components/overlays/CreatePollOverlay.jsx";
+import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
 
 const POLL_OPTIONS = {
   3: [
@@ -39,35 +41,29 @@ const POLL_OPTIONS = {
 const COURSE_TYPES = ["Theory", "Lab", "ECS"];
 
 export default function PollPage() {
+  const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.auth.currentUser);
-  const [activeTab, setActiveTab] = useState("active"); // active, create, my-polls
+  const [activeTab, setActiveTab] = useState("active"); // active, my-polls
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
   const [courseList, setCourseList] = useState([]);
-
-  // Create poll form state
-  const [createForm, setCreateForm] = useState({
-    facultyId: "",
-    courseId: "",
-    courseType: "",
-    pollType: 3,
-    pollStartTime: "",
-    pollEndTime: "",
-  });
-
-  // Search states
-  const [facultySearch, setFacultySearch] = useState("");
-  const [courseSearch, setCourseSearch] = useState("");
-  const [showFacultyDropdown, setShowFacultyDropdown] = useState(false);
-  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
-  const [selectedFaculty, setSelectedFaculty] = useState(null);
-  const [selectedCourse, setSelectedCourse] = useState(null);
 
   // Poll results state
   const [pollResults, setPollResults] = useState({});
   const [userVotes, setUserVotes] = useState({});
+
+  // My polls state
+  const [myPolls, setMyPolls] = useState([]);
+  const [myPollResults, setMyPollResults] = useState({});
+  const [myPollFilter, setMyPollFilter] = useState("all"); // all, active, ended
+
+  // Overlay states
+  const [showCreateOverlay, setShowCreateOverlay] = useState(false);
+  const [showEditOverlay, setShowEditOverlay] = useState(false);
+  const [editingPoll, setEditingPoll] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingPoll, setDeletingPoll] = useState(null);
 
   const hasUser = Boolean(currentUser?.$id);
 
@@ -77,28 +73,37 @@ export default function PollPage() {
     }
   }, [hasUser, activeTab]);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (!e.target.closest(".faculty-search-container")) {
-        setShowFacultyDropdown(false);
-      }
-      if (!e.target.closest(".course-search-container")) {
-        setShowCourseDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      setError(null);
+
+      // Load faculty and courses
+      const [faculty, courses] = await Promise.all([
+        publicFacultyService.getFacultyList({ limit: 1000, page: 1 }),
+        courseService.getAllCourses(1000),
+      ]);
+      setFacultyList(faculty.faculty || []);
+      setCourseList(courses || []);
 
       if (activeTab === "active") {
         const activePolls = await pollService.getActivePolls();
+
+        // Auto-deactivate ended polls
+        const now = new Date();
+        for (const poll of activePolls) {
+          if (poll.isActive) {
+            const endTime = new Date(poll.pollEndTime);
+            if (now >= endTime) {
+              try {
+                await pollService.updatePollStatus(poll.$id, false);
+                poll.isActive = false;
+              } catch (err) {
+                console.error("Error auto-deactivating poll:", err);
+              }
+            }
+          }
+        }
+
         setPolls(activePolls);
 
         // Load results and user votes for each poll
@@ -123,82 +128,43 @@ export default function PollPage() {
 
         setPollResults(resultsMap);
         setUserVotes(votesMap);
-      }
+      } else if (activeTab === "my-polls") {
+        const userPolls = await pollService.getUserPolls(currentUser.$id);
 
-      // Load faculty and courses for create form
-      if (activeTab === "create" || activeTab === "active") {
-        const [faculty, courses] = await Promise.all([
-          publicFacultyService.getFacultyList({ limit: 1000, page: 1 }),
-          courseService.getAllCourses(1000),
-        ]);
-        setFacultyList(faculty.faculty || []);
-        setCourseList(courses || []);
-        console.log("Loaded courses:", courses?.slice(0, 3)); // Debug: show first 3 courses
+        // Auto-deactivate ended polls
+        const now = new Date();
+        for (const poll of userPolls) {
+          if (poll.isActive) {
+            const endTime = new Date(poll.pollEndTime);
+            if (now >= endTime) {
+              try {
+                await pollService.updatePollStatus(poll.$id, false);
+                poll.isActive = false;
+              } catch (err) {
+                console.error("Error auto-deactivating poll:", err);
+              }
+            }
+          }
+        }
+
+        setMyPolls(userPolls);
+
+        // Load results for user's polls
+        const resultsPromises = userPolls.map((poll) =>
+          pollService.getPollResults(poll.$id),
+        );
+        const results = await Promise.all(resultsPromises);
+
+        const resultsMap = {};
+        userPolls.forEach((poll, index) => {
+          resultsMap[poll.$id] = results[index];
+        });
+
+        setMyPollResults(resultsMap);
       }
     } catch (err) {
       console.error("Error loading poll data:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreatePoll = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError(null);
-
-      const payload = {
-        userId: currentUser.$id,
-        pollType: createForm.pollType,
-        pollEndTime: createForm.pollEndTime,
-      };
-
-      if (createForm.pollStartTime) {
-        payload.pollStartTime = createForm.pollStartTime;
-      }
-
-      if (!createForm.facultyId) {
-        throw new Error("Please select a faculty for the poll.");
-      }
-
-      payload.facultyId = createForm.facultyId;
-
-      // Optionally add course
-      if (createForm.courseId) {
-        payload.courseId = createForm.courseId;
-        if (createForm.courseType) {
-          payload.courseType = createForm.courseType;
-        }
-      }
-
-      if (!createForm.pollEndTime) {
-        throw new Error("Please set an end time for the poll.");
-      }
-
-      await pollService.createPoll(payload);
-
-      // Reset form
-      setCreateForm({
-        facultyId: "",
-        courseId: "",
-        courseType: "",
-        pollType: 3,
-        pollStartTime: "",
-        pollEndTime: "",
-      });
-      setFacultySearch("");
-      setCourseSearch("");
-      setSelectedFaculty(null);
-      setSelectedCourse(null);
-
-      // Switch to active polls tab
-      setActiveTab("active");
-      await loadInitialData();
-    } catch (err) {
-      console.error("Error creating poll:", err);
-      setError(err.message);
+      dispatch(addToast({ message: "Failed to load polls", type: "error" }));
     } finally {
       setLoading(false);
     }
@@ -206,7 +172,6 @@ export default function PollPage() {
 
   const handleVote = async (pollId, vote) => {
     try {
-      setError(null);
       await pollService.submitVote({
         userId: currentUser.$id,
         pollId,
@@ -221,23 +186,102 @@ export default function PollPage() {
 
       setPollResults((prev) => ({ ...prev, [pollId]: results }));
       setUserVotes((prev) => ({ ...prev, [pollId]: userVote }));
+      dispatch(
+        addToast({ message: "Vote submitted successfully!", type: "success" }),
+      );
     } catch (err) {
       console.error("Error submitting vote:", err);
-      setError(err.message);
+      dispatch(
+        addToast({
+          message: err.message || "Failed to submit vote",
+          type: "error",
+        }),
+      );
     }
   };
 
-  const handleTogglePollStatus = async (pollId, currentStatus) => {
+  const handleTogglePollStatus = async (pollId, currentStatus, poll) => {
     try {
-      setError(null);
+      // Check if poll has ended
+      const now = new Date();
+      const endTime = new Date(poll.pollEndTime);
+
+      // Prevent activating an ended poll
+      if (!currentStatus && now >= endTime) {
+        dispatch(
+          addToast({
+            message:
+              "Cannot activate a poll that has already ended. Please edit the end time first.",
+            type: "warning",
+            duration: 5000,
+          }),
+        );
+        return;
+      }
+
       await pollService.updatePollStatus(pollId, !currentStatus);
+      dispatch(
+        addToast({
+          message: !currentStatus ? "Poll activated" : "Poll deactivated",
+          type: "success",
+        }),
+      );
 
       // Reload polls to reflect the change
       await loadInitialData();
     } catch (err) {
       console.error("Error toggling poll status:", err);
-      setError(err.message);
+      dispatch(
+        addToast({
+          message: err.message || "Failed to toggle poll status",
+          type: "error",
+        }),
+      );
     }
+  };
+
+  const handleDeletePoll = async () => {
+    if (!deletingPoll) return;
+
+    try {
+      await pollService.deletePoll(deletingPoll.$id);
+      setShowDeleteConfirm(false);
+      setDeletingPoll(null);
+      dispatch(
+        addToast({ message: "Poll deleted successfully", type: "success" }),
+      );
+
+      // Reload polls
+      await loadInitialData();
+    } catch (err) {
+      console.error("Error deleting poll:", err);
+      dispatch(
+        addToast({
+          message: err.message || "Failed to delete poll",
+          type: "error",
+        }),
+      );
+    }
+  };
+
+  const handleEditPoll = (poll) => {
+    setEditingPoll(poll);
+    setShowEditOverlay(true);
+  };
+
+  const handlePollCreatedOrUpdated = async () => {
+    dispatch(addToast({ message: "Poll saved successfully", type: "success" }));
+    await loadInitialData();
+  };
+
+  const handleConfirmDelete = (poll) => {
+    setDeletingPoll(poll);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleCancelDelete = () => {
+    setDeletingPoll(null);
+    setShowDeleteConfirm(false);
   };
 
   const getFacultyName = (facultyId) => {
@@ -245,9 +289,16 @@ export default function PollPage() {
     return faculty ? faculty.name : "Unknown Faculty";
   };
 
+  const getFacultyEmployeeId = (facultyId) => {
+    const faculty = facultyList.find((f) => f.$id === facultyId);
+    return faculty?.employeeId || facultyId;
+  };
+
   const getCourseName = (courseId) => {
     const course = courseList.find((c) => c.$id === courseId);
-    return course ? `${course.code} - ${course.name}` : "Unknown Course";
+    return course
+      ? `${course.courseCode} - ${course.courseName}`
+      : "Unknown Course";
   };
 
   const isPollActive = (poll) => {
@@ -265,8 +316,8 @@ export default function PollPage() {
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date.toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
+    // Use user's local timezone automatically
+    return date.toLocaleString(undefined, {
       dateStyle: "medium",
       timeStyle: "short",
     });
@@ -281,49 +332,60 @@ export default function PollPage() {
     return (
       <div
         key={poll.$id}
-        className="bg-(--card) rounded-lg shadow-md p-6 border border-(--border)"
+        className="bg-(--card) rounded-lg shadow-md p-4 sm:p-6 border border-(--border)"
       >
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <FontAwesomeIcon
                 icon={poll.facultyId ? faUser : faBook}
-                className="text-(--primary)"
+                className="text-(--primary) text-sm sm:text-base"
               />
-              <h3 className="text-lg font-semibold text-(--text)">
+              <h3 className="text-base sm:text-lg font-semibold text-(--text)">
                 {poll.facultyId
                   ? getFacultyName(poll.facultyId)
                   : getCourseName(poll.courseId)}
               </h3>
+              {poll.courseType && (
+                <span className="inline-block px-2 py-1 text-xs rounded bg-(--secondary) text-(--secondary-text)">
+                  {poll.courseType}
+                </span>
+              )}
             </div>
-            {poll.courseType && (
-              <span className="inline-block px-2 py-1 text-xs rounded bg-(--secondary) text-(--secondary-text) mb-2">
-                {poll.courseType}
-              </span>
+            {poll.facultyId && poll.courseId && (
+              <p className="text-xs sm:text-sm text-(--muted) mb-1">
+                {getCourseName(poll.courseId)}
+              </p>
             )}
             {poll.facultyId && (
               <Link
-                to={`/faculty/${poll.facultyId}`}
-                className="text-sm text-(--primary) hover:underline"
+                to={`/faculty/${getFacultyEmployeeId(poll.facultyId)}`}
+                className="text-xs sm:text-sm text-(--primary) hover:underline"
               >
                 View Faculty Profile
               </Link>
             )}
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 self-start">
             {isActive ? (
-              <span className="px-3 py-1 rounded-full bg-green-500 text-white text-sm font-medium flex items-center gap-2">
-                <FontAwesomeIcon icon={faVoteYea} />
+              <span
+                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
+                style={{ backgroundColor: "#10b981" }}
+              >
+                <FontAwesomeIcon icon={faVoteYea} className="text-xs" />
                 Active
               </span>
             ) : (
-              <span className="px-3 py-1 rounded-full bg-gray-500 text-white text-sm font-medium flex items-center gap-2">
-                <FontAwesomeIcon icon={faClock} />
+              <span
+                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
+                style={{ backgroundColor: "#6b7280" }}
+              >
+                <FontAwesomeIcon icon={faClock} className="text-xs" />
                 Ended
               </span>
             )}
-            <span className="text-xs text-(--muted)">
-              Ends: {formatDate(poll.pollEndTime)}
+            <span className="text-xs text-(--muted) whitespace-nowrap">
+              {formatDate(poll.pollEndTime)}
             </span>
           </div>
         </div>
@@ -344,7 +406,7 @@ export default function PollPage() {
                 disabled={!isActive}
                 className={`w-full relative overflow-hidden rounded-lg border-2 transition-all ${
                   isUserVote
-                    ? "border-(--primary) bg-(--primary) bg-opacity-10"
+                    ? "border-(--primary) bg-(--primary-soft)"
                     : "border-(--border) hover:border-(--primary)"
                 } ${!isActive ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
               >
@@ -352,20 +414,20 @@ export default function PollPage() {
                   className="absolute inset-0 bg-(--primary) opacity-10 transition-all"
                   style={{ width: `${percentage}%` }}
                 />
-                <div className="relative flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3">
+                <div className="relative flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     {isUserVote && (
                       <FontAwesomeIcon
                         icon={faCheckCircle}
-                        className="text-(--primary)"
+                        className="text-(--primary) text-sm sm:text-base"
                       />
                     )}
-                    <span className="font-medium text-(--text)">
+                    <span className="font-medium text-(--text) text-sm sm:text-base">
                       {option.label}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-(--muted)">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-xs sm:text-sm text-(--muted)">
                       {voteCount} votes ({percentage.toFixed(1)}%)
                     </span>
                   </div>
@@ -375,28 +437,184 @@ export default function PollPage() {
           })}
         </div>
 
-        <div className="text-sm text-(--muted) flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faChartBar} />
+        <div className="text-xs sm:text-sm text-(--muted) flex items-center justify-between gap-2 pt-3 border-t border-(--border)">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <FontAwesomeIcon icon={faChartBar} className="text-xs sm:text-sm" />
             <span>Total votes: {results?.totalVotes || 0}</span>
           </div>
 
           {/* Poll Management Buttons (only for poll creator) */}
           {poll.userId === currentUser.$id && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleTogglePollStatus(poll.$id, poll.isActive)}
-                className="px-3 py-1 rounded text-xs font-medium transition-colors hover:bg-(--secondary) flex items-center gap-2"
-                title={poll.isActive ? "Deactivate poll" : "Activate poll"}
-              >
-                <FontAwesomeIcon
-                  icon={poll.isActive ? faToggleOn : faToggleOff}
-                  className={poll.isActive ? "text-green-500" : "text-gray-500"}
-                />
+            <button
+              onClick={() =>
+                handleTogglePollStatus(poll.$id, poll.isActive, poll)
+              }
+              className="px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs font-medium transition-colors hover:bg-(--secondary) flex items-center gap-1 sm:gap-2 shrink-0"
+              title={poll.isActive ? "Deactivate poll" : "Activate poll"}
+            >
+              <FontAwesomeIcon
+                icon={poll.isActive ? faToggleOn : faToggleOff}
+                className={`text-xs sm:text-sm ${
+                  poll.isActive ? "text-(--success)" : "text-(--muted)"
+                }`}
+              />
+              <span className="hidden sm:inline">
                 {poll.isActive ? "Active" : "Inactive"}
-              </button>
-            </div>
+              </span>
+            </button>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderMyPollCard = (poll) => {
+    const results = myPollResults[poll.$id];
+    const options = POLL_OPTIONS[poll.pollType];
+    const isActive = isPollActive(poll);
+
+    return (
+      <div
+        key={poll.$id}
+        className="bg-(--card) rounded-lg shadow-md p-4 sm:p-6 border border-(--border)"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <FontAwesomeIcon
+                icon={poll.facultyId ? faUser : faBook}
+                className="text-(--primary) text-sm sm:text-base"
+              />
+              <h3 className="text-base sm:text-lg font-semibold text-(--text)">
+                {poll.facultyId
+                  ? getFacultyName(poll.facultyId)
+                  : getCourseName(poll.courseId)}
+              </h3>
+              {poll.courseType && (
+                <span className="inline-block px-2 py-1 text-xs rounded bg-(--secondary) text-(--secondary-text)">
+                  {poll.courseType}
+                </span>
+              )}
+            </div>
+            {poll.facultyId && poll.courseId && (
+              <p className="text-xs sm:text-sm text-(--muted) mb-1">
+                {getCourseName(poll.courseId)}
+              </p>
+            )}
+            {poll.facultyId && (
+              <Link
+                to={`/faculty/${getFacultyEmployeeId(poll.facultyId)}`}
+                className="text-xs sm:text-sm text-(--primary) hover:underline"
+              >
+                View Faculty Profile
+              </Link>
+            )}
+          </div>
+          <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 self-start">
+            {isActive ? (
+              <span
+                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
+                style={{ backgroundColor: "#10b981" }}
+              >
+                <FontAwesomeIcon icon={faVoteYea} className="text-xs" />
+                Active
+              </span>
+            ) : (
+              <span
+                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
+                style={{ backgroundColor: "#6b7280" }}
+              >
+                <FontAwesomeIcon icon={faClock} className="text-xs" />
+                Ended
+              </span>
+            )}
+            <span className="text-xs text-(--muted) whitespace-nowrap">
+              {formatDate(poll.pollEndTime)}
+            </span>
+          </div>
+        </div>
+
+        {/* Poll Results (non-interactive) */}
+        <div className="space-y-3 mb-4">
+          {options.map((option) => {
+            const voteCount = results?.voteCounts?.[option.value] || 0;
+            const totalVotes = results?.totalVotes || 0;
+            const percentage =
+              totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
+
+            return (
+              <div
+                key={option.value}
+                className="w-full relative overflow-hidden rounded-lg border border-(--border)"
+              >
+                <div
+                  className="absolute inset-0 bg-(--primary) opacity-10 transition-all"
+                  style={{ width: `${percentage}%` }}
+                />
+                <div className="relative flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3">
+                  <span className="font-medium text-(--text) text-sm sm:text-base">
+                    {option.label}
+                  </span>
+                  <span className="text-xs sm:text-sm text-(--muted)">
+                    {voteCount} votes ({percentage.toFixed(1)}%)
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Poll Management Section */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-3 sm:gap-0 pt-3 border-t border-(--border)">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-(--muted)">
+            <FontAwesomeIcon icon={faChartBar} className="text-xs sm:text-sm" />
+            <span>Total votes: {results?.totalVotes || 0}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto">
+            {/* Toggle Active Status */}
+            <button
+              onClick={() =>
+                handleTogglePollStatus(poll.$id, poll.isActive, poll)
+              }
+              className={`px-2.5 sm:px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 sm:gap-2 flex-1 sm:flex-initial justify-center ${
+                poll.isActive
+                  ? "bg-(--success-light) text-(--success) hover:bg-(--success-lighter)"
+                  : "bg-(--secondary) text-(--text) hover:opacity-80"
+              }`}
+              title={poll.isActive ? "Deactivate poll" : "Activate poll"}
+            >
+              <FontAwesomeIcon
+                icon={poll.isActive ? faToggleOn : faToggleOff}
+                className="text-xs sm:text-sm"
+              />
+              <span className="hidden sm:inline">
+                {poll.isActive ? "Active" : "Inactive"}
+              </span>
+            </button>
+
+            {/* Edit Button */}
+            <button
+              onClick={() => handleEditPoll(poll)}
+              className="px-2.5 sm:px-3 py-1.5 rounded text-xs font-medium transition-colors text-white hover:opacity-90 flex items-center gap-1.5 sm:gap-2 flex-1 sm:flex-initial justify-center"
+              style={{ backgroundColor: "#3b82f6" }}
+              title="Edit poll"
+            >
+              <FontAwesomeIcon icon={faEdit} className="text-xs sm:text-sm" />
+              <span className="hidden sm:inline">Edit</span>
+            </button>
+
+            {/* Delete Button */}
+            <button
+              onClick={() => handleConfirmDelete(poll)}
+              className="px-2.5 sm:px-3 py-1.5 rounded text-xs font-medium transition-colors text-white hover:opacity-90 flex items-center gap-1.5 sm:gap-2 flex-1 sm:flex-initial justify-center"
+              style={{ backgroundColor: "#ef4444" }}
+              title="Delete poll"
+            >
+              <FontAwesomeIcon icon={faTrash} className="text-xs sm:text-sm" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -418,48 +636,51 @@ export default function PollPage() {
   }
 
   return (
-    <div className="min-h-screen bg-(--background) py-8 px-4">
+    <div className="min-h-screen bg-(--background) py-4 sm:py-8 px-3 sm:px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-(--text) mb-2 flex items-center gap-3">
-            <FontAwesomeIcon icon={faPoll} />
-            Faculty & Course Polls
-          </h1>
-          <p className="text-(--muted)">
-            Vote on faculty strictness and course difficulty
-          </p>
+        <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-(--text) mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3">
+              <FontAwesomeIcon icon={faPoll} className="text-xl sm:text-2xl" />
+              <span>Faculty & Course Polls</span>
+            </h1>
+            <p className="text-sm sm:text-base text-(--muted)">
+              Vote on faculty strictness and course difficulty
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCreateOverlay(true)}
+            className="w-full sm:w-auto px-4 py-2 bg-(--primary) text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Create Poll
+          </button>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-            {error}
-          </div>
-        )}
-
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-(--border)">
+        <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 border-b border-(--border) overflow-x-auto">
           <button
             onClick={() => setActiveTab("active")}
-            className={`px-6 py-3 font-medium transition-colors ${
+            className={`px-4 sm:px-6 py-2 sm:py-3 font-medium transition-colors text-sm sm:text-base whitespace-nowrap ${
               activeTab === "active"
                 ? "text-(--primary) border-b-2 border-(--primary)"
                 : "text-(--muted) hover:text-(--text)"
             }`}
           >
-            <FontAwesomeIcon icon={faVoteYea} className="mr-2" />
-            Active Polls
+            <FontAwesomeIcon icon={faVoteYea} className="mr-1.5 sm:mr-2" />
+            <span>Active Polls</span>
           </button>
           <button
-            onClick={() => setActiveTab("create")}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === "create"
+            onClick={() => setActiveTab("my-polls")}
+            className={`px-4 sm:px-6 py-2 sm:py-3 font-medium transition-colors text-sm sm:text-base whitespace-nowrap ${
+              activeTab === "my-polls"
                 ? "text-(--primary) border-b-2 border-(--primary)"
                 : "text-(--muted) hover:text-(--text)"
             }`}
           >
-            <FontAwesomeIcon icon={faPlus} className="mr-2" />
-            Create Poll
+            <FontAwesomeIcon icon={faUser} className="mr-1.5 sm:mr-2" />
+            <span>My Polls</span>
           </button>
         </div>
 
@@ -482,7 +703,7 @@ export default function PollPage() {
                     />
                     <p className="text-(--muted)">No active polls available.</p>
                     <button
-                      onClick={() => setActiveTab("create")}
+                      onClick={() => setShowCreateOverlay(true)}
                       className="mt-4 px-6 py-2 bg-(--primary) text-white rounded-lg hover:opacity-90 transition-opacity"
                     >
                       Create First Poll
@@ -494,368 +715,123 @@ export default function PollPage() {
               </div>
             )}
 
-            {/* Create Poll Tab */}
-            {activeTab === "create" && (
-              <div className="bg-(--card) rounded-lg shadow-md p-6 border border-(--border)">
-                <h2 className="text-xl font-bold text-(--text) mb-6">
-                  Create New Poll
-                </h2>
-                <form onSubmit={handleCreatePoll} className="space-y-6">
-                  {/* Faculty Selection - Required */}
-                  <div className="faculty-search-container">
-                    <label className="block text-sm font-medium text-(--text) mb-2">
-                      Select Faculty *
-                    </label>
-                    <div className="relative">
-                      <div className="relative">
-                        <FontAwesomeIcon
-                          icon={faSearch}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-(--muted)"
-                        />
-                        <input
-                          type="text"
-                          value={facultySearch}
-                          onChange={(e) => {
-                            setFacultySearch(e.target.value);
-                            setShowFacultyDropdown(true);
-                          }}
-                          onFocus={() => setShowFacultyDropdown(true)}
-                          placeholder="Search faculty by name or department..."
-                          className="w-full pl-10 pr-10 py-2 border border-(--border) rounded-lg bg-(--background) text-(--text) focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required={!selectedFaculty}
-                        />
-                        {selectedFaculty && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedFaculty(null);
-                              setFacultySearch("");
-                              setCreateForm({ ...createForm, facultyId: "" });
-                            }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-(--muted) hover:text-(--text)"
-                          >
-                            <FontAwesomeIcon icon={faTimes} />
-                          </button>
-                        )}
-                      </div>
-                      {selectedFaculty && (
-                        <div className="mt-2 px-3 py-2 bg-(--secondary) rounded border border-(--border)">
-                          <span className="text-sm font-medium text-(--text)">
-                            {selectedFaculty.name}
-                          </span>
-                          <span className="text-sm text-(--muted) ml-2">
-                            ({selectedFaculty.department})
-                          </span>
-                        </div>
-                      )}
-                      {showFacultyDropdown &&
-                        !selectedFaculty &&
-                        facultyList.length > 0 && (
-                          <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-gray-800 border border-(--border) rounded-lg shadow-xl">
-                            {facultyList.filter(
-                              (faculty) =>
-                                facultySearch === "" ||
-                                faculty.name
-                                  .toLowerCase()
-                                  .includes(facultySearch.toLowerCase()) ||
-                                faculty.department
-                                  ?.toLowerCase()
-                                  .includes(facultySearch.toLowerCase()),
-                            ).length > 0 ? (
-                              facultyList
-                                .filter(
-                                  (faculty) =>
-                                    facultySearch === "" ||
-                                    faculty.name
-                                      .toLowerCase()
-                                      .includes(facultySearch.toLowerCase()) ||
-                                    faculty.department
-                                      ?.toLowerCase()
-                                      .includes(facultySearch.toLowerCase()),
-                                )
-                                .map((faculty) => (
-                                  <button
-                                    key={faculty.$id}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedFaculty(faculty);
-                                      setFacultySearch(faculty.name);
-                                      setCreateForm({
-                                        ...createForm,
-                                        facultyId: faculty.$id,
-                                      });
-                                      setShowFacultyDropdown(false);
-                                    }}
-                                    className="w-full px-4 py-2 text-left hover:bg-(--secondary) transition-colors"
-                                  >
-                                    <div className="font-medium text-(--text)">
-                                      {faculty.name}
-                                    </div>
-                                    {faculty.department && (
-                                      <div className="text-sm text-(--muted)">
-                                        {faculty.department}
-                                      </div>
-                                    )}
-                                  </button>
-                                ))
-                            ) : (
-                              <div className="px-4 py-3 text-center text-(--muted)">
-                                No faculty found
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      {showFacultyDropdown &&
-                        !selectedFaculty &&
-                        facultyList.length === 0 && (
-                          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-(--border) rounded-lg shadow-xl px-4 py-3 text-center text-(--muted)">
-                            Loading faculty...
-                          </div>
-                        )}
-                    </div>
+            {/* My Polls Tab */}
+            {activeTab === "my-polls" && (
+              <div className="space-y-6">
+                {myPolls.length === 0 ? (
+                  <div className="text-center py-12 bg-(--card) rounded-lg border border-(--border)">
+                    <FontAwesomeIcon
+                      icon={faPoll}
+                      className="text-6xl text-(--muted) mb-4"
+                    />
+                    <p className="text-(--muted)">
+                      You haven't created any polls yet.
+                    </p>
+                    <button
+                      onClick={() => setShowCreateOverlay(true)}
+                      className="mt-4 px-6 py-2 bg-(--primary) text-white rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      Create Your First Poll
+                    </button>
                   </div>
-
-                  {/* Course Selection - Optional */}
-                  <div className="course-search-container">
-                    <label className="block text-sm font-medium text-(--text) mb-2">
-                      Select Course (Optional)
-                    </label>
-                    <div className="relative">
-                      <div className="relative">
-                        <FontAwesomeIcon
-                          icon={faSearch}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-(--muted)"
-                        />
-                        <input
-                          type="text"
-                          value={courseSearch}
-                          onChange={(e) => {
-                            setCourseSearch(e.target.value);
-                            setShowCourseDropdown(true);
-                          }}
-                          onFocus={() => setShowCourseDropdown(true)}
-                          placeholder="Search course by code or name..."
-                          className="w-full pl-10 pr-10 py-2 border border-(--border) rounded-lg bg-(--background) text-(--text) focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                        {selectedCourse && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedCourse(null);
-                              setCourseSearch("");
-                              setCreateForm({
-                                ...createForm,
-                                courseId: "",
-                                courseType: "",
-                              });
-                            }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-(--muted) hover:text-(--text)"
-                          >
-                            <FontAwesomeIcon icon={faTimes} />
-                          </button>
-                        )}
-                      </div>
-                      {selectedCourse && (
-                        <div className="mt-2 px-3 py-2 bg-(--secondary) rounded border border-(--border)">
-                          <span className="text-sm font-medium text-(--text)">
-                            {selectedCourse.courseCode || selectedCourse.$id}
-                          </span>
-                          {selectedCourse.courseName && (
-                            <span className="text-sm text-(--muted) ml-2">
-                              {selectedCourse.courseName}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {showCourseDropdown &&
-                        !selectedCourse &&
-                        courseList.length > 0 && (
-                          <div className="absolute z-40 w-full mt-1 max-h-60 overflow-y-auto bg-white dark:bg-gray-800 border border-(--border) rounded-lg shadow-xl">
-                            {courseList.filter(
-                              (course) =>
-                                courseSearch === "" ||
-                                course.courseCode
-                                  ?.toLowerCase()
-                                  .includes(courseSearch.toLowerCase()) ||
-                                course.courseName
-                                  ?.toLowerCase()
-                                  .includes(courseSearch.toLowerCase()),
-                            ).length > 0 ? (
-                              courseList
-                                .filter(
-                                  (course) =>
-                                    courseSearch === "" ||
-                                    course.courseCode
-                                      ?.toLowerCase()
-                                      .includes(courseSearch.toLowerCase()) ||
-                                    course.courseName
-                                      ?.toLowerCase()
-                                      .includes(courseSearch.toLowerCase()),
-                                )
-                                .map((course) => (
-                                  <button
-                                    key={course.$id}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedCourse(course);
-                                      const displayText = course.courseCode
-                                        ? `${course.courseCode}${course.courseName ? ` - ${course.courseName}` : ""}`
-                                        : course.courseName || course.$id;
-                                      setCourseSearch(displayText);
-                                      setCreateForm({
-                                        ...createForm,
-                                        courseId: course.$id,
-                                      });
-                                      setShowCourseDropdown(false);
-                                    }}
-                                    className="w-full px-4 py-2 text-left hover:bg-(--secondary) transition-colors"
-                                  >
-                                    <div className="font-medium text-(--text)">
-                                      {course.courseCode || course.$id}
-                                    </div>
-                                    {course.courseName && (
-                                      <div className="text-sm text-(--muted)">
-                                        {course.courseName}
-                                      </div>
-                                    )}
-                                  </button>
-                                ))
-                            ) : (
-                              <div className="px-4 py-3 text-center text-(--muted)">
-                                No courses found
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      {showCourseDropdown &&
-                        !selectedCourse &&
-                        courseList.length === 0 && (
-                          <div className="absolute z-40 w-full mt-1 bg-white dark:bg-gray-800 border border-(--border) rounded-lg shadow-xl px-4 py-3 text-center text-(--muted)">
-                            No courses available
-                          </div>
-                        )}
-                    </div>
-                  </div>
-
-                  {/* Course Type - Only show if course is selected */}
-                  {selectedCourse && (
-                    <div>
-                      <label className="block text-sm font-medium text-(--text) mb-2">
-                        Course Type (Optional)
-                      </label>
-                      <select
-                        value={createForm.courseType}
-                        onChange={(e) =>
-                          setCreateForm({
-                            ...createForm,
-                            courseType: e.target.value,
-                          })
-                        }
-                        className="w-full px-4 py-2 border border-(--border) rounded-lg bg-(--background) text-(--text) focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                ) : (
+                  <>
+                    {/* Filter Tabs */}
+                    <div className="flex gap-1 sm:gap-2 mb-4 border-b border-(--border) overflow-x-auto">
+                      <button
+                        onClick={() => setMyPollFilter("all")}
+                        className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                          myPollFilter === "all"
+                            ? "border-(--primary) text-(--primary)"
+                            : "border-transparent text-(--muted) hover:text-(--text)"
+                        }`}
                       >
-                        <option value="">-- Select Type --</option>
-                        {COURSE_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
+                        All
+                      </button>
+                      <button
+                        onClick={() => setMyPollFilter("active")}
+                        className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                          myPollFilter === "active"
+                            ? "border-(--primary) text-(--primary)"
+                            : "border-transparent text-(--muted) hover:text-(--text)"
+                        }`}
+                      >
+                        Active
+                      </button>
+                      <button
+                        onClick={() => setMyPollFilter("ended")}
+                        className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
+                          myPollFilter === "ended"
+                            ? "border-(--primary) text-(--primary)"
+                            : "border-transparent text-(--muted) hover:text-(--text)"
+                        }`}
+                      >
+                        Ended
+                      </button>
                     </div>
-                  )}
 
-                  {/* Poll Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-(--text) mb-2">
-                      Poll Type *
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          value={3}
-                          checked={createForm.pollType === 3}
-                          onChange={(e) =>
-                            setCreateForm({
-                              ...createForm,
-                              pollType: Number(e.target.value),
-                            })
-                          }
-                          className="w-4 h-4"
-                        />
-                        <span className="text-(--text)">
-                          3 Options (Rod, Moderate, Loose)
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          value={5}
-                          checked={createForm.pollType === 5}
-                          onChange={(e) =>
-                            setCreateForm({
-                              ...createForm,
-                              pollType: Number(e.target.value),
-                            })
-                          }
-                          className="w-4 h-4"
-                        />
-                        <span className="text-(--text)">
-                          5 Options (Rod-God → Loose-God)
-                        </span>
-                      </label>
-                    </div>
-                  </div>
+                    {(() => {
+                      const filteredPolls = myPolls.filter((poll) => {
+                        if (myPollFilter === "all") return true;
+                        const isActive = isPollActive(poll);
+                        if (myPollFilter === "active") return isActive;
+                        if (myPollFilter === "ended") return !isActive;
+                        return true;
+                      });
 
-                  {/* Poll Start Time */}
-                  <div>
-                    <label className="block text-sm font-medium text-(--text) mb-2">
-                      Start Time (Optional)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={createForm.pollStartTime}
-                      onChange={(e) =>
-                        setCreateForm({
-                          ...createForm,
-                          pollStartTime: e.target.value,
-                        })
+                      if (filteredPolls.length === 0) {
+                        return (
+                          <div className="text-center py-12 bg-(--card) rounded-lg border border-(--border)">
+                            <p className="text-(--muted)">
+                              No {myPollFilter} polls found.
+                            </p>
+                          </div>
+                        );
                       }
-                      className="w-full px-4 py-2 border border-(--border) rounded-lg bg-(--background) text-(--text) focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                    />
-                  </div>
 
-                  {/* Poll End Time */}
-                  <div>
-                    <label className="block text-sm font-medium text-(--text) mb-2">
-                      End Time *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={createForm.pollEndTime}
-                      onChange={(e) =>
-                        setCreateForm({
-                          ...createForm,
-                          pollEndTime: e.target.value,
-                        })
-                      }
-                      required
-                      className="w-full px-4 py-2 border border-(--border) rounded-lg bg-(--background) text-(--text) focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                    />
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full px-6 py-3 bg-(--primary) text-white rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? "Creating..." : "Create Poll"}
-                  </button>
-                </form>
+                      return (
+                        <div className="space-y-6">
+                          {filteredPolls.map(renderMyPollCard)}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
               </div>
             )}
           </>
         )}
+
+        {/* Create Poll Overlay */}
+        <CreatePollOverlay
+          open={showCreateOverlay}
+          onClose={() => setShowCreateOverlay(false)}
+          currentUser={currentUser}
+          onPollCreated={handlePollCreatedOrUpdated}
+        />
+
+        {/* Edit Poll Overlay */}
+        <CreatePollOverlay
+          open={showEditOverlay}
+          onClose={() => {
+            setShowEditOverlay(false);
+            setEditingPoll(null);
+          }}
+          currentUser={currentUser}
+          onPollCreated={handlePollCreatedOrUpdated}
+          editMode={true}
+          existingPoll={editingPoll}
+        />
+
+        {/* Delete Confirmation Overlay */}
+        <ConfirmOverlay
+          open={showDeleteConfirm}
+          onConfirm={handleDeletePoll}
+          onCancel={handleCancelDelete}
+          message={`Are you sure you want to delete this poll? This action cannot be undone.`}
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+        />
       </div>
     </div>
   );

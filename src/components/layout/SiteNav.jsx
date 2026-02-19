@@ -17,7 +17,7 @@ import {
   faTrophy,
   faPoll,
 } from "@fortawesome/free-solid-svg-icons";
-import ConfirmOverlay from "./ConfirmOverlay.jsx";
+import ConfirmOverlay from "../overlays/ConfirmOverlay.jsx";
 
 export default function SiteNav({
   currentUser,

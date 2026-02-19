@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { memo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faGithub,
@@ -6,7 +7,7 @@ import {
   faInstagram,
 } from "@fortawesome/free-brands-svg-icons";
 
-export default function SiteFooter() {
+function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-(--line) bg-(--bg-elev)">
       <div className="flex flex-col gap-5 px-4 py-6 text-sm text-(--muted) sm:px-6 md:px-8 lg:px-12 md:flex-row md:items-center md:justify-between">
@@ -76,3 +77,5 @@ export default function SiteFooter() {
     </footer>
   );
 }
+
+export default memo(SiteFooter);

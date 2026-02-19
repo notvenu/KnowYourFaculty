@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Query } from "appwrite";
-import publicFacultyService from "../services/publicFacultyService.js";
-import facultyFeedbackService from "../services/facultyFeedbackService.js";
-import courseService from "../services/courseService.js";
-import ConfirmOverlay from "./ConfirmOverlay.jsx";
+import publicFacultyService from "../../services/publicFacultyService.js";
+import facultyFeedbackService from "../../services/facultyFeedbackService.js";
+import courseService from "../../services/courseService.js";
+import ConfirmOverlay from "../overlays/ConfirmOverlay.jsx";
 
 function buildFacultyLookup(facultyRows) {
   const lookup = {};
@@ -110,7 +110,7 @@ function AdminPanel() {
       setUploadMessage(null);
 
       const { extractCoursesFromPdf } =
-        await import("../lib/parsers/coursePdfParser.js");
+        await import("../../lib/parsers/coursePdfParser.js");
       const parsed = await extractCoursesFromPdf(courseForm.file);
       const result = await courseService.upsertCoursesFromPdf({
         courses: parsed.courses,

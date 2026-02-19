@@ -5,7 +5,7 @@ import {
   ECS_FIELDS,
   getTierFromRating,
   getTierColor,
-} from "../lib/ratingConfig.js";
+} from "../../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar,

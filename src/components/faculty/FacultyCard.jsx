@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
+import { memo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
-import publicFacultyService from "../services/publicFacultyService.js";
-import { getTierColor, getTierFromRating } from "../lib/ratingConfig.js";
+import publicFacultyService from "../../services/publicFacultyService.js";
+import { getTierColor, getTierFromRating } from "../../lib/ratingConfig.js";
 
 function formatDeptShort(dept) {
   if (!dept || typeof dept !== "string") return "—";
@@ -21,11 +22,7 @@ function formatDepartmentLine(department, subDepartment) {
   return `${dept} - ${sub}`;
 }
 
-export default function FacultyCard({
-  faculty,
-  overallRating,
-  ratingCount = 0,
-}) {
+function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
   const photoUrl = publicFacultyService.getFacultyPhotoUrl(faculty.photoFileId);
   const placeholderUrl = publicFacultyService.getPlaceholderPhoto();
   const overall =
@@ -95,3 +92,5 @@ export default function FacultyCard({
     </Link>
   );
 }
+
+export default memo(FacultyCard);

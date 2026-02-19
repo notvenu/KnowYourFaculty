@@ -115,6 +115,27 @@ class PollService {
   }
 
   /**
+   * Get polls created by a specific user
+   */
+  async getUserPolls(userId) {
+    try {
+      const response = await this.databases.listDocuments(
+        this.databaseId,
+        this.pollTableId,
+        [
+          Query.equal("userId", String(userId)),
+          Query.orderDesc("$createdAt"),
+          Query.limit(100),
+        ],
+      );
+      return response.documents;
+    } catch (error) {
+      console.error("Error fetching user polls:", error);
+      return [];
+    }
+  }
+
+  /**
    * Get polls by course
    */
   async getPollsByCourse(courseId) {
@@ -269,6 +290,39 @@ class PollService {
       );
     } catch (error) {
       console.error("Error updating poll status:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update poll details
+   */
+  async updatePoll(pollId, updates) {
+    try {
+      const allowedUpdates = {};
+
+      // Only allow updating specific fields
+      if (updates.pollEndTime !== undefined) {
+        allowedUpdates.pollEndTime = updates.pollEndTime;
+      }
+      if (updates.pollStartTime !== undefined) {
+        allowedUpdates.pollStartTime = updates.pollStartTime;
+      }
+      if (updates.isActive !== undefined) {
+        allowedUpdates.isActive = Boolean(updates.isActive);
+      }
+      if (updates.courseType !== undefined) {
+        allowedUpdates.courseType = String(updates.courseType);
+      }
+
+      return await this.databases.updateDocument(
+        this.databaseId,
+        this.pollTableId,
+        String(pollId),
+        allowedUpdates,
+      );
+    } catch (error) {
+      console.error("Error updating poll:", error);
       throw error;
     }
   }

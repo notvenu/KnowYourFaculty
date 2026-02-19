@@ -12,7 +12,7 @@ import {
   faSortAmountUp,
 } from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
-import FacultyCard from "../components/FacultyCard.jsx";
+import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
 
 const FACULTY_PER_PAGE = 40;

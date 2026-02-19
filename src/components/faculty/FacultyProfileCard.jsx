@@ -1,4 +1,4 @@
-import publicFacultyService from "../services/publicFacultyService.js";
+import publicFacultyService from "../../services/publicFacultyService.js";
 
 function DetailRow({ label, value }) {
   if (value == null || String(value).trim() === "") return null;
