@@ -13,10 +13,43 @@ import {
   faFilter,
 } from "@fortawesome/free-solid-svg-icons";
 
+// Helper component to render stars with percentage-based fill
+function StarRating({ rating, size = "text-lg", color = null }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((starIndex) => {
+        const fillPercentage = Math.min(
+          100,
+          Math.max(0, (rating - (starIndex - 1)) * 100),
+        );
+        const starColor = color || "var(--primary)";
+
+        return (
+          <span key={starIndex} className={`relative inline-block ${size}`}>
+            {/* Background star (empty/muted) */}
+            <FontAwesomeIcon
+              icon={faStar}
+              className="text-(--muted) opacity-30"
+            />
+            {/* Foreground star (filled) clipped to percentage */}
+            <span
+              className="absolute left-0 top-0 overflow-hidden"
+              style={{ width: `${fillPercentage}%`, color: starColor }}
+            >
+              <FontAwesomeIcon icon={faStar} />
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function FacultyRatingsCard({
   ratingSummary,
   sectionAverages,
   averages,
+  notesSummary = null,
   timeFilter = "all",
   setTimeFilter,
   courseFilter = "",
@@ -43,6 +76,7 @@ export default function FacultyRatingsCard({
     theory: true,
     lab: false,
     ecs: false,
+    notes: false,
   });
 
   return (
@@ -212,34 +246,14 @@ export default function FacultyRatingsCard({
               {getTierFromRating(ratingSummary.overallAverage)}
             </span>
             <div className="text-2xl font-extrabold text-(--primary) sm:text-3xl">
-              {ratingSummary.overallAverage?.toFixed(1) ?? "—"} / 5
+              {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
             </div>
           </div>
-          <div className="mt-2 flex justify-center gap-0.5">
-            {[1, 2, 3, 4, 5].map((starIndex) => {
-              const rating = ratingSummary.overallAverage || 0;
-              const fillPercentage = Math.min(
-                100,
-                Math.max(0, (rating - (starIndex - 1)) * 100),
-              );
-
-              return (
-                <span key={starIndex} className="relative inline-block text-lg">
-                  {/* Background star (empty/muted) */}
-                  <FontAwesomeIcon
-                    icon={faStar}
-                    className="text-(--muted) opacity-30"
-                  />
-                  {/* Foreground star (filled) clipped to percentage */}
-                  <span
-                    className="absolute left-0 top-0 overflow-hidden text-(--primary)"
-                    style={{ width: `${fillPercentage}%` }}
-                  >
-                    <FontAwesomeIcon icon={faStar} />
-                  </span>
-                </span>
-              );
-            })}
+          <div className="mt-2 flex justify-center">
+            <StarRating
+              rating={ratingSummary.overallAverage || 0}
+              size="text-lg"
+            />
           </div>
           <p className="mt-2 text-xs font-medium text-(--muted)">
             {ratingSummary.totalRatings}{" "}
@@ -275,24 +289,13 @@ export default function FacultyRatingsCard({
                     >
                       {sectionAverages.theory.toFixed(1)}
                     </span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className="text-xs"
-                          style={{
-                            color:
-                              star <= Math.round(sectionAverages.theory || 0)
-                                ? getTierColor(
-                                    getTierFromRating(sectionAverages.theory),
-                                  )
-                                : "var(--line)",
-                          }}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
+                    <StarRating
+                      rating={sectionAverages.theory || 0}
+                      size="text-xs"
+                      color={getTierColor(
+                        getTierFromRating(sectionAverages.theory),
+                      )}
+                    />
                   </div>
                 </div>
                 <span className="text-(--muted) ml-2">
@@ -376,24 +379,13 @@ export default function FacultyRatingsCard({
                     >
                       {sectionAverages.lab.toFixed(1)}
                     </span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className="text-xs"
-                          style={{
-                            color:
-                              star <= Math.round(sectionAverages.lab || 0)
-                                ? getTierColor(
-                                    getTierFromRating(sectionAverages.lab),
-                                  )
-                                : "var(--line)",
-                          }}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
+                    <StarRating
+                      rating={sectionAverages.lab || 0}
+                      size="text-xs"
+                      color={getTierColor(
+                        getTierFromRating(sectionAverages.lab),
+                      )}
+                    />
                   </div>
                 </div>
                 <span className="text-(--muted) ml-2">
@@ -479,24 +471,13 @@ export default function FacultyRatingsCard({
                     >
                       {sectionAverages.ecs.toFixed(1)}
                     </span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className="text-xs"
-                          style={{
-                            color:
-                              star <= Math.round(sectionAverages.ecs || 0)
-                                ? getTierColor(
-                                    getTierFromRating(sectionAverages.ecs),
-                                  )
-                                : "var(--line)",
-                          }}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
+                    <StarRating
+                      rating={sectionAverages.ecs || 0}
+                      size="text-xs"
+                      color={getTierColor(
+                        getTierFromRating(sectionAverages.ecs),
+                      )}
+                    />
                   </div>
                 </div>
                 <span className="text-(--muted) ml-2">
@@ -557,6 +538,80 @@ export default function FacultyRatingsCard({
               )}
             </div>
           )}
+
+          {/* Notes Summary */}
+          {notesSummary &&
+            (notesSummary.theoryNotes || notesSummary.labNotes) && (
+              <div className="rounded-xl border border-(--line) overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedSections((prev) => ({
+                      ...prev,
+                      notes: !prev.notes,
+                    }))
+                  }
+                  className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-semibold text-(--text)">
+                      Notes Information
+                    </span>
+                  </div>
+                  <span className="text-(--muted) ml-2">
+                    <FontAwesomeIcon
+                      icon={faChevronDown}
+                      className={`h-3 w-3 transition-transform duration-200 ${
+                        expandedSections.notes ? "rotate-180" : "rotate-0"
+                      }`}
+                    />
+                  </span>
+                </button>
+                {expandedSections.notes && (
+                  <div className="bg-(--bg-elev) p-4 space-y-3">
+                    {notesSummary.theoryNotes && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-(--text)">
+                          Theory Notes Provided
+                        </span>
+                        <span className="text-xs font-bold text-(--primary)">
+                          {notesSummary.theoryNotes.percentage}% (
+                          {notesSummary.theoryNotes.count}/
+                          {notesSummary.theoryNotes.total})
+                        </span>
+                      </div>
+                    )}
+                    {notesSummary.labNotes &&
+                      Object.keys(notesSummary.labNotes).length > 0 && (
+                        <div>
+                          <span className="text-xs font-medium text-(--text) block mb-2">
+                            Lab Notes Type
+                          </span>
+                          <div className="space-y-1.5">
+                            {Object.entries(notesSummary.labNotes)
+                              .filter(([type]) => type !== "None")
+                              .sort((a, b) => b[1].count - a[1].count)
+                              .map(([type, data]) => (
+                                <div
+                                  key={type}
+                                  className="flex items-center justify-between"
+                                >
+                                  <span className="text-xs text-(--muted)">
+                                    {type}
+                                  </span>
+                                  <span className="text-xs font-semibold text-(--primary)">
+                                    {data.percentage}% ({data.count}/
+                                    {data.total})
+                                  </span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                )}
+              </div>
+            )}
         </div>
       )}
     </div>

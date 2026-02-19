@@ -1,3 +1,4 @@
+// eslint-disable tailwindcss/no-custom-classname
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import publicFacultyService from "../services/publicFacultyService.js";
@@ -11,54 +12,30 @@ import {
   faStar,
   faFilter,
 } from "@fortawesome/free-solid-svg-icons";
-import { getTierFromRating, getTierColor } from "../lib/ratingConfig.js";
-
-const RATING_FIELDS = [
-  "theoryTeaching",
-  "theoryAttendance",
-  "theoryClass",
-  "theoryCorrection",
-  "labClass",
-  "labCorrection",
-  "labAttendance",
-  "ecsCapstoneSDP",
-];
+import {
+  getTierFromRating,
+  getTierColor,
+  RATING_FIELDS,
+} from "../lib/ratingConfig.js";
 
 // Calculate overall rating from feedback list
 function calculateOverallRating(feedbackList) {
   if (!feedbackList || feedbackList.length === 0) return null;
 
-  const totals = {};
-  const counts = {};
-
-  for (const field of RATING_FIELDS) {
-    totals[field] = 0;
-    counts[field] = 0;
-  }
+  let totalSum = 0;
+  let totalCount = 0;
 
   for (const row of feedbackList) {
     for (const field of RATING_FIELDS) {
-      const value = Number(row?.[field]);
-      if (!Number.isFinite(value) || value < 1 || value > 5) continue;
-      totals[field] += value;
-      counts[field] += 1;
+      const value = Number(row?.[field.key || field]);
+      if (Number.isFinite(value) && value >= 1 && value <= 5) {
+        totalSum += value;
+        totalCount += 1;
+      }
     }
   }
 
-  let weightedTotal = 0;
-  let weightedCount = 0;
-
-  for (const field of RATING_FIELDS) {
-    const count = counts[field];
-    if (count > 0) {
-      weightedTotal += totals[field];
-      weightedCount += count;
-    }
-  }
-
-  return weightedCount > 0
-    ? Number((weightedTotal / weightedCount).toFixed(2))
-    : null;
+  return totalCount > 0 ? Number((totalSum / totalCount).toFixed(2)) : null;
 }
 
 function RankIcon({ rank }) {
@@ -101,7 +78,7 @@ export default function RankingPage({ currentUser }) {
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [selectedCourse, setSelectedCourse] = useState("all");
-  const [minRatings, setMinRatings] = useState(3); // Minimum number of ratings to be ranked
+  const [minRatings, setMinRatings] = useState(1); // Minimum number of ratings to be ranked
   const [showFilters, setShowFilters] = useState(false);
 
   const hasUser = Boolean(currentUser?.$id);
@@ -135,15 +112,20 @@ export default function RankingPage({ currentUser }) {
       }
       setCourseLookup(lookup);
 
-      // Load feedback for each faculty
+      // Load all ratings at once and group by faculty
+      const allRatings = await facultyFeedbackService.getAllRatings(10000);
       const feedbackMap = {};
+
+      // Initialize empty arrays for all faculty
       for (const f of faculty) {
-        try {
-          const feedbackRows =
-            await facultyFeedbackService.getFeedbackByFaculty(f.employeeId);
-          feedbackMap[f.employeeId] = feedbackRows || [];
-        } catch {
-          feedbackMap[f.employeeId] = [];
+        feedbackMap[f.employeeId] = [];
+      }
+
+      // Group ratings by facultyId
+      for (const rating of allRatings) {
+        const facultyId = rating.facultyId;
+        if (feedbackMap[facultyId]) {
+          feedbackMap[facultyId].push(rating);
         }
       }
 

@@ -15,6 +15,7 @@ import {
   faX,
   faUser,
   faTrophy,
+  faPoll,
 } from "@fortawesome/free-solid-svg-icons";
 import ConfirmOverlay from "./ConfirmOverlay.jsx";
 
@@ -112,6 +113,11 @@ export default function SiteNav({
               {currentUser ? (
                 <NavLink to="/rankings" className={navClass}>
                   Rankings
+                </NavLink>
+              ) : null}
+              {currentUser ? (
+                <NavLink to="/polls" className={navClass}>
+                  Polls
                 </NavLink>
               ) : null}
               <NavLink to="/contact" className={navClass}>
@@ -309,6 +315,21 @@ export default function SiteNav({
                                 className="w-4 h-4 text-(--primary)"
                               />
                               Rankings
+                            </span>
+                          </NavLink>
+                        ) : null}
+                        {currentUser ? (
+                          <NavLink
+                            to="/polls"
+                            className={mobileNavClass}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="flex items-center gap-2">
+                              <FontAwesomeIcon
+                                icon={faPoll}
+                                className="w-4 h-4 text-(--primary)"
+                              />
+                              Polls
                             </span>
                           </NavLink>
                         ) : null}

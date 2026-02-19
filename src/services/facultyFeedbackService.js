@@ -17,7 +17,8 @@ const RATING_FIELDS = [
   "labClass",
   "labCorrection",
   "labAttendance",
-  "ecsCapstoneSDP",
+  "ecsCapstoneSDPReview",
+  "ecsCapstoneSDPCorrection",
 ];
 
 const SECTION_FIELDS = {
@@ -28,7 +29,7 @@ const SECTION_FIELDS = {
     "theoryCorrection",
   ],
   lab: ["labClass", "labCorrection", "labAttendance"],
-  ecs: ["ecsCapstoneSDP"],
+  ecs: ["ecsCapstoneSDPReview", "ecsCapstoneSDPCorrection"],
 };
 
 function clampRating(value) {
@@ -172,6 +173,14 @@ class FacultyFeedbackService {
     return response.rows || [];
   }
 
+  async getAllRatings(limit = 10000) {
+    const response = await this.listRows(this.feedbackTableId, [
+      Query.orderDesc("$createdAt"),
+      Query.limit(limit),
+    ]);
+    return response.rows || [];
+  }
+
   buildRatingSummary(ratings) {
     const totals = {};
     const counts = {};
@@ -181,12 +190,38 @@ class FacultyFeedbackService {
       counts[field] = 0;
     }
 
+    // For notes calculation
+    let theoryNotesCount = 0;
+    let totalTheoryNotes = 0;
+    const labNotesCounts = {
+      Soft: 0,
+      Hard: 0,
+      Both: 0,
+      None: 0,
+    };
+    let totalLabNotes = 0;
+
     for (const row of ratings || []) {
       for (const field of RATING_FIELDS) {
         const value = clampRating(row?.[field]);
         if (value === null) continue;
         totals[field] += value;
         counts[field] += 1;
+      }
+
+      // Count theory notes (majority-based: >= 50%)
+      if (row.theoryNotes === true || row.theoryNotes === 1) {
+        theoryNotesCount++;
+      }
+      totalTheoryNotes++;
+
+      // Count lab notes
+      if (row.labNotes && typeof row.labNotes === "string") {
+        const noteType = row.labNotes.trim();
+        if (labNotesCounts.hasOwnProperty(noteType)) {
+          labNotesCounts[noteType]++;
+        }
+        totalLabNotes++;
       }
     }
 
@@ -218,6 +253,43 @@ class FacultyFeedbackService {
           : null;
     }
 
+    // Calculate notes summary with majority-based logic (>=50%)
+    const notesSummary = {};
+
+    // Theory notes: show if >= 50% voted yes
+    if (totalTheoryNotes > 0) {
+      const percentage = Math.round(
+        (theoryNotesCount / totalTheoryNotes) * 100,
+      );
+      if (percentage >= 50) {
+        notesSummary.theoryNotes = {
+          count: theoryNotesCount,
+          total: totalTheoryNotes,
+          percentage,
+        };
+      }
+    }
+
+    // Lab notes: show each type that has >= 50% (excluding "None")
+    if (totalLabNotes > 0) {
+      const labNotesData = {};
+      for (const [noteType, count] of Object.entries(labNotesCounts)) {
+        if (noteType !== "None" && count > 0) {
+          const percentage = Math.round((count / totalLabNotes) * 100);
+          if (percentage >= 50) {
+            labNotesData[noteType] = {
+              count,
+              total: totalLabNotes,
+              percentage,
+            };
+          }
+        }
+      }
+      if (Object.keys(labNotesData).length > 0) {
+        notesSummary.labNotes = labNotesData;
+      }
+    }
+
     return {
       totalRatings: ratings?.length || 0,
       overallAverage:
@@ -226,6 +298,7 @@ class FacultyFeedbackService {
           : null,
       sectionAverages,
       averages,
+      notesSummary: Object.keys(notesSummary).length > 0 ? notesSummary : null,
     };
   }
 
@@ -275,7 +348,8 @@ class FacultyFeedbackService {
     labClass,
     labCorrection,
     labAttendance,
-    ecsCapstoneSDP,
+    ecsCapstoneSDPReview,
+    ecsCapstoneSDPCorrection,
     labNotes = "None",
   }) {
     if (!String(userId || "").trim()) {
@@ -307,7 +381,8 @@ class FacultyFeedbackService {
       labClass,
       labCorrection,
       labAttendance,
-      ecsCapstoneSDP,
+      ecsCapstoneSDPReview,
+      ecsCapstoneSDPCorrection,
     })) {
       const value = clampRating(rawValue);
       if (value !== null) payload[field] = value;
@@ -337,7 +412,8 @@ class FacultyFeedbackService {
     labClass,
     labCorrection,
     labAttendance,
-    ecsCapstoneSDP,
+    ecsCapstoneSDPReview,
+    ecsCapstoneSDPCorrection,
     labNotes = "None",
   }) {
     return this.submitFeedback({
@@ -351,7 +427,8 @@ class FacultyFeedbackService {
       labClass,
       labCorrection,
       labAttendance,
-      ecsCapstoneSDP,
+      ecsCapstoneSDPReview,
+      ecsCapstoneSDPCorrection,
       labNotes,
     });
   }

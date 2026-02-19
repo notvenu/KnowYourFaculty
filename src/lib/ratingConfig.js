@@ -16,7 +16,8 @@ export const LAB_FIELDS = [
 ];
 
 export const ECS_FIELDS = [
-  { key: "ecsCapstoneSDP", label: "ECS / Capstone support" },
+  { key: "ecsCapstoneSDPReview", label: "ECS / Capstone review" },
+  { key: "ecsCapstoneSDPCorrection", label: "ECS / Capstone correction" },
 ];
 
 export const RATING_FIELDS = [...THEORY_FIELDS, ...LAB_FIELDS, ...ECS_FIELDS];

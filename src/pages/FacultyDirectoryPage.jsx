@@ -25,7 +25,8 @@ const RATING_FIELDS = [
   "labClass",
   "labCorrection",
   "labAttendance",
-  "ecsCapstoneSDP",
+  "ecsCapstoneSDPReview",
+  "ecsCapstoneSDPCorrection",
 ];
 
 function getRowOverall(row) {

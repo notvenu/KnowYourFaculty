@@ -16,7 +16,8 @@ const RATING_EDIT_FIELDS = [
   ["labClass", "Lab class"],
   ["labCorrection", "Lab correction"],
   ["labAttendance", "Lab attendance"],
-  ["ecsCapstoneSDP", "ECS/Capstone"],
+  ["ecsCapstoneSDPReview", "ECS/Capstone review"],
+  ["ecsCapstoneSDPCorrection", "ECS/Capstone correction"],
 ];
 
 function formatDate(value) {

@@ -40,7 +40,8 @@ const INITIAL_FEEDBACK_FORM = {
   labClass: 3,
   labCorrection: 3,
   labAttendance: 3,
-  ecsCapstoneSDP: 3,
+  ecsCapstoneSDPReview: 3,
+  ecsCapstoneSDPCorrection: 3,
   labNotes: "None",
 };
 
@@ -164,12 +165,38 @@ function FacultyDetailPage({ currentUser }) {
       counts[field.key] = 0;
     }
 
+    // For notes calculation
+    let theoryNotesCount = 0;
+    let totalTheoryNotes = 0;
+    const labNotesCounts = {
+      Soft: 0,
+      Hard: 0,
+      Both: 0,
+      None: 0,
+    };
+    let totalLabNotes = 0;
+
     for (const row of filtered || []) {
       for (const field of RATING_FIELDS) {
         const value = Number(row?.[field.key]);
         if (!Number.isFinite(value) || value < 1 || value > 5) continue;
         totals[field.key] += value;
         counts[field.key] += 1;
+      }
+
+      // Count theory notes (majority-based: >= 50%)
+      if (row.theoryNotes === true || row.theoryNotes === 1) {
+        theoryNotesCount++;
+      }
+      totalTheoryNotes++;
+
+      // Count lab notes
+      if (row.labNotes && typeof row.labNotes === "string") {
+        const noteType = row.labNotes.trim();
+        if (labNotesCounts.hasOwnProperty(noteType)) {
+          labNotesCounts[noteType]++;
+        }
+        totalLabNotes++;
       }
     }
 
@@ -196,7 +223,7 @@ function FacultyDetailPage({ currentUser }) {
         "theoryCorrection",
       ],
       lab: ["labClass", "labCorrection", "labAttendance"],
-      ecs: ["ecsCapstoneSDP"],
+      ecs: ["ecsCapstoneSDPReview", "ecsCapstoneSDPCorrection"],
     };
 
     for (const [sectionKey, fieldNames] of Object.entries(sectionFields)) {
@@ -212,6 +239,43 @@ function FacultyDetailPage({ currentUser }) {
           : null;
     }
 
+    // Calculate notes summary with majority-based logic (>=50%)
+    const notesSummary = {};
+
+    // Theory notes: show if >= 50% voted yes
+    if (totalTheoryNotes > 0) {
+      const percentage = Math.round(
+        (theoryNotesCount / totalTheoryNotes) * 100,
+      );
+      if (percentage >= 50) {
+        notesSummary.theoryNotes = {
+          count: theoryNotesCount,
+          total: totalTheoryNotes,
+          percentage,
+        };
+      }
+    }
+
+    // Lab notes: show each type that has >= 50% (excluding "None")
+    if (totalLabNotes > 0) {
+      const labNotesData = {};
+      for (const [noteType, count] of Object.entries(labNotesCounts)) {
+        if (noteType !== "None" && count > 0) {
+          const percentage = Math.round((count / totalLabNotes) * 100);
+          if (percentage >= 50) {
+            labNotesData[noteType] = {
+              count,
+              total: totalLabNotes,
+              percentage,
+            };
+          }
+        }
+      }
+      if (Object.keys(labNotesData).length > 0) {
+        notesSummary.labNotes = labNotesData;
+      }
+    }
+
     return {
       totalRatings: filtered?.length || 0,
       overallAverage:
@@ -220,6 +284,7 @@ function FacultyDetailPage({ currentUser }) {
           : null,
       sectionAverages,
       averages,
+      notesSummary: Object.keys(notesSummary).length > 0 ? notesSummary : null,
     };
   }, [feedbackList, ratingsTimeFilter, ratingsCourseFilter]);
 
@@ -338,7 +403,8 @@ function FacultyDetailPage({ currentUser }) {
             existing.labClass ||
             existing.labCorrection ||
             existing.labAttendance;
-          const hasEcsRatings = existing.ecsCapstoneSDP;
+          const hasEcsRatings =
+            existing.ecsCapstoneSDPReview || existing.ecsCapstoneSDPCorrection;
 
           setExpandedSections({
             theory: Boolean(hasTheoryRatings),
@@ -357,7 +423,12 @@ function FacultyDetailPage({ currentUser }) {
             labClass: parseRatingInput(existing.labClass),
             labCorrection: parseRatingInput(existing.labCorrection),
             labAttendance: parseRatingInput(existing.labAttendance),
-            ecsCapstoneSDP: parseRatingInput(existing.ecsCapstoneSDP),
+            ecsCapstoneSDPReview: parseRatingInput(
+              existing.ecsCapstoneSDPReview,
+            ),
+            ecsCapstoneSDPCorrection: parseRatingInput(
+              existing.ecsCapstoneSDPCorrection,
+            ),
             labNotes: existing.labNotes || "None",
           });
           if (existing.courseId) {
@@ -454,7 +525,9 @@ function FacultyDetailPage({ currentUser }) {
       }
 
       if (expandedSections.ecs) {
-        payload.ecsCapstoneSDP = feedbackForm.ecsCapstoneSDP;
+        payload.ecsCapstoneSDPReview = feedbackForm.ecsCapstoneSDPReview;
+        payload.ecsCapstoneSDPCorrection =
+          feedbackForm.ecsCapstoneSDPCorrection;
       }
 
       await facultyFeedbackService.submitFeedback(payload);
@@ -594,7 +667,9 @@ function FacultyDetailPage({ currentUser }) {
           existingFeedback.labClass ||
           existingFeedback.labCorrection ||
           existingFeedback.labAttendance;
-        const hasEcsRatings = existingFeedback.ecsCapstoneSDP;
+        const hasEcsRatings =
+          existingFeedback.ecsCapstoneSDPReview ||
+          existingFeedback.ecsCapstoneSDPCorrection;
 
         setCurrentEditingReviewId(reviewId);
         setEditingRatingsOnly(true);
@@ -614,7 +689,12 @@ function FacultyDetailPage({ currentUser }) {
           labClass: parseRatingInput(existingFeedback.labClass),
           labCorrection: parseRatingInput(existingFeedback.labCorrection),
           labAttendance: parseRatingInput(existingFeedback.labAttendance),
-          ecsCapstoneSDP: parseRatingInput(existingFeedback.ecsCapstoneSDP),
+          ecsCapstoneSDPReview: parseRatingInput(
+            existingFeedback.ecsCapstoneSDPReview,
+          ),
+          ecsCapstoneSDPCorrection: parseRatingInput(
+            existingFeedback.ecsCapstoneSDPCorrection,
+          ),
           labNotes: existingFeedback.labNotes || "None",
         });
         const course = await courseService.getCourseById(
@@ -665,7 +745,9 @@ function FacultyDetailPage({ currentUser }) {
         }
 
         if (expandedSections.ecs) {
-          payload.ecsCapstoneSDP = feedbackForm.ecsCapstoneSDP;
+          payload.ecsCapstoneSDPReview = feedbackForm.ecsCapstoneSDPReview;
+          payload.ecsCapstoneSDPCorrection =
+            feedbackForm.ecsCapstoneSDPCorrection;
         }
 
         await facultyFeedbackService.submitFeedback(payload);
@@ -795,6 +877,7 @@ function FacultyDetailPage({ currentUser }) {
                   ecs: filteredRatingSummary.sectionAverages?.ecs ?? null,
                 }}
                 averages={filteredRatingSummary.averages || {}}
+                notesSummary={filteredRatingSummary.notesSummary || null}
                 timeFilter={ratingsTimeFilter}
                 setTimeFilter={setRatingsTimeFilter}
                 courseFilter={ratingsCourseFilter}

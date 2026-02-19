@@ -33,7 +33,8 @@ const RATING_KEYS = [
   "labClass",
   "labCorrection",
   "labAttendance",
-  "ecsCapstoneSDP",
+  "ecsCapstoneSDPReview",
+  "ecsCapstoneSDPCorrection",
 ];
 
 function getAverageRating(row) {
