@@ -1,7 +1,7 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { Link } from "react-router-dom";
 
-function LandingPage() {
+function LandingPage({ onOpenLogin }) {
   const features = [
     {
       icon: "01",
@@ -16,7 +16,26 @@ function LandingPage() {
     {
       icon: "03",
       title: "Your Voice Matters",
-      text: "Share your experience and help fellow students choose wisely. Update or remove your feedback anytime—you're in control!",
+      text: "Share your experience and help fellow students choose wisely. Ratings are optional and you can edit or delete your feedback anytime.",
+    },
+  ];
+
+  const faqs = [
+    {
+      q: "Do I need to sign in to view data?",
+      a: "No. Faculty ratings and reviews are public to help students make decisions. Sign in is only required to verify legitimate VIT-AP students before allowing submissions.",
+    },
+    {
+      q: "Is feedback anonymous?",
+      a: "Yes. Publicly displayed feedback is anonymous. We use your account only for verification, moderation, and letting you edit/delete your own entries.",
+    },
+    {
+      q: "Are all rating sections mandatory?",
+      a: "No. Ratings are optional by section. You can submit only the parts you genuinely experienced (Theory, Lab, or ECS).",
+    },
+    {
+      q: "Can I remove my data later?",
+      a: "Yes. You can edit or delete your feedback anytime from your dashboard, and you can also request account deletion.",
     },
   ];
 
@@ -31,7 +50,8 @@ function LandingPage() {
           <p className="mt-6 max-w-2xl mx-auto text-base leading-relaxed text-(--muted) sm:text-lg">
             Real feedback from students like you. Find professors who inspire,
             challenge, and support. No more guesswork—just honest reviews to
-            help you choose.
+            help you choose. Login/signup is only for student verification;
+            public feedback remains anonymous.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <Link
@@ -40,6 +60,13 @@ function LandingPage() {
             >
               Explore Faculty
             </Link>
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--panel) px-7 py-3.5 text-sm font-semibold text-(--text) transition hover:bg-(--bg-elev)"
+            >
+              Login / Register
+            </button>
           </div>
         </div>
       </section>
@@ -71,6 +98,63 @@ function LandingPage() {
         </div>
       </section>
 
+      <section className="py-14 sm:py-18 px-4">
+        <div className="mx-auto max-w-6xl rounded-xl border border-(--line) bg-(--bg-elev) p-6 sm:p-8">
+          <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
+            Built for trust and control
+          </h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-(--line) bg-(--panel) p-4">
+              <p className="text-sm font-semibold text-(--text)">
+                Student Verification
+              </p>
+              <p className="mt-2 text-xs text-(--muted)">
+                Only verified VIT-AP student accounts can post feedback.
+              </p>
+            </div>
+            <div className="rounded-lg border border-(--line) bg-(--panel) p-4">
+              <p className="text-sm font-semibold text-(--text)">
+                Public but Anonymous
+              </p>
+              <p className="mt-2 text-xs text-(--muted)">
+                Ratings/reviews are visible publicly, but identities are not
+                shown in public views.
+              </p>
+            </div>
+            <div className="rounded-lg border border-(--line) bg-(--panel) p-4">
+              <p className="text-sm font-semibold text-(--text)">
+                Full Data Control
+              </p>
+              <p className="mt-2 text-xs text-(--muted)">
+                You can update or delete your feedback anytime from your
+                dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-14 sm:py-18 px-4">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-6 text-center text-2xl font-bold text-(--text) sm:text-3xl">
+            Frequently asked questions
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {faqs.map((item) => (
+              <article
+                key={item.q}
+                className="rounded-xl border border-(--line) bg-(--bg-elev) p-5"
+              >
+                <h3 className="text-sm font-bold text-(--text)">{item.q}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-(--muted)">
+                  {item.a}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="py-20 sm:py-24 px-4">
         <div className="mx-auto max-w-6xl">
@@ -92,4 +176,3 @@ function LandingPage() {
 }
 
 export default LandingPage;
-

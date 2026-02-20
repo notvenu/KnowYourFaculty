@@ -19,6 +19,16 @@ export default function LoginOverlay({
           <strong className="text-(--primary)">@{ALLOWED_DOMAIN}</strong>{" "}
           account only.
         </p>
+        <div className="mt-3 rounded-lg border border-(--line) bg-(--panel) px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-(--text)">
+            Note
+          </p>
+          <p className="mt-1 text-xs leading-snug text-(--muted)">
+            Sign-in is only for student verification. Public feedback is
+            anonymous. Editing or deletion of account, feedback, and related
+            user data can be done at any time by the account owner.
+          </p>
+        </div>
         <div
           className={`mt-4 overflow-hidden transition-all duration-300 ease-out ${
             authError

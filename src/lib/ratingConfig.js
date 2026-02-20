@@ -16,28 +16,43 @@ export const LAB_FIELDS = [
 ];
 
 export const ECS_FIELDS = [
-  { key: "ecsCapstoneSDPReview", label: "ECS / Capstone review" },
-  { key: "ecsCapstoneSDPCorrection", label: "ECS / Capstone correction" },
+  { key: "ecsCapstoneSDPReview", label: "ECS / Capstone   / SDP review" },
+  { key: "ecsCapstoneSDPCorrection", label: "ECS / Capstone / SDP marking" },
 ];
 
 export const RATING_FIELDS = [...THEORY_FIELDS, ...LAB_FIELDS, ...ECS_FIELDS];
 
-// Tier-based rating system: S, A, B, C, D
+// Tier-based rating system mapped to 1-5 naming scale
 export const TIER_SYSTEM = {
-  S: { value: 5, label: "S", color: "#16a34a", description: "Exceptional" },
-  A: { value: 4, label: "A", color: "#65a30d", description: "Excellent" },
-  B: { value: 3, label: "B", color: "#ca8a04", description: "Good" },
-  C: { value: 2, label: "C", color: "#ea580c", description: "Average" },
-  D: { value: 1, label: "D", color: "#dc2626", description: "Poor" },
+  S: {
+    value: 5,
+    label: "Loose-Good",
+    color: "#16a34a",
+    description: "Loose-God",
+  },
+  A: { value: 4, label: "Loose", color: "#65a30d", description: "Loose" },
+  B: {
+    value: 3,
+    label: "Moderate",
+    color: "#ca8a04",
+    description: "Moderate",
+  },
+  C: { value: 2, label: "Rod", color: "#ea580c", description: "Rod" },
+  D: {
+    value: 1,
+    label: "Rod-God",
+    color: "#dc2626",
+    description: "Rod-God",
+  },
 };
 
 // Legacy support - map numeric ratings to tiers
 export const RATING_LABELS = {
-  1: "D",
-  2: "C",
-  3: "B",
-  4: "A",
-  5: "S",
+  1: "Rod-God",
+  2: "Rod",
+  3: "Moderate",
+  4: "Loose",
+  5: "Loose-God",
 };
 
 export const RATING_ORDER = [1, 2, 3, 4, 5];
@@ -60,6 +75,10 @@ export function getRatingFromTier(tier) {
 // Get tier color
 export function getTierColor(tier) {
   return TIER_SYSTEM[tier]?.color || TIER_SYSTEM.B.color;
+}
+
+export function getTierLabel(tier) {
+  return TIER_SYSTEM[tier]?.label || TIER_SYSTEM.B.label;
 }
 
 export const THEORY_NOTE_OPTIONS = ["No", "Yes"];

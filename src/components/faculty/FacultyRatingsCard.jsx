@@ -4,6 +4,7 @@ import {
   LAB_FIELDS,
   ECS_FIELDS,
   getTierFromRating,
+  getTierLabel,
   getTierColor,
 } from "../../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -241,11 +242,15 @@ export default function FacultyRatingsCard({
                 ),
               }}
             >
-              {getTierFromRating(ratingSummary.overallAverage)}
+              {hasUser
+                ? getTierLabel(getTierFromRating(ratingSummary.overallAverage))
+                : `${ratingSummary.overallAverage?.toFixed(1) ?? "—"}`}
             </span>
-            <div className="text-2xl font-extrabold text-(--primary) sm:text-3xl">
-              {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
-            </div>
+            {hasUser ? (
+              <div className="text-2xl font-extrabold text-(--primary) sm:text-3xl">
+                {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
+              </div>
+            ) : null}
           </div>
           <div className="mt-2 flex justify-center">
             <StarRating

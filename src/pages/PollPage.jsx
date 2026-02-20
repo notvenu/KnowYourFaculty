@@ -39,8 +39,6 @@ const POLL_OPTIONS = {
   ],
 };
 
-const COURSE_TYPES = ["Theory", "Lab", "ECS"];
-
 export default function PollPage() {
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.auth.currentUser);

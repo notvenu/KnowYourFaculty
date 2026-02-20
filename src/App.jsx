@@ -1,5 +1,4 @@
-﻿﻿﻿﻿/* eslint-disable no-unused-expressions */
-import { lazy, Suspense, useEffect, useMemo } from "react";
+﻿﻿import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import SetupHelper from "./components/admin/SetupHelper.jsx";
@@ -159,7 +158,7 @@ function App() {
 
       <main
         className={`flex-1 w-full ${
-          showNavbar ? "px-4 py-8 sm:px-6 lg:px-8" : ""
+          showNavbar ? "px-3 py-5 sm:px-6 sm:py-8 lg:px-8" : ""
         }`}
       >
         <div className={`${showNavbar ? "mx-auto max-w-7xl" : ""}`}>
@@ -171,7 +170,14 @@ function App() {
             }
           >
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              <Route
+                path="/"
+                element={
+                  <LandingPage
+                    onOpenLogin={() => dispatch(setShowLoginOverlay(true))}
+                  />
+                }
+              />
               <Route
                 path="/faculty"
                 element={<FacultyDirectoryPage currentUser={currentUser} />}

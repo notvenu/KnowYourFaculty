@@ -49,6 +49,7 @@ export default function FeedbackList({
   feedbackList,
   courseLookup,
   maxItems = 10,
+  hasUser = false,
   currentUser = null,
   courseFilter = "",
   setCourseFilter = null,
@@ -60,8 +61,8 @@ export default function FeedbackList({
   onEditReview = null,
   deleting = false,
 }) {
-  if (!feedbackList?.length) return null;
   const [showFiltersOverlay, setShowFiltersOverlay] = useState(false);
+  if (!feedbackList?.length) return null;
   const activeFiltersCount =
     (courseFilter ? 1 : 0) +
     (timeFilter !== "all" ? 1 : 0) +
@@ -112,9 +113,7 @@ export default function FeedbackList({
   if (ratingFilter && ratingFilter !== "all") {
     feedbackWithReviews = feedbackWithReviews.filter((row) => {
       const avgRating = getAverageRating(row);
-      const ratingLabel =
-        RATING_LABELS[Math.max(1, Math.min(5, avgRating))] ?? RATING_LABELS[3];
-      return ratingLabel === ratingFilter;
+      return String(avgRating) === String(ratingFilter);
     });
   }
 
@@ -203,11 +202,21 @@ export default function FeedbackList({
                       className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm text-(--text) outline-none"
                     >
                       <option value="all">All Ratings</option>
-                      <option value="S">S - Exceptional</option>
-                      <option value="A">A - Excellent</option>
-                      <option value="B">B - Good</option>
-                      <option value="C">C - Average</option>
-                      <option value="D">D - Poor</option>
+                      <option value="5">
+                        {hasUser ? RATING_LABELS[5] : "5/5"}
+                      </option>
+                      <option value="4">
+                        {hasUser ? RATING_LABELS[4] : "4/5"}
+                      </option>
+                      <option value="3">
+                        {hasUser ? RATING_LABELS[3] : "3/5"}
+                      </option>
+                      <option value="2">
+                        {hasUser ? RATING_LABELS[2] : "2/5"}
+                      </option>
+                      <option value="1">
+                        {hasUser ? RATING_LABELS[1] : "1/5"}
+                      </option>
                     </select>
                   </div>
                 )}
@@ -265,7 +274,7 @@ export default function FeedbackList({
         ) : null}
         {feedbackWithReviews.slice(0, maxItems).map((row) => {
           const avgRating = getAverageRating(row);
-          const ratingLabel =
+          const ratingTierLabel =
             RATING_LABELS[Math.max(1, Math.min(5, avgRating))] ??
             RATING_LABELS[3];
           const rawReview = String(row.review || "").trim();
@@ -313,10 +322,10 @@ export default function FeedbackList({
                     ) : null}
                   </div>
                   <span
-                    className="rounded-lg bg-(--primary-soft) px-2 py-1 text-xs font-semibold text-(--primary)"
+                    className="min-w-18 text-center rounded-lg bg-(--primary-soft) px-2 py-1 text-xs font-semibold text-(--primary)"
                     aria-hidden
                   >
-                    {ratingLabel}
+                    {hasUser ? ratingTierLabel : `${avgRating}/5`}
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-(--muted)">

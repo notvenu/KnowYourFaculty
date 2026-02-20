@@ -20,9 +20,7 @@ export const loadCurrentUser = createAsyncThunk(
         if (!user) {
           if (hasPendingAuthCheck()) {
             clearPendingAuthCheck();
-            return rejectWithValue(
-              `Login failed. Please sign in using your @${ALLOWED_EMAIL_DOMAIN} account.`,
-            );
+            return null;
           }
           return null;
         }

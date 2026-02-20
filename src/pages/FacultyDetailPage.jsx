@@ -1,4 +1,4 @@
-﻿﻿﻿﻿// eslint-disable tailwindcss/no-custom-classname
+﻿﻿﻿// eslint-disable tailwindcss/no-custom-classname
 // eslint-disable no-irregular-whitespace
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -917,6 +917,7 @@ function FacultyDetailPage({ currentUser }) {
                 feedbackList={feedbackList}
                 courseLookup={courseLookup}
                 maxItems={20}
+                hasUser={hasUser}
                 currentUser={currentUser}
                 courseFilter={reviewsCourseFilter}
                 setCourseFilter={setReviewsCourseFilter}
@@ -997,6 +998,15 @@ function FacultyDetailPage({ currentUser }) {
                       ? `Share your feedback for ${facultyName}`
                       : `Update your feedback for ${facultyName}`}
                   </p>
+                  <div className="mt-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-(--text)">
+                      Note
+                    </p>
+                    <p className="mt-1 text-xs text-(--muted)">
+                      Ratings are optional. Share only the sections
+                      (Theory/Lab/ECS) you have actually experienced.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -1060,6 +1070,15 @@ function FacultyDetailPage({ currentUser }) {
                   <p className="text-sm text-(--muted)">
                     Update your ratings for {facultyName}
                   </p>
+                  <div className="mt-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-(--text)">
+                      Note
+                    </p>
+                    <p className="mt-1 text-xs text-(--muted)">
+                      Ratings are optional. Share only the sections
+                      (Theory/Lab/ECS) you have actually experienced.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Theory Section */}
@@ -1382,6 +1401,15 @@ function FacultyDetailPage({ currentUser }) {
                   <p className="text-sm text-(--muted)">
                     Help fellow students by rating your time with {facultyName}
                   </p>
+                  <div className="mt-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-(--text)">
+                      Note
+                    </p>
+                    <p className="mt-1 text-xs text-(--muted)">
+                      Ratings are optional. Share only the sections
+                      (Theory/Lab/ECS) you have actually experienced.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Theory Section */}

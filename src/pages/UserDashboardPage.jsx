@@ -65,7 +65,6 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
   const [entries, setEntries] = useState([]);
   const [facultyLookup, setFacultyLookup] = useState({});
   const [editForms, setEditForms] = useState({});
@@ -242,7 +241,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
   // Course search effect
   useEffect(() => {
     const activeSearches = Object.entries(courseQueries).filter(
-      ([_, query]) => query && query.trim(),
+      ([, query]) => query && query.trim(),
     );
 
     if (activeSearches.length === 0) return;
@@ -651,7 +650,9 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
   return (
     <div className="space-y-6">
       <section className="p-4 shadow-(--shadow-card)">
-        <h1 className="text-5xl font-bold text-(--text)">My Dashboard</h1>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-(--text)">
+          My Dashboard
+        </h1>
         <p className="mt-3 text-sm text-(--muted)">
           Manage your account, ratings, and reviews.
         </p>
@@ -1020,16 +1021,16 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       </section>
 
       {/* My Polls Section */}
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow-card)">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 shadow-(--shadow-card)">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-lg font-semibold text-(--text)">My Polls</h2>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-3">
             <span className="text-xs text-(--muted)">
               {userPolls.length} {userPolls.length === 1 ? "poll" : "polls"}
             </span>
             <button
               onClick={() => setShowCreatePollOverlay(true)}
-              className="rounded-lg bg-(--primary) px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+              className="rounded-lg bg-(--primary) px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 whitespace-nowrap"
             >
               Create Poll
             </button>
@@ -1037,10 +1038,10 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 mb-4 border-b border-(--border)">
+        <div className="flex gap-2 mb-4 border-b border-(--border) overflow-x-auto">
           <button
             onClick={() => setPollFilter("all")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
               pollFilter === "all"
                 ? "border-(--primary) text-(--primary)"
                 : "border-transparent text-(--muted) hover:text-(--text)"
@@ -1050,7 +1051,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
           </button>
           <button
             onClick={() => setPollFilter("active")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
               pollFilter === "active"
                 ? "border-(--primary) text-(--primary)"
                 : "border-transparent text-(--muted) hover:text-(--text)"
@@ -1060,7 +1061,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
           </button>
           <button
             onClick={() => setPollFilter("ended")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
               pollFilter === "ended"
                 ? "border-(--primary) text-(--primary)"
                 : "border-transparent text-(--muted) hover:text-(--text)"
@@ -1105,7 +1106,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                       key={poll.$id}
                       className="rounded-lg border border-(--line) bg-(--panel) p-4"
                     >
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <FontAwesomeIcon
@@ -1121,7 +1122,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                             poll
                           </p>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex sm:flex-col items-start sm:items-end gap-1">
                           {isActive ? (
                             <span className="px-2 py-1 rounded-full bg-(--success-light) text-(--success) text-xs font-medium flex items-center gap-1">
                               <FontAwesomeIcon icon={faVoteYea} />
@@ -1153,7 +1154,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-(--line)">
+                      <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 pt-3 border-t border-(--line)">
                         <button
                           onClick={() =>
                             handleTogglePollStatus(
@@ -1162,7 +1163,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                               poll,
                             )
                           }
-                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-2 ${
+                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-initial ${
                             poll.isActive
                               ? "bg-(--success-light) text-(--success) hover:bg-(--success-lighter)"
                               : "bg-(--secondary) text-(--text) hover:opacity-80"
@@ -1179,7 +1180,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
 
                         <button
                           onClick={() => handleEditPoll(poll)}
-                          className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--info-light) text-(--info) hover:bg-(--info-lighter) flex items-center gap-2"
+                          className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--info-light) text-(--info) hover:bg-(--info-lighter) flex items-center justify-center gap-2 flex-1 sm:flex-initial"
                           title="Edit poll"
                         >
                           <FontAwesomeIcon icon={faEdit} />
@@ -1188,7 +1189,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
 
                         <button
                           onClick={() => handleConfirmDeletePoll(poll)}
-                          className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--danger-light) text-(--danger) hover:bg-(--danger-lighter) flex items-center gap-2"
+                          className="px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--danger-light) text-(--danger) hover:bg-(--danger-lighter) flex items-center justify-center gap-2 flex-1 sm:flex-initial"
                           title="Delete poll"
                         >
                           <FontAwesomeIcon icon={faTrash} />

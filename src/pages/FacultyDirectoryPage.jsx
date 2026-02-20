@@ -4,13 +4,7 @@ import { Query } from "appwrite";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faFilter,
-  faXmark,
-  faSort,
-  faSortAmountDown,
-  faSortAmountUp,
-} from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faXmark } from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
 import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
@@ -43,7 +37,8 @@ function getRowOverall(row) {
   return total / count;
 }
 
-function FacultyDirectoryPage() {
+function FacultyDirectoryPage({ currentUser }) {
+  const hasUser = Boolean(currentUser?.$id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [faculty, setFaculty] = useState([]);
@@ -159,10 +154,6 @@ function FacultyDirectoryPage() {
   };
 
   const filteredFaculty = useMemo(() => {
-    const keyword = String(filters.search || "")
-      .trim()
-      .toLowerCase();
-
     const deferredKeyword = String(deferredSearch || "")
       .trim()
       .toLowerCase();
@@ -185,7 +176,8 @@ function FacultyDirectoryPage() {
       const matchesDepartment =
         filters.department === "all" || item.department === filters.department;
       const matchesTopRated = !filters.topRated || rating >= 4;
-      const matchesTier = filters.tier === "all" || tier === filters.tier;
+      const matchesTier =
+        !hasUser || filters.tier === "all" || tier === filters.tier;
       const matchesCourse =
         !selectedCourse ||
         Boolean(
@@ -233,6 +225,7 @@ function FacultyDirectoryPage() {
     ratingLookup,
     selectedCourse,
     courseFacultyLookup,
+    hasUser,
   ]);
 
   useEffect(() => {
@@ -261,11 +254,11 @@ function FacultyDirectoryPage() {
     if (filters.department !== "all") n += 1;
     if (filters.alpha !== "all") n += 1;
     if (filters.topRated) n += 1;
-    if (filters.tier !== "all") n += 1;
+    if (hasUser && filters.tier !== "all") n += 1;
     if (filters.sortBy !== "none") n += 1;
     if (selectedCourse) n += 1;
     return n;
-  }, [filters, selectedCourse]);
+  }, [filters, selectedCourse, hasUser]);
 
   return (
     <div className="space-y-8">
@@ -358,20 +351,22 @@ function FacultyDirectoryPage() {
                   ))}
                 </select>
 
-                <select
-                  value={filters.tier}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, tier: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
-                >
-                  <option value="all">All Tiers</option>
-                  {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
-                    <option key={tier} value={tier}>
-                      Tier {tier} - {info.description}
-                    </option>
-                  ))}
-                </select>
+                {hasUser ? (
+                  <select
+                    value={filters.tier}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, tier: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                  >
+                    <option value="all">All Tiers</option>
+                    {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
+                      <option key={tier} value={tier}>
+                        {info.label} ({info.value}/5)
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
 
                 <select
                   value={filters.sortBy}
@@ -400,7 +395,7 @@ function FacultyDirectoryPage() {
                     className="cursor-pointer"
                   />
                   <span className="text-xs sm:text-sm">
-                    Top Rated Only (A+)
+                    Top Rated Only (4+/5)
                   </span>
                 </label>
 
@@ -493,7 +488,7 @@ function FacultyDirectoryPage() {
         </p>
       )}
 
-      <section className="grid gap-3 sm:gap-4 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <section className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {paginatedFaculty.map((item) => {
           const facultyId = String(item.employeeId || "");
           const overall = ratingLookup[facultyId];

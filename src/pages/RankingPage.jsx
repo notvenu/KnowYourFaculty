@@ -1,5 +1,5 @@
 // eslint-disable tailwindcss/no-custom-classname
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import publicFacultyService from "../services/publicFacultyService.js";
@@ -11,12 +11,14 @@ import {
   faTrophy,
   faMedal,
   faAward,
-  faStar,
   faFilter,
   faShareAlt,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   getTierFromRating,
+  getTierLabel,
   getTierColor,
   RATING_FIELDS,
 } from "../lib/ratingConfig.js";
@@ -84,8 +86,30 @@ export default function RankingPage({ currentUser }) {
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [minRatings, setMinRatings] = useState(1); // Minimum number of ratings to be ranked
   const [showFilters, setShowFilters] = useState(false);
+  const filterDropdownRef = useRef(null);
 
   const hasUser = Boolean(currentUser?.$id);
+
+  // Close dropdown when clicking outside on large screens
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        filterDropdownRef.current &&
+        !filterDropdownRef.current.contains(event.target) &&
+        window.innerWidth >= 1024
+      ) {
+        setShowFilters(false);
+      }
+    };
+
+    if (showFilters) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showFilters]);
 
   const handleShareRankingPage = async () => {
     const shareUrl = typeof window !== "undefined" ? window.location.href : "";
@@ -315,141 +339,173 @@ export default function RankingPage({ currentUser }) {
       </div>
 
       {/* Filters */}
-      <div className="mb-4 sm:mb-6 rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg">
-        <div className="mb-3 sm:mb-4 flex items-center justify-between p-3 sm:p-4 lg:p-5 pb-0 sm:pb-0">
-          <h3 className="text-base sm:text-lg font-bold text-(--text)">
-            <FontAwesomeIcon
-              icon={faFilter}
-              className="mr-1.5 sm:mr-2 text-sm sm:text-base"
-            />
-            Filters
-          </h3>
+      <div className="mb-4 sm:mb-6 relative" ref={filterDropdownRef}>
+        {/* Desktop Dropdown Button */}
+        <div className="hidden lg:flex justify-end mb-3">
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className="text-xs sm:text-sm font-semibold text-(--primary) hover:underline sm:hidden"
+            className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--bg-elev) px-4 py-2.5 text-sm font-semibold text-(--text) hover:bg-(--panel) shadow-sm transition-colors"
           >
-            {showFilters ? "Hide" : "Show"}
+            <FontAwesomeIcon icon={faFilter} />
+            Filters
+            {(selectedDepartment !== "all" ||
+              selectedDesignation !== "all" ||
+              selectedCourse !== "all" ||
+              minRatings !== 3) && (
+              <span className="ml-1 rounded-full bg-(--primary) px-2 py-0.5 text-xs text-white">
+                Active
+              </span>
+            )}
+            <FontAwesomeIcon
+              icon={showFilters ? faChevronUp : faChevronDown}
+              className="text-xs ml-1"
+            />
           </button>
         </div>
 
-        <div
-          className={`space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-5 pt-0 sm:pt-0 ${showFilters ? "block" : "hidden"} sm:block`}
-        >
-          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
-                Department
-              </label>
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
-              >
-                <option value="all" className="bg-(--bg-elev) text-(--text)">
-                  All Departments
-                </option>
-                {departments.map((dept) => (
-                  <option
-                    key={dept}
-                    value={dept}
-                    className="bg-(--bg-elev) text-(--text)"
-                  >
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
-                Designation
-              </label>
-              <select
-                value={selectedDesignation}
-                onChange={(e) => setSelectedDesignation(e.target.value)}
-                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
-              >
-                <option value="all" className="bg-(--bg-elev) text-(--text)">
-                  All Designations
-                </option>
-                {designations.map((desig) => (
-                  <option
-                    key={desig}
-                    value={desig}
-                    className="bg-(--bg-elev) text-(--text)"
-                  >
-                    {desig}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
-                Course
-              </label>
-              <select
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
-              >
-                <option value="all" className="bg-(--bg-elev) text-(--text)">
-                  All Courses
-                </option>
-                {courses.map((course) => (
-                  <option
-                    key={course.id}
-                    value={course.id}
-                    className="bg-(--bg-elev) text-(--text)"
-                  >
-                    {course.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
-                Min. Ratings Required
-              </label>
-              <select
-                value={minRatings}
-                onChange={(e) => setMinRatings(Number(e.target.value))}
-                className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
-              >
-                <option value="1" className="bg-(--bg-elev) text-(--text)">
-                  1+
-                </option>
-                <option value="3" className="bg-(--bg-elev) text-(--text)">
-                  3+
-                </option>
-                <option value="5" className="bg-(--bg-elev) text-(--text)">
-                  5+
-                </option>
-                <option value="10" className="bg-(--bg-elev) text-(--text)">
-                  10+
-                </option>
-                <option value="20" className="bg-(--bg-elev) text-(--text)">
-                  20+
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2">
+        {/* Mobile/Tablet Filter Header */}
+        <div className="lg:hidden mb-3 sm:mb-4 rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg">
+          <div className="flex items-center justify-between p-3 sm:p-4 pb-0 sm:pb-0">
+            <h3 className="text-base sm:text-lg font-bold text-(--text)">
+              <FontAwesomeIcon
+                icon={faFilter}
+                className="mr-1.5 sm:mr-2 text-sm sm:text-base"
+              />
+              Filters
+            </h3>
             <button
               type="button"
-              onClick={() => {
-                setSelectedDepartment("all");
-                setSelectedDesignation("all");
-                setSelectedCourse("all");
-                setMinRatings(3);
-              }}
-              className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"
+              onClick={() => setShowFilters(!showFilters)}
+              className="text-xs sm:text-sm font-semibold text-(--primary) hover:underline"
             >
-              Reset Filters
+              {showFilters ? "Hide" : "Show"}
             </button>
+          </div>
+        </div>
+
+        {/* Filter Content */}
+        <div
+          className={`${
+            showFilters ? "block" : "hidden"
+          } rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg lg:absolute lg:right-0 lg:z-10 lg:w-125 xl:w-150`}
+        >
+          <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-5">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                  Department
+                </label>
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
+                >
+                  <option value="all" className="bg-(--bg-elev) text-(--text)">
+                    All Departments
+                  </option>
+                  {departments.map((dept) => (
+                    <option
+                      key={dept}
+                      value={dept}
+                      className="bg-(--bg-elev) text-(--text)"
+                    >
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                  Designation
+                </label>
+                <select
+                  value={selectedDesignation}
+                  onChange={(e) => setSelectedDesignation(e.target.value)}
+                  className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
+                >
+                  <option value="all" className="bg-(--bg-elev) text-(--text)">
+                    All Designations
+                  </option>
+                  {designations.map((desig) => (
+                    <option
+                      key={desig}
+                      value={desig}
+                      className="bg-(--bg-elev) text-(--text)"
+                    >
+                      {desig}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                  Course
+                </label>
+                <select
+                  value={selectedCourse}
+                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
+                >
+                  <option value="all" className="bg-(--bg-elev) text-(--text)">
+                    All Courses
+                  </option>
+                  {courses.map((course) => (
+                    <option
+                      key={course.id}
+                      value={course.id}
+                      className="bg-(--bg-elev) text-(--text)"
+                    >
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                  Min. Ratings Required
+                </label>
+                <select
+                  value={minRatings}
+                  onChange={(e) => setMinRatings(Number(e.target.value))}
+                  className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
+                >
+                  <option value="1" className="bg-(--bg-elev) text-(--text)">
+                    1+
+                  </option>
+                  <option value="3" className="bg-(--bg-elev) text-(--text)">
+                    3+
+                  </option>
+                  <option value="5" className="bg-(--bg-elev) text-(--text)">
+                    5+
+                  </option>
+                  <option value="10" className="bg-(--bg-elev) text-(--text)">
+                    10+
+                  </option>
+                  <option value="20" className="bg-(--bg-elev) text-(--text)">
+                    20+
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDepartment("all");
+                  setSelectedDesignation("all");
+                  setSelectedCourse("all");
+                  setMinRatings(3);
+                }}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -480,6 +536,7 @@ export default function RankingPage({ currentUser }) {
           {rankedFaculty.map((faculty, index) => {
             const rank = index + 1;
             const tier = getTierFromRating(faculty.overallRating);
+            const tierLabel = getTierLabel(tier);
             const tierColor = getTierColor(tier);
 
             return (
@@ -523,10 +580,10 @@ export default function RankingPage({ currentUser }) {
                     {/* Rating Badge */}
                     <div className="flex flex-col items-center">
                       <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold text-white shadow-sm sm:h-12 sm:w-12 sm:text-xl"
+                        className="flex min-h-10 w-20 items-center justify-center rounded-lg px-2 text-[10px] font-bold text-white shadow-sm sm:min-h-12 sm:w-24 sm:text-xs"
                         style={{ backgroundColor: tierColor }}
                       >
-                        {tier}
+                        {tierLabel}
                       </div>
                       <div className="mt-0.5 text-[10px] font-semibold text-(--text)">
                         {faculty.overallRating.toFixed(1)}

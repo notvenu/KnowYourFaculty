@@ -1,7 +1,7 @@
 {
   "name": "knowyourfaculty",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "scraper:run": "node scripts/scrapeOnce.js",
     "faculty:stats": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getFacultyStats()).then(console.log)\"",
-    "faculty:count": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\"",
-    "reviews:fix-permissions": "node scripts/fixReviewPermissions.js"
+    "faculty:count": "node -e \"import('./src/lib/appwrite/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
