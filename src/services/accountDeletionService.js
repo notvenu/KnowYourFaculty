@@ -27,6 +27,21 @@ function normalizeUserId(userId) {
 }
 
 class AccountDeletionService {
+  async performDeletion({ userId, authService, feedbackService }) {
+    const uid = normalizeUserId(userId);
+    if (!uid) return { deleted: false };
+
+    await feedbackService.deleteAllUserFeedback(uid);
+    await authService.deleteCurrentAccount();
+    this.cancelDeletion(uid);
+
+    return {
+      deleted: true,
+      message:
+        "Your account and all associated feedback data were deleted successfully.",
+    };
+  }
+
   getScheduledDeletion(userId) {
     const uid = normalizeUserId(userId);
     if (!uid) return null;
@@ -73,12 +88,14 @@ class AccountDeletionService {
       return { deleted: false, scheduled };
     }
 
-    await feedbackService.deleteAllUserFeedback(uid);
-    await authService.deleteCurrentAccount();
-    this.cancelDeletion(uid);
+    const result = await this.performDeletion({
+      userId: uid,
+      authService,
+      feedbackService,
+    });
 
     return {
-      deleted: true,
+      ...result,
       message:
         "Your account deletion request was completed. Your account and feedback data have been removed.",
     };

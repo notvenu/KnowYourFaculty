@@ -180,47 +180,45 @@ export default function FacultyRatingsCard({
             ) : null}
           </div>
         )}
-        {hasUser && (
-          <div className="flex flex-wrap items-center gap-2">
-            {!alreadySubmitted && (
-              <button
-                type="button"
-                onClick={onShareFeedback}
-                className="rounded-xl bg-(--primary) px-4 py-2 text-xs font-bold text-white shadow-(--shadow) hover:opacity-90"
-              >
-                Share feedback
-              </button>
-            )}
-            {alreadySubmitted && onEditRating && (
-              <button
-                type="button"
-                onClick={onEditRating}
-                className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
-              >
-                Edit ratings
-              </button>
-            )}
-            {alreadySubmitted && canAddReview && onAddReview && (
-              <button
-                type="button"
-                onClick={onAddReview}
-                className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
-              >
-                Add review
-              </button>
-            )}
-            {alreadySubmitted && onDeleteRating && (
-              <button
-                type="button"
-                onClick={onDeleteRating}
-                disabled={deleting}
-                className="rounded-xl border border-red-400 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-500/20 disabled:opacity-60"
-              >
-                {deleting ? "Removing…" : "Delete feedback"}
-              </button>
-            )}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {!alreadySubmitted && (
+            <button
+              type="button"
+              onClick={onShareFeedback}
+              className="rounded-xl bg-(--primary) px-4 py-2 text-xs font-bold text-white shadow-(--shadow) hover:opacity-90"
+            >
+              Share feedback
+            </button>
+          )}
+          {hasUser && alreadySubmitted && onEditRating && (
+            <button
+              type="button"
+              onClick={onEditRating}
+              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+            >
+              Edit ratings
+            </button>
+          )}
+          {hasUser && alreadySubmitted && canAddReview && onAddReview && (
+            <button
+              type="button"
+              onClick={onAddReview}
+              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+            >
+              Add review
+            </button>
+          )}
+          {hasUser && alreadySubmitted && onDeleteRating && (
+            <button
+              type="button"
+              onClick={onDeleteRating}
+              disabled={deleting}
+              className="rounded-xl border border-red-400 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-500/20 disabled:opacity-60"
+            >
+              {deleting ? "Removing…" : "Delete feedback"}
+            </button>
+          )}
+        </div>
       </div>
 
       {!hasRatings ? (

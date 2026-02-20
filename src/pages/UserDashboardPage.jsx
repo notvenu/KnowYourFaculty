@@ -20,6 +20,7 @@ import pollService from "../services/pollService.js";
 import accountDeletionService, {
   DELETION_DELAY_MS,
 } from "../services/accountDeletionService.js";
+import authService from "../lib/appwrite/auth.js";
 import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
 import CreatePollOverlay from "../components/overlays/CreatePollOverlay.jsx";
 
@@ -86,6 +87,8 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
   const [showDeleteReviewConfirm, setShowDeleteReviewConfirm] = useState(false);
   const [pendingDeleteReview, setPendingDeleteReview] = useState(null);
   const [showCancelDeletionConfirm, setShowCancelDeletionConfirm] =
+    useState(false);
+  const [showInstantDeleteConfirm, setShowInstantDeleteConfirm] =
     useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [expandedFaculty, setExpandedFaculty] = useState(new Set());
@@ -428,6 +431,34 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     setShowCancelDeletionConfirm(false);
   };
 
+  const confirmInstantDeletion = async () => {
+    try {
+      setSaving(true);
+      await accountDeletionService.performDeletion({
+        userId,
+        authService,
+        feedbackService: facultyFeedbackService,
+      });
+      setShowInstantDeleteConfirm(false);
+      dispatch(
+        addToast({
+          message: "Account deleted successfully.",
+          type: "success",
+        }),
+      );
+      await onLogout?.();
+    } catch (deleteError) {
+      dispatch(
+        addToast({
+          message: deleteError?.message || "Failed to delete account.",
+          type: "error",
+        }),
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const initiateDeleteFeedback = (entry) => {
     setPendingDeleteFeedback(entry);
     setShowDeleteFeedbackConfirm(true);
@@ -678,14 +709,24 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
               </p>
             </div>
             {!deletionSchedule ? (
-              <button
-                type="button"
-                onClick={handleScheduleDeletion}
-                className="rounded-xl border border-(--danger) bg-(--danger-light) px-4 py-2 text-sm font-semibold text-(--danger) hover:bg-(--danger-lighter)"
-                disabled={saving}
-              >
-                Request account deletion
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleScheduleDeletion}
+                  className="rounded-xl border border-(--danger) bg-(--danger-light) px-4 py-2 text-sm font-semibold text-(--danger) hover:bg-(--danger-lighter)"
+                  disabled={saving}
+                >
+                  Request account deletion
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowInstantDeleteConfirm(true)}
+                  className="rounded-xl border border-(--danger) bg-(--danger) px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                  disabled={saving}
+                >
+                  Delete account now
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -1246,6 +1287,17 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         cancelLabel="Keep Request"
         onConfirm={confirmCancelDeletion}
         onCancel={() => setShowCancelDeletionConfirm(false)}
+      />
+
+      <ConfirmOverlay
+        open={showInstantDeleteConfirm}
+        title="Delete Account Now"
+        message="This will immediately delete your account and all associated data. This action cannot be undone."
+        confirmLabel="Delete Now"
+        cancelLabel="Cancel"
+        onConfirm={confirmInstantDeletion}
+        onCancel={() => setShowInstantDeleteConfirm(false)}
+        loading={saving}
       />
 
       <ConfirmOverlay

@@ -1,9 +1,11 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
+import { addToast } from "../store/uiSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTrophy,
@@ -11,6 +13,7 @@ import {
   faAward,
   faStar,
   faFilter,
+  faShareAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   getTierFromRating,
@@ -70,6 +73,7 @@ function RankIcon({ rank }) {
 }
 
 export default function RankingPage({ currentUser }) {
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
@@ -82,6 +86,39 @@ export default function RankingPage({ currentUser }) {
   const [showFilters, setShowFilters] = useState(false);
 
   const hasUser = Boolean(currentUser?.$id);
+
+  const handleShareRankingPage = async () => {
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const sharePayload = {
+      title: "KnowYourFaculty Rankings",
+      text: "Check faculty rankings based on student feedback.",
+      url: shareUrl,
+    };
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share(sharePayload);
+      } else if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        throw new Error("Sharing is not supported in this browser");
+      }
+      dispatch(
+        addToast({ message: "Ranking page link shared", type: "success" }),
+      );
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      dispatch(
+        addToast({
+          message: error?.message || "Unable to share this page",
+          type: "error",
+        }),
+      );
+    }
+  };
 
   useEffect(() => {
     if (hasUser) {
@@ -255,13 +292,23 @@ export default function RankingPage({ currentUser }) {
     <div className="container mx-auto max-w-7xl px-3 sm:px-4 py-4 sm:py-8">
       {/* Header */}
       <div className="mb-6 sm:mb-8">
-        <h1 className="mb-1 sm:mb-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-(--text) flex items-center gap-2 sm:gap-3">
-          <FontAwesomeIcon
-            icon={faTrophy}
-            className="text-xl sm:text-2xl text-(--primary)"
-          />
-          <span>Faculty Rankings</span>
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="mb-1 sm:mb-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-(--text) flex items-center gap-2 sm:gap-3">
+            <FontAwesomeIcon
+              icon={faTrophy}
+              className="text-xl sm:text-2xl text-(--primary)"
+            />
+            <span>Faculty Rankings</span>
+          </h1>
+          <button
+            type="button"
+            onClick={handleShareRankingPage}
+            className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs sm:text-sm font-semibold text-(--text) hover:bg-(--bg-elev)"
+          >
+            <FontAwesomeIcon icon={faShareAlt} />
+            Share Page
+          </button>
+        </div>
         <p className="text-sm sm:text-base text-(--muted)">
           Rankings based on overall ratings from student feedback
         </p>
@@ -439,7 +486,7 @@ export default function RankingPage({ currentUser }) {
               <Link
                 key={faculty.employeeId}
                 to={`/faculty/${faculty.employeeId}`}
-                className="block rounded-lg border border-(--line) bg-(--bg-elev) p-3 shadow-sm transition-all hover:border-(--primary) hover:shadow-md sm:p-4"
+                className="block cursor-pointer rounded-lg border border-(--line) bg-(--bg-elev) p-3 shadow-sm transition-all hover:border-(--primary) hover:shadow-md sm:p-4"
               >
                 <div className="flex items-center gap-3">
                   {/* Rank */}

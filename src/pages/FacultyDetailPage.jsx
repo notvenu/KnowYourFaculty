@@ -1,12 +1,19 @@
-﻿﻿// eslint-disable tailwindcss/no-custom-classname
+﻿﻿﻿﻿// eslint-disable tailwindcss/no-custom-classname
 // eslint-disable no-irregular-whitespace
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
+import { addToast } from "../store/uiSlice.js";
+import { setShowLoginOverlay } from "../store/authSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAngleLeft, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import {
+  faAngleLeft,
+  faChevronDown,
+  faShareAlt,
+} from "@fortawesome/free-solid-svg-icons";
 import FacultyProfileCard from "../components/faculty/FacultyProfileCard.jsx";
 import FacultyRatingsCard from "../components/faculty/FacultyRatingsCard.jsx";
 import FeedbackList from "../components/feedback/FeedbackList.jsx";
@@ -58,6 +65,7 @@ function parseRatingInput(value) {
 }
 
 function FacultyDetailPage({ currentUser }) {
+  const dispatch = useDispatch();
   const { facultyId } = useParams();
   const [faculty, setFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -800,6 +808,61 @@ function FacultyDetailPage({ currentUser }) {
     setCourseLookup((prev) => ({ ...prev, [course.$id]: course }));
   };
 
+  const handleShareFacultyPage = async () => {
+    const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+    const sharePayload = {
+      title: `${facultyName} | KnowYourFaculty`,
+      text: `Check ratings and student reviews for ${facultyName}.`,
+      url: shareUrl,
+    };
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share(sharePayload);
+      } else if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        throw new Error("Sharing is not supported in this browser");
+      }
+      dispatch(
+        addToast({ message: "Faculty page link shared", type: "success" }),
+      );
+    } catch (shareError) {
+      if (shareError?.name === "AbortError") return;
+      dispatch(
+        addToast({
+          message: shareError?.message || "Unable to share this page",
+          type: "error",
+        }),
+      );
+    }
+  };
+
+  const handleShareFeedbackClick = () => {
+    if (!hasUser) {
+      dispatch(setShowLoginOverlay(true));
+      dispatch(
+        addToast({
+          message: "Please sign in to share feedback.",
+          type: "info",
+        }),
+      );
+      return;
+    }
+
+    setShowFeedbackForm(true);
+    setIsEditing(true);
+    setEditingReviewOnly(false);
+    setEditingRatingsOnly(false);
+    setCurrentEditingReviewId(null);
+    setExpandedSections(INITIAL_EXPANDED_SECTIONS);
+    setFeedbackForm(INITIAL_FEEDBACK_FORM);
+    setCourseQuery("");
+  };
+
   if (loading)
     return <p className="text-sm text-(--muted)">Loading faculty profile...</p>;
   if (!faculty)
@@ -811,13 +874,23 @@ function FacultyDetailPage({ currentUser }) {
 
   return (
     <div className="space-y-6">
-      <Link
-        to="/faculty"
-        className="inline-flex items-center gap-1 text-xs text-(--muted) hover:text-(--text)"
-      >
-        <FontAwesomeIcon icon={byPrefixAndName.fas["angle-left"]} />
-        <span>Back to Faculty Search</span>
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          to="/faculty"
+          className="inline-flex items-center gap-1 text-xs text-(--muted) hover:text-(--text)"
+        >
+          <FontAwesomeIcon icon={byPrefixAndName.fas["angle-left"]} />
+          <span>Back to Faculty Search</span>
+        </Link>
+        <button
+          type="button"
+          onClick={handleShareFacultyPage}
+          className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev)"
+        >
+          <FontAwesomeIcon icon={faShareAlt} />
+          Share Page
+        </button>
+      </div>
 
       {error ? (
         <p className="mb-4 rounded-lg bg-red-50 p-3 text-xs text-red-600">
@@ -894,16 +967,7 @@ function FacultyDetailPage({ currentUser }) {
                     setShowFeedbackForm(true);
                   }
                 }}
-                onShareFeedback={() => {
-                  setShowFeedbackForm(true);
-                  setIsEditing(true);
-                  setEditingReviewOnly(false);
-                  setEditingRatingsOnly(false);
-                  setCurrentEditingReviewId(null);
-                  setExpandedSections(INITIAL_EXPANDED_SECTIONS);
-                  setFeedbackForm(INITIAL_FEEDBACK_FORM);
-                  setCourseQuery("");
-                }}
+                onShareFeedback={handleShareFeedbackClick}
                 onEditRating={() => {
                   if (userFeedback?.$id) {
                     editRatingsOnly(userFeedback.$id);

@@ -16,6 +16,7 @@ import {
   faToggleOff,
   faTrash,
   faEdit,
+  faShareAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import pollService from "../services/pollService.js";
 import publicFacultyService from "../services/publicFacultyService.js";
@@ -52,6 +53,7 @@ export default function PollPage() {
   // Poll results state
   const [pollResults, setPollResults] = useState({});
   const [userVotes, setUserVotes] = useState({});
+  const [votePendingByPoll, setVotePendingByPoll] = useState({});
 
   // My polls state
   const [myPolls, setMyPolls] = useState([]);
@@ -171,6 +173,49 @@ export default function PollPage() {
   };
 
   const handleVote = async (pollId, vote) => {
+    if (votePendingByPoll[pollId]) return;
+
+    const previousVote = Number(userVotes?.[pollId]?.vote);
+    const hasPreviousVote = Number.isFinite(previousVote);
+    if (hasPreviousVote && previousVote === vote) {
+      dispatch(
+        addToast({ message: "You already selected this option", type: "info" }),
+      );
+      return;
+    }
+
+    const previousResults = pollResults[pollId] || {
+      voteCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      totalVotes: 0,
+    };
+
+    const optimisticCounts = {
+      1: Number(previousResults.voteCounts?.[1] || 0),
+      2: Number(previousResults.voteCounts?.[2] || 0),
+      3: Number(previousResults.voteCounts?.[3] || 0),
+      4: Number(previousResults.voteCounts?.[4] || 0),
+      5: Number(previousResults.voteCounts?.[5] || 0),
+    };
+
+    let optimisticTotal = Number(previousResults.totalVotes || 0);
+    if (hasPreviousVote && optimisticCounts[previousVote] > 0) {
+      optimisticCounts[previousVote] -= 1;
+    } else if (!hasPreviousVote) {
+      optimisticTotal += 1;
+    }
+    optimisticCounts[vote] += 1;
+
+    setVotePendingByPoll((prev) => ({ ...prev, [pollId]: true }));
+    setPollResults((prev) => ({
+      ...prev,
+      [pollId]: {
+        ...previousResults,
+        voteCounts: optimisticCounts,
+        totalVotes: optimisticTotal,
+      },
+    }));
+    setUserVotes((prev) => ({ ...prev, [pollId]: { vote } }));
+
     try {
       await pollService.submitVote({
         userId: currentUser.$id,
@@ -191,9 +236,58 @@ export default function PollPage() {
       );
     } catch (err) {
       console.error("Error submitting vote:", err);
+      setPollResults((prev) => ({ ...prev, [pollId]: previousResults }));
+      setUserVotes((prev) => {
+        const next = { ...prev };
+        if (hasPreviousVote) {
+          next[pollId] = { vote: previousVote };
+        } else {
+          delete next[pollId];
+        }
+        return next;
+      });
       dispatch(
         addToast({
           message: err.message || "Failed to submit vote",
+          type: "error",
+        }),
+      );
+    } finally {
+      setVotePendingByPoll((prev) => ({ ...prev, [pollId]: false }));
+    }
+  };
+
+  const handleSharePoll = async (poll) => {
+    const pollTitle = poll.facultyId
+      ? getFacultyName(poll.facultyId)
+      : getCourseName(poll.courseId);
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/polls#poll-${poll.$id}`
+        : "";
+    const sharePayload = {
+      title: `${pollTitle} Poll | KnowYourFaculty`,
+      text: `Check this poll: ${pollTitle}`,
+      url: shareUrl,
+    };
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share(sharePayload);
+      } else if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        throw new Error("Sharing is not supported in this browser");
+      }
+      dispatch(addToast({ message: "Poll link shared", type: "success" }));
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      dispatch(
+        addToast({
+          message: error?.message || "Unable to share this poll",
           type: "error",
         }),
       );
@@ -328,10 +422,12 @@ export default function PollPage() {
     const userVote = userVotes[poll.$id];
     const options = POLL_OPTIONS[poll.pollType];
     const isActive = isPollActive(poll);
+    const isVotePending = Boolean(votePendingByPoll[poll.$id]);
 
     return (
       <div
         key={poll.$id}
+        id={`poll-${poll.$id}`}
         className="bg-(--card) rounded-lg shadow-md p-4 sm:p-6 border border-(--border)"
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
@@ -403,15 +499,15 @@ export default function PollPage() {
               <button
                 key={option.value}
                 onClick={() => isActive && handleVote(poll.$id, option.value)}
-                disabled={!isActive}
+                disabled={!isActive || isVotePending}
                 className={`w-full relative overflow-hidden rounded-lg border-2 transition-all ${
                   isUserVote
                     ? "border-(--primary) bg-(--primary-soft)"
                     : "border-(--border) hover:border-(--primary)"
-                } ${!isActive ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                } ${!isActive || isVotePending ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <div
-                  className="absolute inset-0 bg-(--primary) opacity-10 transition-all"
+                  className="absolute inset-0 bg-(--primary) opacity-10 transition-[width] duration-500 ease-out"
                   style={{ width: `${percentage}%` }}
                 />
                 <div className="relative flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3">
@@ -440,29 +536,47 @@ export default function PollPage() {
         <div className="text-xs sm:text-sm text-(--muted) flex items-center justify-between gap-2 pt-3 border-t border-(--border)">
           <div className="flex items-center gap-1.5 sm:gap-2">
             <FontAwesomeIcon icon={faChartBar} className="text-xs sm:text-sm" />
-            <span>Total votes: {results?.totalVotes || 0}</span>
+            <span>
+              Total votes: {results?.totalVotes || 0}
+              {isVotePending ? " • Saving vote..." : ""}
+            </span>
           </div>
 
-          {/* Poll Management Buttons (only for poll creator) */}
-          {poll.userId === currentUser.$id && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() =>
-                handleTogglePollStatus(poll.$id, poll.isActive, poll)
-              }
+              type="button"
+              onClick={() => handleSharePoll(poll)}
               className="px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs font-medium transition-colors hover:bg-(--secondary) flex items-center gap-1 sm:gap-2 shrink-0"
-              title={poll.isActive ? "Deactivate poll" : "Activate poll"}
+              title="Share poll"
             >
               <FontAwesomeIcon
-                icon={poll.isActive ? faToggleOn : faToggleOff}
-                className={`text-xs sm:text-sm ${
-                  poll.isActive ? "text-(--success)" : "text-(--muted)"
-                }`}
+                icon={faShareAlt}
+                className="text-xs sm:text-sm"
               />
-              <span className="hidden sm:inline">
-                {poll.isActive ? "Active" : "Inactive"}
-              </span>
+              <span className="hidden sm:inline">Share</span>
             </button>
-          )}
+
+            {/* Poll Management Buttons (only for poll creator) */}
+            {poll.userId === currentUser.$id && (
+              <button
+                onClick={() =>
+                  handleTogglePollStatus(poll.$id, poll.isActive, poll)
+                }
+                className="px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs font-medium transition-colors hover:bg-(--secondary) flex items-center gap-1 sm:gap-2 shrink-0"
+                title={poll.isActive ? "Deactivate poll" : "Activate poll"}
+              >
+                <FontAwesomeIcon
+                  icon={poll.isActive ? faToggleOn : faToggleOff}
+                  className={`text-xs sm:text-sm ${
+                    poll.isActive ? "text-(--success)" : "text-(--muted)"
+                  }`}
+                />
+                <span className="hidden sm:inline">
+                  {poll.isActive ? "Active" : "Inactive"}
+                </span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -476,6 +590,7 @@ export default function PollPage() {
     return (
       <div
         key={poll.$id}
+        id={`poll-${poll.$id}`}
         className="bg-(--card) rounded-lg shadow-md p-4 sm:p-6 border border-(--border)"
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
@@ -574,6 +689,20 @@ export default function PollPage() {
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto">
             {/* Toggle Active Status */}
             <button
+              type="button"
+              onClick={() => handleSharePoll(poll)}
+              className="px-2.5 sm:px-3 py-1.5 rounded text-xs font-medium transition-colors bg-(--panel) text-(--text) hover:bg-(--secondary) flex items-center gap-1.5 sm:gap-2 flex-1 sm:flex-initial justify-center"
+              title="Share poll"
+            >
+              <FontAwesomeIcon
+                icon={faShareAlt}
+                className="text-xs sm:text-sm"
+              />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+
+            {/* Toggle Active Status */}
+            <button
               onClick={() =>
                 handleTogglePollStatus(poll.$id, poll.isActive, poll)
               }
@@ -649,13 +778,15 @@ export default function PollPage() {
               Vote on faculty strictness and course difficulty
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateOverlay(true)}
-            className="w-full sm:w-auto px-4 py-2 bg-(--primary) text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            <FontAwesomeIcon icon={faPlus} />
-            Create Poll
-          </button>
+          <div className="w-full sm:w-auto sm:ml-auto">
+            <button
+              onClick={() => setShowCreateOverlay(true)}
+              className="w-full sm:w-auto px-4 py-2 bg-(--primary) text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-sm sm:text-base"
+            >
+              <FontAwesomeIcon icon={faPlus} />
+              Create Poll
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
