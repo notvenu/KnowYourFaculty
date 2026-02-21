@@ -1452,7 +1452,7 @@ function FacultyDetailPage({ currentUser }) {
                       ))}
                       <div>
                         <p className="mb-3 text-sm font-semibold text-(--text)">
-                          Theory Notes Provided?
+                          Theory Notes Required?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
@@ -1491,7 +1491,7 @@ function FacultyDetailPage({ currentUser }) {
                               }))
                             }
                             className="absolute inset-0 z-3 m-0 w-full cursor-pointer opacity-0"
-                            aria-label="Theory notes provided"
+                            aria-label="Theory notes required"
                           />
                         </div>
                       </div>
@@ -1597,7 +1597,7 @@ function FacultyDetailPage({ currentUser }) {
                               }))
                             }
                             className="absolute inset-0 z-3 m-0 w-full cursor-pointer opacity-0"
-                            aria-label="Lab materials provided"
+                            aria-label="Lab Observation/Notes Type"
                           />
                         </div>
                       </div>
