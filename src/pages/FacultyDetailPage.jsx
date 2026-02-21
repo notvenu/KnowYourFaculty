@@ -1160,7 +1160,7 @@ function FacultyDetailPage({ currentUser }) {
                               }))
                             }
                             className="absolute inset-0 z-3 m-0 w-full cursor-pointer opacity-0"
-                            aria-label="Theory notes provided"
+                            aria-label="Theory notes required"
                           />
                         </div>
                       </div>
@@ -1266,7 +1266,7 @@ function FacultyDetailPage({ currentUser }) {
                               }))
                             }
                             className="absolute inset-0 z-3 m-0 w-full cursor-pointer opacity-0"
-                            aria-label="Lab materials provided"
+                            aria-label="Lab Observation/Notes Type"
                           />
                         </div>
                       </div>
