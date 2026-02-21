@@ -85,7 +85,7 @@ export const THEORY_NOTE_OPTIONS = ["No", "Yes"];
 
 export const LAB_NOTE_OPTIONS = [
   { value: "None", label: "None" },
-  { value: "Soft", label: "Soft" },
-  { value: "Hard", label: "Hard" },
+  { value: "Soft", label: "Soft Copy" },
+  { value: "Hard", label: "Hard Copy" },
   { value: "Both", label: "Both" },
 ];
