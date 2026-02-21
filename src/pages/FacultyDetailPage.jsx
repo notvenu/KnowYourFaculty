@@ -1539,7 +1539,7 @@ function FacultyDetailPage({ currentUser }) {
                       ))}
                       <div>
                         <p className="mb-3 text-sm font-semibold text-(--text)">
-                          Lab Materials Provided?
+                          Lab Observation/Notes Type?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
