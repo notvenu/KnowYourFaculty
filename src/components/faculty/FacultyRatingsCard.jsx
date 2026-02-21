@@ -575,7 +575,7 @@ export default function FacultyRatingsCard({
                     {notesSummary.theoryNotes && (
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-(--text)">
-                          Theory Notes Provided
+                          Theory Notes Required
                         </span>
                         <span className="text-xs font-bold text-(--primary)">
                           {notesSummary.theoryNotes.percentage}% (
@@ -588,7 +588,7 @@ export default function FacultyRatingsCard({
                       Object.keys(notesSummary.labNotes).length > 0 && (
                         <div>
                           <span className="text-xs font-medium text-(--text) block mb-2">
-                            Lab Notes Type
+                            Lab Observation Type
                           </span>
                           <div className="space-y-1.5">
                             {Object.entries(notesSummary.labNotes)
