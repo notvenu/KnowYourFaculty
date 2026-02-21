@@ -232,6 +232,7 @@ function App() {
         signingIn={loginInProgress}
       />
       <ToastContainer />
+      <Analytics />
     </div>
   );
 }
