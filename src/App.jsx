@@ -27,6 +27,7 @@ import {
 } from "./lib/appwrite/auth.js";
 import clientConfig from "./config/client.js";
 import "./App.css";
+import { Analytics } from "@vercel/analytics/react"
 
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const FacultyDirectoryPage = lazy(
