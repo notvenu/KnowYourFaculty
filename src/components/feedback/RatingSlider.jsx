@@ -8,36 +8,36 @@ function RatingSlider({ label, value, onChange, name }) {
         {label}
       </p>
 
-      {/* container */}
-      <div className="relative grid grid-cols-5 overflow-hidden rounded-2xl border border-(--line) bg-(--panel) p-1">
+      <div className="relative h-14 rounded-2xl border border-(--line) bg-(--panel) p-1">
+        
+        {/* GRID CONTAINER */}
+        <div className="relative grid h-full grid-cols-5 items-center">
 
-        {/* blue pill */}
-        <div
-          className="absolute inset-y-1 w-1/5 rounded-xl bg-(--primary) transition-transform duration-200 ease-out"
-          style={{
-            transform: `translateX(${(value - 1) * 100}%)`,
-          }}
-        />
+          {/* Highlight (now grid positioned) */}
+          <div
+            className="absolute top-1 bottom-1 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-all duration-200 ease-out"
+            style={{
+              width: "20%",
+              transform: `translateX(${(value - 1) * 100}%)`,
+            }}
+          />
 
-        {/* Options */}
-        {RATING_ORDER.map((rating) => (
-          <button
-            key={rating}
-            onClick={() => onChange(rating)}
-            type="button"
-            className="relative z-10 flex items-center justify-center p-2 text-xs font-semibold transition-colors duration-150"
-          >
-            <span
-              className={
+          {/* Labels */}
+          {RATING_ORDER.map((rating) => (
+            <button
+              key={rating}
+              type="button"
+              onClick={() => onChange(rating)}
+              className={`relative z-10 text-center text-xs font-semibold transition-all duration-150 ${
                 rating === value
-                  ? "text-(--text)"
-                  : "text-(--muted) opacity-60"
-              }
+                  ? "scale-105 text-(--text)"
+                  : "opacity-50 text-(--muted)"
+              }`}
             >
               {RATING_LABELS[rating]}
-            </span>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
