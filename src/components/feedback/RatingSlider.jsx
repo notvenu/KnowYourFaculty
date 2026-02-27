@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { RATING_LABELS, RATING_ORDER, getTierFromRating, getTierShortLabel } from "../../lib/ratingConfig.js";
 
-function RatingSlider({ label, value, onChange, name }) {
+function RatingSlider({ label, value, onChange }) {
   return (
     <div className="group">
       <p className="mb-3 text-sm font-semibold text-(--text)">
