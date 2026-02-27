@@ -15,7 +15,16 @@ class PublicFacultyService {
   initError = null;
   queryCache = new Map();
   inflightRequests = new Map();
-  CACHE_TTL_MS = 60 * 1000;
+  CACHE_TTL_MS = 5 * 60 * 1000;
+  FACULTY_CACHE_TTL_MS = 10 * 60 * 1000;
+  facultyByIdCache = new Map();
+  departmentsCache = null;
+  departmentsCacheExpiry = 0;
+  statsCache = null;
+  statsCacheExpiry = 0;
+  trendingCache = null;
+  trendingCacheExpiry = 0;
+  trendingCacheLimit = null;
 
   constructor() {
     // Validate required configuration
@@ -178,38 +187,71 @@ class PublicFacultyService {
     sortBy,
     sortOrder,
   }) {
-    const queries = [Query.limit(5000)];
+    // Try server-side search first to avoid fetching all records
+    try {
+      const queries = [
+        Query.search("name", search),
+        Query.limit(limit),
+        Query.offset((page - 1) * limit),
+      ];
 
-    if (sortOrder === "desc") {
-      queries.push(Query.orderDesc(sortBy));
-    } else {
-      queries.push(Query.orderAsc(sortBy));
+      if (sortOrder === "desc") {
+        queries.push(Query.orderDesc(sortBy));
+      } else {
+        queries.push(Query.orderAsc(sortBy));
+      }
+
+      if (department && department !== "all") {
+        queries.push(Query.equal("department", department));
+      }
+
+      const response = await this.listFacultyRecords(queries);
+
+      return {
+        faculty: response.records || [],
+        total: response.total || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((response.total || 0) / limit),
+        hasNext: page * limit < (response.total || 0),
+        hasPrev: page > 1,
+      };
+    } catch {
+      // Fall back to client-side search using cached bulk fetch
+      // (triggered when server-side Query.search is unsupported or fails)
+      const queries = [Query.limit(5000)];
+
+      if (sortOrder === "desc") {
+        queries.push(Query.orderDesc(sortBy));
+      } else {
+        queries.push(Query.orderAsc(sortBy));
+      }
+
+      if (department && department !== "all") {
+        queries.push(Query.equal("department", department));
+      }
+
+      const response = await this.listFacultyRecords(queries);
+
+      const normalizedSearch = search.toLowerCase();
+      const filteredFaculty = (response.records || []).filter((faculty) =>
+        this.matchesSearch(faculty, normalizedSearch),
+      );
+
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedFaculty = filteredFaculty.slice(startIndex, endIndex);
+
+      return {
+        faculty: paginatedFaculty,
+        total: filteredFaculty.length,
+        page,
+        limit,
+        totalPages: Math.ceil(filteredFaculty.length / limit),
+        hasNext: endIndex < filteredFaculty.length,
+        hasPrev: page > 1,
+      };
     }
-
-    if (department && department !== "all") {
-      queries.push(Query.equal("department", department));
-    }
-
-    const response = await this.listFacultyRecords(queries);
-
-    const normalizedSearch = search.toLowerCase();
-    const filteredFaculty = (response.records || []).filter((faculty) =>
-      this.matchesSearch(faculty, normalizedSearch),
-    );
-
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedFaculty = filteredFaculty.slice(startIndex, endIndex);
-
-    return {
-      faculty: paginatedFaculty,
-      total: filteredFaculty.length,
-      page,
-      limit,
-      totalPages: Math.ceil(filteredFaculty.length / limit),
-      hasNext: endIndex < filteredFaculty.length,
-      hasPrev: page > 1,
-    };
   }
 
   matchesSearch(faculty, query) {
@@ -234,14 +276,26 @@ class PublicFacultyService {
    * @param {number|string} employeeId - Employee ID
    */
   async getFacultyById(employeeId) {
+    const cacheKey = String(employeeId);
+    const cached = this.facultyByIdCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
     try {
       const response = await this.listFacultyRecords([
         Query.equal("employeeId", Number(employeeId)),
       ]);
 
-      return response.records && response.records.length > 0
-        ? response.records[0]
-        : null;
+      const result =
+        response.records && response.records.length > 0
+          ? response.records[0]
+          : null;
+      this.facultyByIdCache.set(cacheKey, {
+        value: result,
+        expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+      });
+      return result;
     } catch (error) {
       // Return sample faculty if database not accessible
       const sampleData = this.getSampleFacultyData(1, 10);
@@ -256,6 +310,10 @@ class PublicFacultyService {
    * 🏢 Get all departments
    */
   async getDepartments() {
+    if (this.departmentsCache && this.departmentsCacheExpiry > Date.now()) {
+      return this.departmentsCache;
+    }
+
     try {
       const response = await this.listFacultyRecords([
         Query.select(["department"]),
@@ -270,7 +328,10 @@ class PublicFacultyService {
         ),
       ];
 
-      return departments.sort();
+      const result = departments.sort();
+      this.departmentsCache = result;
+      this.departmentsCacheExpiry = Date.now() + this.FACULTY_CACHE_TTL_MS;
+      return result;
     } catch (error) {
       // Silently return sample departments
       return this.getSampleDepartments();
@@ -281,6 +342,10 @@ class PublicFacultyService {
    * 📊 Get faculty statistics
    */
   async getFacultyStats() {
+    if (this.statsCache && this.statsCacheExpiry > Date.now()) {
+      return this.statsCache;
+    }
+
     try {
       const response = await this.listFacultyRecords([
         Query.select(["department", "designation"]),
@@ -308,6 +373,8 @@ class PublicFacultyService {
         }
       });
 
+      this.statsCache = stats;
+      this.statsCacheExpiry = Date.now() + this.FACULTY_CACHE_TTL_MS;
       return stats;
     } catch (error) {
       // Silently return sample stats
@@ -390,6 +457,14 @@ class PublicFacultyService {
    * 📈 Get trending research areas
    */
   async getTrendingResearch(limit = 10) {
+    if (
+      this.trendingCache &&
+      this.trendingCacheExpiry > Date.now() &&
+      this.trendingCacheLimit === limit
+    ) {
+      return this.trendingCache;
+    }
+
     try {
       const response = await this.listFacultyRecords([
         Query.select(["researchArea"]),
@@ -412,10 +487,15 @@ class PublicFacultyService {
         }
       });
 
-      return Object.entries(researchCounts)
+      const result = Object.entries(researchCounts)
         .sort(([, a], [, b]) => b - a)
         .slice(0, limit)
         .map(([area, count]) => ({ area, count }));
+
+      this.trendingCache = result;
+      this.trendingCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+      this.trendingCacheLimit = limit;
+      return result;
     } catch (error) {
       console.error("Error getting trending research:", error);
       return [];
