@@ -47,10 +47,10 @@ function ContactPage() {
 
   return (
     <div className="animate-fadeIn w-full max-w-4xl mx-auto px-4 py-8">
-      {/* Contact Us Section */}
-      <div className="mb-12">
-       {currentUser && (
-          <>
+      {currentUser && (
+        <>
+          {/* Contact Us Section */}
+          <div className="mb-12">
             <h1 className="text-4xl font-bold text-(--text) mb-4">
               Contact Us
             </h1>
@@ -84,13 +84,12 @@ function ContactPage() {
                 </a>
               ))}
             </div>
-          
-      </div>
+          </div>
 
-      {/* Divider */}
-      <div className="border-t border-(--line) my-12"></div>
+          {/* Divider */}
+          <div className="border-t border-(--line) my-12"></div>
         </>
-        )}
+      )}
       {/* Contribute Section */}
       <div>
         <h2 className="text-3xl font-bold text-(--text) mb-4">
