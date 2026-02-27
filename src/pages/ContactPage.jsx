@@ -53,7 +53,6 @@ function ContactPage() {
         <h1 className="text-4xl font-bold text-(--text) mb-4">
           Contact Us
         </h1>
-          <>
             <p className="text-lg text-(--muted) mb-8">
               Have questions or suggestions? Feel free to reach out through any of
               these channels:
@@ -84,7 +83,6 @@ function ContactPage() {
                 </a>
               ))}
             </div>
-          </>
         )}
       </div>
 
