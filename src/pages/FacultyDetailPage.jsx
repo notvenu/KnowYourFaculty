@@ -21,6 +21,9 @@ import RatingSlider from "../components/feedback/RatingSlider.jsx";
 import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
 import {
   RATING_FIELDS,
+  RATING_LABELS,
+  RATING_ORDER,
+  RATING_SHORT_LABELS,
   THEORY_FIELDS,
   LAB_FIELDS,
   ECS_FIELDS,
@@ -1078,6 +1081,14 @@ function FacultyDetailPage({ currentUser }) {
                       Ratings are optional. Share only the sections
                       (Theory/Lab/ECS) you have actually experienced.
                     </p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
+                      {RATING_ORDER.map((rating) => (
+                        <span key={rating}>
+                          <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
+                          {" = "}{RATING_LABELS[rating]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -1409,6 +1420,14 @@ function FacultyDetailPage({ currentUser }) {
                       Ratings are optional. Share only the sections
                       (Theory/Lab/ECS) you have actually experienced.
                     </p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
+                      {RATING_ORDER.map((rating) => (
+                        <span key={rating}>
+                          <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
+                          {" = "}{RATING_LABELS[rating]}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

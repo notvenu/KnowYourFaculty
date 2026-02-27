@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { RATING_LABELS, RATING_ORDER } from "../../lib/ratingConfig.js";
+import { RATING_LABELS, RATING_ORDER, RATING_SHORT_LABELS } from "../../lib/ratingConfig.js";
 
 function RatingSlider({ label, value, onChange, name }) {
   return (
@@ -34,7 +34,8 @@ function RatingSlider({ label, value, onChange, name }) {
                   : "opacity-50 text-(--muted)"
               }`}
             >
-              {RATING_LABELS[rating]}
+              <span className="hidden sm:inline">{RATING_LABELS[rating]}</span>
+              <span className="sm:hidden">{RATING_SHORT_LABELS[rating]}</span>
             </button>
           ))}
         </div>
