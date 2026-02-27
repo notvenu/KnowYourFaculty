@@ -52,37 +52,39 @@ function ContactPage() {
         <h1 className="text-4xl font-bold text-(--text) mb-4">
           Contact Us
         </h1>
-        <p className="text-lg text-(--muted) mb-8">
-          Have questions or suggestions? Feel free to reach out through any of
-          these channels:
-        </p>
-
-        {/* Contact Grid */}
         {currentUser && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {contactChannels.map((channel) => (
-              <a
-                key={channel.title}
-                href={channel.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--primary) transition-all hover:shadow-md"
-              >
-                <FontAwesomeIcon
-                  icon={channel.icon}
-                  className={`text-2xl shrink-0 ${channel.iconColor}`}
-                />
-                <div className="flex-1">
-                  <p className="font-semibold text-(--text)">
-                    {channel.title}
-                  </p>
-                  <p className="text-sm text-(--muted)">
-                    {channel.subtitle}
-                  </p>
-                </div>
-              </a>
-            ))}
-          </div>
+          <>
+            <p className="text-lg text-(--muted) mb-8">
+              Have questions or suggestions? Feel free to reach out through any of
+              these channels:
+            </p>
+
+            {/* Contact Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {contactChannels.map((channel) => (
+                <a
+                  key={channel.title}
+                  href={channel.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--primary) transition-all hover:shadow-md"
+                >
+                  <FontAwesomeIcon
+                    icon={channel.icon}
+                    className={`text-2xl shrink-0 ${channel.iconColor}`}
+                  />
+                  <div className="flex-1">
+                    <p className="font-semibold text-(--text)">
+                      {channel.title}
+                    </p>
+                    <p className="text-sm text-(--muted)">
+                      {channel.subtitle}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
