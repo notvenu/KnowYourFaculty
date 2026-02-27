@@ -27,20 +27,23 @@ export const TIER_SYSTEM = {
   S: {
     value: 5,
     label: "Loose-Good",
+    shortLabel: "L-G",
     color: "#16a34a",
     description: "Loose-God",
   },
-  A: { value: 4, label: "Loose", color: "#65a30d", description: "Loose" },
+  A: { value: 4, label: "Loose", shortLabel: "L", color: "#65a30d", description: "Loose" },
   B: {
     value: 3,
     label: "Moderate",
+    shortLabel: "M",
     color: "#ca8a04",
     description: "Moderate",
   },
-  C: { value: 2, label: "Rod", color: "#ea580c", description: "Rod" },
+  C: { value: 2, label: "Rod", shortLabel: "R", color: "#ea580c", description: "Rod" },
   D: {
     value: 1,
     label: "Rod-God",
+    shortLabel: "R-G",
     color: "#dc2626",
     description: "Rod-God",
   },
@@ -79,6 +82,10 @@ export function getTierColor(tier) {
 
 export function getTierLabel(tier) {
   return TIER_SYSTEM[tier]?.label || TIER_SYSTEM.B.label;
+}
+
+export function getTierShortLabel(tier) {
+  return TIER_SYSTEM[tier]?.shortLabel || TIER_SYSTEM.B.shortLabel;
 }
 
 export const THEORY_NOTE_OPTIONS = ["No", "Yes"];
