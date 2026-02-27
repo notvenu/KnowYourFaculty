@@ -84,13 +84,13 @@ function ContactPage() {
                 </a>
               ))}
             </div>
-          </>
-        )}
+          
       </div>
 
       {/* Divider */}
       <div className="border-t border-(--line) my-12"></div>
-
+        </>
+        )}
       {/* Contribute Section */}
       <div>
         <h2 className="text-3xl font-bold text-(--text) mb-4">
