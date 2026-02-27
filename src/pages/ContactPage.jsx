@@ -49,10 +49,10 @@ function ContactPage() {
     <div className="animate-fadeIn w-full max-w-4xl mx-auto px-4 py-8">
       {/* Contact Us Section */}
       <div className="mb-12">
+       {currentUser && (
         <h1 className="text-4xl font-bold text-(--text) mb-4">
           Contact Us
         </h1>
-        {currentUser && (
           <>
             <p className="text-lg text-(--muted) mb-8">
               Have questions or suggestions? Feel free to reach out through any of
