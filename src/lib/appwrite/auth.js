@@ -3,12 +3,18 @@ import { Client, Account, OAuthProvider } from "appwrite";
 
 export const ALLOWED_EMAIL_DOMAIN = "vitapstudent.ac.in";
 
+// Matches VIT-AP B.Tech student emails: <name>.<YY><branchcode><rollnumber>@vitapstudent.ac.in
+// e.g. venu.23bcb7175@vitapstudent.ac.in
+const STUDENT_EMAIL_PATTERN = new RegExp(
+  `^[a-z]+\\.\\d{2}[a-z]{2,5}\\d{3,6}@${ALLOWED_EMAIL_DOMAIN.replace(".", "\\.")}$`,
+);
+
 function isAllowedEmailInternal(email) {
   const normalized = String(email || "")
     .trim()
     .toLowerCase();
   if (!normalized) return false;
-  return normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`);
+  return STUDENT_EMAIL_PATTERN.test(normalized);
 }
 
 const AUTH_CHECK_KEY = "kyf_auth_check";
