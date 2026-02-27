@@ -4,8 +4,9 @@ const ALLOWED_EMAIL_DOMAIN = "vitapstudent.ac.in";
 
 // Matches VIT-AP student emails: <name>.<YY><branchcode><rollnumber>@vitapstudent.ac.in
 // e.g. venu.23bcb7175@vitapstudent.ac.in, john.23bce1234@vitapstudent.ac.in, alice.24mic5678@vitapstudent.ac.in
+// PhD program codes (e.g. phd) are explicitly excluded.
 const STUDENT_EMAIL_PATTERN = new RegExp(
-    `^[a-z]+\\.\\d{2}[a-z]{2,5}\\d{3,6}@${ALLOWED_EMAIL_DOMAIN.replace(".", "\\.")}$`
+    `^[a-z]+\\.\\d{2}(?!phd)[a-z]{2,5}\\d{3,6}@${ALLOWED_EMAIL_DOMAIN.replace(".", "\\.")}$`
 );
 
 function parseEventUser() {
