@@ -1036,7 +1036,7 @@ function FacultyDetailPage({ currentUser }) {
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 border-t border-(--line) pt-6">
+                <div className="flex justify-center sm:justify-end gap-3 border-t border-(--line) pt-6">
                   <button
                     type="button"
                     onClick={() => {
@@ -1081,14 +1081,14 @@ function FacultyDetailPage({ currentUser }) {
                       Ratings are optional. Share only the sections
                       (Theory/Lab/ECS) you have actually experienced.
                     </p>
-                    <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
-                      {RATING_ORDER.map((rating) => (
-                        <span key={rating}>
-                          <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
-                          {" = "}{RATING_LABELS[rating]}
-                        </span>
-                      ))}
-                    </div>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
+                    {RATING_ORDER.map((rating) => (
+                      <span key={rating}>
+                        <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
+                        {" = "}{RATING_LABELS[rating]}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -1380,7 +1380,7 @@ function FacultyDetailPage({ currentUser }) {
                   ) : null}
                 </div>
 
-                <div className="flex justify-end gap-3 border-t border-(--line) pt-6">
+                <div className="flex justify-center sm:justify-end gap-3 border-t border-(--line) pt-6">
                   <button
                     type="button"
                     onClick={() => {
@@ -1420,14 +1420,14 @@ function FacultyDetailPage({ currentUser }) {
                       Ratings are optional. Share only the sections
                       (Theory/Lab/ECS) you have actually experienced.
                     </p>
-                    <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
-                      {RATING_ORDER.map((rating) => (
-                        <span key={rating}>
-                          <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
-                          {" = "}{RATING_LABELS[rating]}
-                        </span>
-                      ))}
-                    </div>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
+                    {RATING_ORDER.map((rating) => (
+                      <span key={rating}>
+                        <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
+                        {" = "}{RATING_LABELS[rating]}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -1743,7 +1743,7 @@ function FacultyDetailPage({ currentUser }) {
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 border-t border-(--line) pt-6">
+                <div className="flex justify-center sm:justify-end gap-3 border-t border-(--line) pt-6">
                   <button
                     type="button"
                     onClick={() => {
