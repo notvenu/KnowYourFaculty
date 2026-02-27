@@ -58,6 +58,11 @@ export const RATING_LABELS = {
   5: "Loose-God",
 };
 
+// Abbreviated labels for compact display (e.g., mobile)
+export const RATING_SHORT_LABELS = Object.fromEntries(
+  Object.values(TIER_SYSTEM).map(({ value, shortLabel }) => [value, shortLabel])
+);
+
 export const RATING_ORDER = [1, 2, 3, 4, 5];
 
 // Convert numeric rating to tier
