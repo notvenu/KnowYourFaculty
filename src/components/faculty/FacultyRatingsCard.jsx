@@ -3,8 +3,10 @@ import {
   THEORY_FIELDS,
   LAB_FIELDS,
   ECS_FIELDS,
+  TIER_SYSTEM,
   getTierFromRating,
   getTierLabel,
+  getTierShortLabel,
   getTierColor,
 } from "../../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -243,7 +245,16 @@ export default function FacultyRatingsCard({
               }}
             >
               {hasUser
-                ? getTierLabel(getTierFromRating(ratingSummary.overallAverage))
+                ? (
+                  <>
+                    <span className="sm:hidden">
+                      {getTierShortLabel(getTierFromRating(ratingSummary.overallAverage))}
+                    </span>
+                    <span className="hidden sm:inline">
+                      {getTierLabel(getTierFromRating(ratingSummary.overallAverage))}
+                    </span>
+                  </>
+                )
                 : `${ratingSummary.overallAverage?.toFixed(1) ?? "—"}`}
             </span>
             {hasUser ? (
@@ -262,6 +273,22 @@ export default function FacultyRatingsCard({
             {ratingSummary.totalRatings}{" "}
             {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
           </p>
+          {hasUser && (
+            <div className="sm:hidden mt-2 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[10px] text-(--muted)">
+              {[
+                { tier: "D", abbr: "R-G", full: "Rod-God" },
+                { tier: "C", abbr: "R", full: "Rod" },
+                { tier: "B", abbr: "M", full: "Moderate" },
+                { tier: "A", abbr: "L", full: "Loose" },
+                { tier: "S", abbr: "L-G", full: "Loose-God" },
+              ].map(({ tier, abbr, full }) => (
+                <span key={tier}>
+                  <span className="font-bold" style={{ color: TIER_SYSTEM[tier].color }}>{abbr}</span>
+                  {" "}{full}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
