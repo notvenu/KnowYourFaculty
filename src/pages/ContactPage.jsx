@@ -1,4 +1,5 @@
 ﻿// eslint-disable tailwindcss/no-custom-classname
+import { useSelector } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faGithub,
@@ -8,6 +9,7 @@ import {
 import { faEnvelope } from "@fortawesome/free-solid-svg-icons";
 
 function ContactPage() {
+  const currentUser = useSelector((state) => state.auth.currentUser);
   const contactChannels = [
     {
       title: "Email",
@@ -56,30 +58,32 @@ function ContactPage() {
         </p>
 
         {/* Contact Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {contactChannels.map((channel) => (
-            <a
-              key={channel.title}
-              href={channel.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--primary) transition-all hover:shadow-md"
-            >
-              <FontAwesomeIcon
-                icon={channel.icon}
-                className={`text-2xl shrink-0 ${channel.iconColor}`}
-              />
-              <div className="flex-1">
-                <p className="font-semibold text-(--text)">
-                  {channel.title}
-                </p>
-                <p className="text-sm text-(--muted)">
-                  {channel.subtitle}
-                </p>
-              </div>
-            </a>
-          ))}
-        </div>
+        {currentUser && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {contactChannels.map((channel) => (
+              <a
+                key={channel.title}
+                href={channel.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--primary) transition-all hover:shadow-md"
+              >
+                <FontAwesomeIcon
+                  icon={channel.icon}
+                  className={`text-2xl shrink-0 ${channel.iconColor}`}
+                />
+                <div className="flex-1">
+                  <p className="font-semibold text-(--text)">
+                    {channel.title}
+                  </p>
+                  <p className="text-sm text-(--muted)">
+                    {channel.subtitle}
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Divider */}
