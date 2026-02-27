@@ -11,8 +11,8 @@ function ContactPage() {
   const contactChannels = [
     {
       title: "Email",
-      subtitle: "venu.kasibhatia@gmail.com",
-      href: "mailto:venu.kasibhatia@gmail.com",
+      subtitle: "venu.kasibhatla@gmail.com",
+      href: "mailto:venu.kasibhatla@gmail.com",
       icon: faEnvelope,
       bgColor: "bg-red-100",
       iconColor: "text-red-600",
@@ -27,7 +27,7 @@ function ContactPage() {
     },
     {
       title: "LinkedIn",
-      subtitle: "Venu Bhargava Jishith Kasibhatia",
+      subtitle: "Venu Bhargava Jishith Kasibhatla",
       href: "https://linkedin.com/in/venu-kasibhatla",
       icon: faLinkedin,
       bgColor: "bg-blue-100",
@@ -35,7 +35,7 @@ function ContactPage() {
     },
     {
       title: "Instagram",
-      subtitle: "@veeennuuu",
+      subtitle: "@veeennnuuu",
       href: "https://instagram.com/veeennnuuu",
       icon: faInstagram,
       bgColor: "bg-pink-100",
