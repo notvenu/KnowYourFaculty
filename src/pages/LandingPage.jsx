@@ -1,7 +1,9 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 function LandingPage({ onOpenLogin }) {
+  const currentUser = useSelector((state) => state.auth.currentUser);
   const features = [
     {
       icon: "01",
@@ -60,13 +62,15 @@ function LandingPage({ onOpenLogin }) {
             >
               Explore Faculty
             </Link>
-            <button
-              type="button"
-              onClick={onOpenLogin}
-              className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--panel) px-7 py-3.5 text-sm font-semibold text-(--text) transition hover:bg-(--bg-elev)"
-            >
-              Login / Register
-            </button>
+            {!currentUser && (
+              <button
+                type="button"
+                onClick={onOpenLogin}
+                className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--panel) px-7 py-3.5 text-sm font-semibold text-(--text) transition hover:bg-(--bg-elev)"
+              >
+                Login / Register
+              </button>
+            )}
           </div>
         </div>
       </section>
