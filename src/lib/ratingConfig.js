@@ -26,7 +26,7 @@ export const RATING_FIELDS = [...THEORY_FIELDS, ...LAB_FIELDS, ...ECS_FIELDS];
 export const TIER_SYSTEM = {
   S: {
     value: 5,
-    label: "Loose-Good",
+    label: "Loose-God",
     shortLabel: "L-G",
     color: "#16a34a",
     description: "Loose-God",
