@@ -55,6 +55,8 @@ class FacultyFeedbackService {
   tablesDB;
   initialized = false;
   initError = null;
+  feedbackCache = new Map();
+  FEEDBACK_CACHE_TTL_MS = 2 * 60 * 1000;
 
   constructor() {
     // Validate required configuration
@@ -303,16 +305,27 @@ class FacultyFeedbackService {
   }
 
   async getFacultyFeedback(facultyId) {
+    const cacheKey = String(facultyId);
+    const cached = this.feedbackCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
     const [reviews, ratings] = await Promise.all([
       this.getFacultyReviews(facultyId),
       this.getFacultyRatings(facultyId),
     ]);
 
-    return {
+    const result = {
       reviews,
       ratings,
       ratingSummary: this.buildRatingSummary(ratings),
     };
+    this.feedbackCache.set(cacheKey, {
+      value: result,
+      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    });
+    return result;
   }
 
   async getUserFacultyFeedback(userId, facultyId) {
@@ -390,15 +403,19 @@ class FacultyFeedbackService {
 
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
     const permissions = getRowPermissions(userId);
+    let result;
     if (existing?.$id) {
-      return this.updateRow(
+      result = await this.updateRow(
         this.feedbackTableId,
         existing.$id,
         payload,
         permissions,
       );
+    } else {
+      result = await this.createRow(this.feedbackTableId, payload, permissions);
     }
-    return this.createRow(this.feedbackTableId, payload, permissions);
+    this.feedbackCache.delete(String(facultyId));
+    return result;
   }
 
   async submitRating({
@@ -456,17 +473,20 @@ class FacultyFeedbackService {
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
     if (!existing?.$id) return null;
     try {
-      return await this.tablesDB.deleteRow(
+      const result = await this.tablesDB.deleteRow(
         clientConfig.appwriteDBId,
         this.feedbackTableId,
         existing.$id,
       );
+      return result;
     } catch {
       return this.databases.deleteDocument(
         clientConfig.appwriteDBId,
         this.feedbackTableId,
         existing.$id,
       );
+    } finally {
+      this.feedbackCache.delete(String(facultyId));
     }
   }
 

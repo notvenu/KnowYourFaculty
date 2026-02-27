@@ -22,6 +22,11 @@ class PollService {
     this.pollTableId = import.meta.env.VITE_APPWRITE_POLL_TABLE_ID || "poll";
     this.pollVotesTableId =
       import.meta.env.VITE_APPWRITE_POLL_VOTES_TABLE_ID || "poll_votes";
+
+    this.POLL_CACHE_TTL_MS = 30 * 1000;
+    this.pollResultsCache = new Map();
+    this.activePollsCache = null;
+    this.activePollsCacheExpiry = 0;
   }
 
   /**
@@ -63,19 +68,26 @@ class PollService {
 
     const permissions = getRowPermissions(userId);
 
-    return await this.databases.createDocument(
+    const result = await this.databases.createDocument(
       this.databaseId,
       this.pollTableId,
       ID.unique(),
       payload,
       permissions,
     );
+    this.activePollsCache = null;
+    this.activePollsCacheExpiry = 0;
+    return result;
   }
 
   /**
    * Get all active polls
    */
   async getActivePolls() {
+    if (this.activePollsCache && this.activePollsCacheExpiry > Date.now()) {
+      return this.activePollsCache;
+    }
+
     try {
       const response = await this.databases.listDocuments(
         this.databaseId,
@@ -86,6 +98,8 @@ class PollService {
           Query.limit(100),
         ],
       );
+      this.activePollsCache = response.documents;
+      this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
       return response.documents;
     } catch (error) {
       console.error("Error fetching active polls:", error);
@@ -202,23 +216,27 @@ class PollService {
 
     if (existingVote?.$id) {
       // Update existing vote
-      return await this.databases.updateDocument(
+      const result = await this.databases.updateDocument(
         this.databaseId,
         this.pollVotesTableId,
         existingVote.$id,
         payload,
         permissions,
       );
-    } else {
-      // Create new vote
-      return await this.databases.createDocument(
-        this.databaseId,
-        this.pollVotesTableId,
-        ID.unique(),
-        payload,
-        permissions,
-      );
+      this.pollResultsCache.delete(String(pollId));
+      return result;
     }
+
+    // Create new vote
+    const result = await this.databases.createDocument(
+      this.databaseId,
+      this.pollVotesTableId,
+      ID.unique(),
+      payload,
+      permissions,
+    );
+    this.pollResultsCache.delete(String(pollId));
+    return result;
   }
 
   /**
@@ -246,11 +264,17 @@ class PollService {
    * Get all votes for a poll with aggregated results
    */
   async getPollResults(pollId) {
+    const id = String(pollId);
+    const cached = this.pollResultsCache.get(id);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
     try {
       const response = await this.databases.listDocuments(
         this.databaseId,
         this.pollVotesTableId,
-        [Query.equal("pollId", String(pollId)), Query.limit(5000)],
+        [Query.equal("pollId", id), Query.limit(5000)],
       );
 
       const votes = response.documents;
@@ -262,11 +286,17 @@ class PollService {
         }
       });
 
-      return {
+      const result = {
         votes,
         voteCounts,
         totalVotes: votes.length,
       };
+
+      this.pollResultsCache.set(id, {
+        value: result,
+        expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
+      });
+      return result;
     } catch (error) {
       console.error("Error fetching poll results:", error);
       return {
@@ -282,12 +312,15 @@ class PollService {
    */
   async updatePollStatus(pollId, isActive) {
     try {
-      return await this.databases.updateDocument(
+      const result = await this.databases.updateDocument(
         this.databaseId,
         this.pollTableId,
         String(pollId),
         { isActive: Boolean(isActive) },
       );
+      this.activePollsCache = null;
+      this.activePollsCacheExpiry = 0;
+      return result;
     } catch (error) {
       console.error("Error updating poll status:", error);
       throw error;
@@ -337,6 +370,9 @@ class PollService {
         this.pollTableId,
         String(pollId),
       );
+      this.activePollsCache = null;
+      this.activePollsCacheExpiry = 0;
+      this.pollResultsCache.delete(String(pollId));
       return true;
     } catch (error) {
       console.error("Error deleting poll:", error);
