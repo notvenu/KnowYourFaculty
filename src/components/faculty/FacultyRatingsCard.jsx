@@ -273,8 +273,8 @@ export default function FacultyRatingsCard({
             {ratingSummary.totalRatings}{" "}
             {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
           </p>
-          {hasUser && (
-            <div className="sm:hidden mt-2 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[10px] text-(--muted)">
+          {hasUser && Object.values(expandedSections).some(Boolean) && (
+            <div className="sm:hidden mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1 rounded-lg bg-(--panel) px-3 py-2">
               {[
                 { tier: "D", abbr: "R-G", full: "Rod-God" },
                 { tier: "C", abbr: "R", full: "Rod" },
@@ -282,9 +282,9 @@ export default function FacultyRatingsCard({
                 { tier: "A", abbr: "L", full: "Loose" },
                 { tier: "S", abbr: "L-G", full: "Loose-God" },
               ].map(({ tier, abbr, full }) => (
-                <span key={tier}>
-                  <span className="font-bold" style={{ color: TIER_SYSTEM[tier].color }}>{abbr}</span>
-                  {" "}{full}
+                <span key={tier} className="flex items-center gap-1">
+                  <span className="text-sm font-bold" style={{ color: TIER_SYSTEM[tier].color }}>{abbr}</span>
+                  <span className="text-xs text-(--muted)">{full}</span>
                 </span>
               ))}
             </div>
