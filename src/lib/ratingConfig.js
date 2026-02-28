@@ -96,8 +96,8 @@ export function getTierShortLabel(tier) {
 export const THEORY_NOTE_OPTIONS = ["No", "Yes"];
 
 export const LAB_NOTE_OPTIONS = [
-  { value: "None", label: "None" },
-  { value: "Soft", label: "Soft Copy" },
-  { value: "Hard", label: "Hard Copy" },
-  { value: "Both", label: "Both" },
+  { value: "None", label: "None", shortLabel: "None" },
+  { value: "Soft", label: "Soft Copy", shortLabel: "Soft" },
+  { value: "Hard", label: "Hard Copy", shortLabel: "Hard" },
+  { value: "Both", label: "Both", shortLabel: "Both" },
 ];

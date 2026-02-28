@@ -1219,7 +1219,7 @@ function FacultyDetailPage({ currentUser }) {
                       ))}
                       <div>
                         <p className="mb-3 text-sm font-semibold text-(--text)">
-                          Lab Obervation/Notes Type?
+                          Lab Observation/Notes Type?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
@@ -1253,7 +1253,8 @@ function FacultyDetailPage({ currentUser }) {
                                     : "opacity-50 text-(--muted)"
                                 }`}
                               >
-                                {opt.label}
+                                <span className="hidden sm:inline">{opt.label}</span>
+                                <span className="sm:hidden">{opt.shortLabel}</span>
                               </span>
                             ))}
                           </div>
@@ -1592,7 +1593,8 @@ function FacultyDetailPage({ currentUser }) {
                                     : "opacity-50 text-(--muted)"
                                 }`}
                               >
-                                {opt.label}
+                                <span className="hidden sm:inline">{opt.label}</span>
+                                <span className="sm:hidden">{opt.shortLabel}</span>
                               </span>
                             ))}
                           </div>
