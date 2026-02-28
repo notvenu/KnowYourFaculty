@@ -30,6 +30,7 @@ import {
   THEORY_NOTE_OPTIONS,
   LAB_NOTE_OPTIONS,
   getTierFromRating,
+  getTierColor,
 } from "../lib/ratingConfig.js";
 import { stripEmoji, containsDisallowed } from "../lib/reviewFilter.js";
 
@@ -65,6 +66,21 @@ function parseRatingInput(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 1 || n > 5) return 3;
   return n;
+}
+
+function RatingLegend() {
+  return (
+    <div className="sm:hidden flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-(--panel) px-3 py-2">
+      {RATING_ORDER.map((rating) => (
+        <span key={rating} className="flex items-center gap-1">
+          <span className="text-sm font-bold" style={{ color: getTierColor(getTierFromRating(rating)) }}>
+            {RATING_SHORT_LABELS[rating]}
+          </span>
+          <span className="text-xs text-(--muted)">{RATING_LABELS[rating]}</span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function FacultyDetailPage({ currentUser }) {
@@ -1082,14 +1098,6 @@ function FacultyDetailPage({ currentUser }) {
                       (Theory/Lab/ECS) you have actually experienced.
                     </p>
                   </div>
-                  <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
-                    {RATING_ORDER.map((rating) => (
-                      <span key={rating}>
-                        <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
-                        {" = "}{RATING_LABELS[rating]}
-                      </span>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Theory Section */}
@@ -1116,6 +1124,7 @@ function FacultyDetailPage({ currentUser }) {
                   </button>
                   {expandedSections.theory && (
                     <div className="bg-(--bg-elev) p-4 space-y-4">
+                      <RatingLegend />
                       {THEORY_FIELDS.map((field) => (
                         <RatingSlider
                           key={field.key}
@@ -1203,6 +1212,7 @@ function FacultyDetailPage({ currentUser }) {
                   </button>
                   {expandedSections.lab && (
                     <div className="bg-(--bg-elev) p-4 space-y-4">
+                      <RatingLegend />
                       {LAB_FIELDS.map((field) => (
                         <RatingSlider
                           key={field.key}
@@ -1312,6 +1322,7 @@ function FacultyDetailPage({ currentUser }) {
                   </button>
                   {expandedSections.ecs && (
                     <div className="bg-(--bg-elev) p-4 space-y-4">
+                      <RatingLegend />
                       {ECS_FIELDS.map((field) => (
                         <RatingSlider
                           key={field.key}
@@ -1422,14 +1433,6 @@ function FacultyDetailPage({ currentUser }) {
                       (Theory/Lab/ECS) you have actually experienced.
                     </p>
                   </div>
-                  <div className="mt-1.5 flex flex-wrap gap-x-2 text-[10px] text-(--muted) sm:hidden">
-                    {RATING_ORDER.map((rating) => (
-                      <span key={rating}>
-                        <span className="font-semibold">{RATING_SHORT_LABELS[rating]}</span>
-                        {" = "}{RATING_LABELS[rating]}
-                      </span>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Theory Section */}
@@ -1456,6 +1459,7 @@ function FacultyDetailPage({ currentUser }) {
                   </button>
                   {expandedSections.theory && (
                     <div className="bg-(--bg-elev) p-4 space-y-4">
+                      <RatingLegend />
                       {THEORY_FIELDS.map((field) => (
                         <RatingSlider
                           key={field.key}
@@ -1543,6 +1547,7 @@ function FacultyDetailPage({ currentUser }) {
                   </button>
                   {expandedSections.lab && (
                     <div className="bg-(--bg-elev) p-4 space-y-4">
+                      <RatingLegend />
                       {LAB_FIELDS.map((field) => (
                         <RatingSlider
                           key={field.key}
@@ -1652,6 +1657,7 @@ function FacultyDetailPage({ currentUser }) {
                   </button>
                   {expandedSections.ecs && (
                     <div className="bg-(--bg-elev) p-4 space-y-4">
+                      <RatingLegend />
                       {ECS_FIELDS.map((field) => (
                         <RatingSlider
                           key={field.key}
