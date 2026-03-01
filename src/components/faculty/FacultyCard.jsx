@@ -23,8 +23,13 @@ function formatDepartmentLine(department, subDepartment) {
 }
 
 function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
+  const facultyName = String(faculty?.name || "").trim();
+  const facultyEmployeeId = String(faculty?.employeeId || "").trim();
+  if (!facultyName || !facultyEmployeeId) return null;
+
   const photoUrl = publicFacultyService.getFacultyPhotoUrl(faculty.photoFileId);
-  const placeholderUrl = publicFacultyService.getPlaceholderPhoto();
+  const placeholderUrl =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='%23d1d5db'/%3E%3Cg transform='translate(400 300)'%3E%3Ccircle r='95' fill='%23b7bcc4'/%3E%3C/g%3E%3C/svg%3E";
   const overall =
     overallRating != null && Number.isFinite(overallRating)
       ? overallRating
@@ -39,7 +44,7 @@ function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
 
   return (
     <Link
-      to={`/faculty/${faculty.employeeId}`}
+      to={`/faculty/${facultyEmployeeId}`}
       data-card
       style={hasRating ? { "--tier-color": tierColor } : undefined}
       className={`group flex h-full min-w-0 flex-col overflow-hidden rounded-lg border-b border-(--line) sm:border sm:border-(--line) ${
@@ -51,7 +56,7 @@ function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
       <div className="aspect-4/3 overflow-hidden rounded-t-lg bg-(--panel) relative">
         <img
           src={photoUrl}
-          alt={faculty.name}
+          alt={facultyName}
           className="h-full w-full object-cover object-[50%_20%] transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
@@ -61,7 +66,7 @@ function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
       </div>
       <div className="flex flex-1 flex-col space-y-2 p-3 sm:space-y-2.5 sm:p-4 md:p-5">
         <h2 className="truncate text-base font-bold leading-tight text-(--text) sm:text-lg">
-          {faculty.name}
+          {facultyName}
         </h2>
         <div className="space-y-0">
           <p className="line-clamp-1 text-xs text-(--muted) sm:text-sm">
