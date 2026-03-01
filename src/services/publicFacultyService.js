@@ -5,6 +5,7 @@ import {
   orderBy,
   limit,
   getDocs,
+  documentId,
   Query as FirestoreQuery,
   QueryConstraint,
 } from "firebase/firestore";
@@ -33,6 +34,13 @@ class PublicFacultyService {
   trendingCache = null;
   trendingCacheExpiry = 0;
   trendingCacheLimit = null;
+  fullFacultyCache = null;
+  fullFacultyCacheExpiry = 0;
+  fullFacultyInflight = null;
+  facultyByDocIdCache = new Map();
+  PERSISTENT_CACHE_PREFIX = "kyf.publicFaculty";
+  PERSISTENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  FULL_FACULTY_LIMIT = 5000;
 
   constructor() {
     // Validate required configuration
@@ -43,9 +51,200 @@ class PublicFacultyService {
 
     try {
       this.initialized = true;
+      this.hydrateFullFacultyFromPersistentCache();
     } catch (error) {
       this.initError = error?.message || "Failed to initialize Firebase client";
     }
+  }
+
+  getStorage() {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage || null;
+    } catch {
+      return null;
+    }
+  }
+
+  getPersistentKey(suffix) {
+    return `${this.PERSISTENT_CACHE_PREFIX}:${suffix}`;
+  }
+
+  readPersistentCache(suffix) {
+    const storage = this.getStorage();
+    if (!storage) return null;
+    try {
+      const raw = storage.getItem(this.getPersistentKey(suffix));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.expiresAt <= Date.now()) {
+        storage.removeItem(this.getPersistentKey(suffix));
+        return null;
+      }
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  }
+
+  writePersistentCache(suffix, value, ttlMs = this.PERSISTENT_CACHE_TTL_MS) {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      storage.setItem(
+        this.getPersistentKey(suffix),
+        JSON.stringify({
+          value,
+          expiresAt: Date.now() + ttlMs,
+        }),
+      );
+    } catch {
+      // ignore storage write issues
+    }
+  }
+
+  hydrateFullFacultyFromPersistentCache() {
+    const persisted = this.readPersistentCache("fullFaculty:v1");
+    if (!Array.isArray(persisted) || persisted.length === 0) return;
+    this.fullFacultyCache = persisted;
+    this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+    persisted.forEach((row) => {
+      if (row?.$id) {
+        this.facultyByDocIdCache.set(String(row.$id), {
+          value: row,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+      }
+      const employeeId = Number(row?.employeeId);
+      if (Number.isFinite(employeeId)) {
+        this.facultyByIdCache.set(String(employeeId), {
+          value: row,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+      }
+    });
+  }
+
+  async getFullFacultySnapshot() {
+    if (this.fullFacultyCache && this.fullFacultyCacheExpiry > Date.now()) {
+      return this.fullFacultyCache;
+    }
+
+    if (this.fullFacultyInflight) {
+      return this.fullFacultyInflight;
+    }
+
+    this.fullFacultyInflight = (async () => {
+      const q = query(
+        collection(db, clientConfig.firebaseFacultyCollection),
+        limit(this.FULL_FACULTY_LIMIT),
+      );
+      const snapshot = await getDocs(q);
+      const records = snapshot.docs.map((docSnapshot) => ({
+        $id: docSnapshot.id,
+        ...docSnapshot.data(),
+      }));
+
+      this.fullFacultyCache = records;
+      this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+      this.writePersistentCache("fullFaculty:v1", records);
+
+      records.forEach((row) => {
+        if (row?.$id) {
+          this.facultyByDocIdCache.set(String(row.$id), {
+            value: row,
+            expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+          });
+        }
+        const employeeId = Number(row?.employeeId);
+        if (Number.isFinite(employeeId)) {
+          this.facultyByIdCache.set(String(employeeId), {
+            value: row,
+            expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+          });
+        }
+      });
+
+      return records;
+    })();
+
+    try {
+      return await this.fullFacultyInflight;
+    } finally {
+      this.fullFacultyInflight = null;
+    }
+  }
+
+  toSortTime(value) {
+    if (!value) return 0;
+    if (typeof value?.toDate === "function") {
+      const date = value.toDate();
+      const time = date?.getTime?.();
+      return Number.isFinite(time) ? time : 0;
+    }
+    const date = new Date(value);
+    const time = date.getTime();
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  sortFacultyRows(rows, sortBy = "updatedAt", sortOrder = "desc") {
+    const normalizedSortField =
+      sortBy === "$updatedAt" ? "updatedAt" : sortBy || "updatedAt";
+    const isDesc = sortOrder === "desc";
+
+    return [...(rows || [])].sort((a, b) => {
+      const aValue = a?.[normalizedSortField];
+      const bValue = b?.[normalizedSortField];
+
+      if (normalizedSortField === "updatedAt" || normalizedSortField === "createdAt") {
+        const diff = this.toSortTime(aValue) - this.toSortTime(bValue);
+        return isDesc ? -diff : diff;
+      }
+
+      const aText = String(aValue ?? "").toLowerCase();
+      const bText = String(bValue ?? "").toLowerCase();
+      const compared = aText.localeCompare(bText);
+      return isDesc ? -compared : compared;
+    });
+  }
+
+  buildPaginatedFacultyResponse(rows, page, pageSize) {
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedRows = rows.slice(startIndex, endIndex);
+    return {
+      faculty: paginatedRows,
+      total: rows.length,
+      page,
+      limit: pageSize,
+      totalPages: Math.ceil(rows.length / pageSize),
+      hasNext: endIndex < rows.length,
+      hasPrev: page > 1,
+    };
+  }
+
+  buildFacultyListFromSnapshot({
+    rows = [],
+    page = 1,
+    pageSize = 20,
+    search = "",
+    department = "all",
+    sortBy = "updatedAt",
+    sortOrder = "desc",
+  }) {
+    let filteredRows = [...rows];
+    if (department && department !== "all") {
+      filteredRows = filteredRows.filter((item) => item?.department === department);
+    }
+    const trimmedSearch = String(search || "").trim();
+    if (trimmedSearch) {
+      const normalizedSearch = trimmedSearch.toLowerCase();
+      filteredRows = filteredRows.filter((item) =>
+        this.matchesSearch(item, normalizedSearch),
+      );
+    }
+    filteredRows = this.sortFacultyRows(filteredRows, sortBy, sortOrder);
+    return this.buildPaginatedFacultyResponse(filteredRows, page, pageSize);
   }
 
   async listFacultyRecords(constraints = []) {
@@ -121,11 +320,27 @@ class PublicFacultyService {
     try {
       const trimmedSearch = search.trim();
 
+      // For search queries, always use the full snapshot so results are complete.
+      // This avoids false "no results" caused by capped partial fetches.
       if (trimmedSearch) {
-        return await this.getFacultyListWithClientSearch({
+        const allRows = await this.getFullFacultySnapshot();
+        return this.buildFacultyListFromSnapshot({
+          rows: allRows,
           page,
-          limit: pageSize,
-          search: trimmedSearch,
+          pageSize,
+          search,
+          department,
+          sortBy,
+          sortOrder,
+        });
+      }
+
+      if (pageSize >= 1000) {
+        const allRows = await this.getFullFacultySnapshot();
+        return this.buildFacultyListFromSnapshot({
+          rows: allRows,
+          page,
+          pageSize,
           department,
           sortBy,
           sortOrder,
@@ -228,8 +443,18 @@ class PublicFacultyService {
     }
   }
 
+  normalizeSearchText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   matchesSearch(faculty, query) {
-    if (!query) return true;
+    const normalizedQuery = this.normalizeSearchText(query);
+    if (!normalizedQuery) return true;
+    const tokens = normalizedQuery.split(" ").filter(Boolean);
 
     const searchable = [
       faculty.name,
@@ -239,10 +464,15 @@ class PublicFacultyService {
       faculty.employeeId,
       faculty.employeeid,
     ]
-      .filter((value) => value !== null && value !== undefined)
-      .map((value) => String(value).toLowerCase());
+      .filter((value) => value !== null && value !== undefined);
 
-    return searchable.some((value) => value.includes(query));
+    const normalizedSearchable = searchable
+      .map((value) => this.normalizeSearchText(value))
+      .filter(Boolean);
+
+    return normalizedSearchable.some((value) =>
+      tokens.every((token) => value.includes(token)),
+    );
   }
 
   /**
@@ -257,6 +487,19 @@ class PublicFacultyService {
     }
 
     try {
+      const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v1");
+      if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
+        const match =
+          fullSnapshot.find(
+            (row) => Number(row?.employeeId) === Number(employeeId),
+          ) || null;
+        this.facultyByIdCache.set(cacheKey, {
+          value: match,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+        return match;
+      }
+
       const response = await this.listFacultyRecords([
         where("employeeId", "==", Number(employeeId)),
       ]);
@@ -310,6 +553,26 @@ class PublicFacultyService {
 
     if (uncached.length === 0) return result;
 
+    const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v1");
+    if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
+      const byEmployeeId = new Map();
+      fullSnapshot.forEach((row) => {
+        const employeeId = Number(row?.employeeId);
+        if (Number.isFinite(employeeId)) {
+          byEmployeeId.set(employeeId, row);
+        }
+      });
+      for (const id of uncached) {
+        const row = byEmployeeId.get(id) || null;
+        result[id] = row;
+        this.facultyByIdCache.set(String(id), {
+          value: row,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+      }
+      return result;
+    }
+
     // Batch-fetch in 30-item chunks
     const chunks = [];
     for (let i = 0; i < uncached.length; i += 30) {
@@ -358,6 +621,86 @@ class PublicFacultyService {
   }
 
   /**
+   * Batch fetch faculty by document IDs.
+   * Returns { [docId]: faculty_object or null }.
+   */
+  async getFacultyByDocIdBatch(docIds = []) {
+    const sanitized = Array.from(
+      new Set(
+        (docIds || [])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean),
+      ),
+    );
+    if (sanitized.length === 0) return {};
+
+    const result = {};
+    const uncached = [];
+    for (const id of sanitized) {
+      const cached = this.facultyByDocIdCache.get(id);
+      if (cached && cached.expiresAt > Date.now()) {
+        result[id] = cached.value;
+      } else {
+        uncached.push(id);
+      }
+    }
+
+    if (uncached.length === 0) return result;
+
+    const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v1");
+    if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
+      const byDocId = new Map(fullSnapshot.map((row) => [String(row?.$id || ""), row]));
+      for (const id of uncached) {
+        const row = byDocId.get(id) || null;
+        result[id] = row;
+        this.facultyByDocIdCache.set(id, {
+          value: row,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+      }
+      return result;
+    }
+
+    const chunks = [];
+    for (let i = 0; i < uncached.length; i += 30) {
+      chunks.push(uncached.slice(i, i + 30));
+    }
+
+    for (const chunk of chunks) {
+      try {
+        const q = query(
+          collection(db, clientConfig.firebaseFacultyCollection),
+          where(documentId(), "in", chunk),
+        );
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach((docSnapshot) => {
+          const row = { $id: docSnapshot.id, ...docSnapshot.data() };
+          result[row.$id] = row;
+          this.facultyByDocIdCache.set(row.$id, {
+            value: row,
+            expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+          });
+        });
+        for (const id of chunk) {
+          if (!Object.prototype.hasOwnProperty.call(result, id)) {
+            result[id] = null;
+            this.facultyByDocIdCache.set(id, {
+              value: null,
+              expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+            });
+          }
+        }
+      } catch (error) {
+        for (const id of chunk) {
+          result[id] = null;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * �🏢 Get all departments
    */
   async getDepartments() {
@@ -366,11 +709,11 @@ class PublicFacultyService {
     }
 
     try {
-      const response = await this.listFacultyRecords([limit(5000)]);
+      const rows = await this.getFullFacultySnapshot();
 
       const departments = [
         ...new Set(
-          (response.records || [])
+          (rows || [])
             .map((doc) => doc.department)
             .filter((dept) => dept && dept.trim()),
         ),
@@ -395,17 +738,16 @@ class PublicFacultyService {
     }
 
     try {
-      // OPTIMIZATION: Limit fetch to 1000 records instead of 5000
-      const response = await this.listFacultyRecords([limit(1000)]);
+      const rows = await this.getFullFacultySnapshot();
 
       const stats = {
-        total: response.total || 0,
+        total: rows.length || 0,
         byDepartment: {},
         byDesignation: {},
         lastUpdated: new Date().toISOString(),
       };
 
-      (response.records || []).forEach((faculty) => {
+      (rows || []).forEach((faculty) => {
         // Count by department
         if (faculty.department) {
           stats.byDepartment[faculty.department] =
@@ -511,12 +853,11 @@ class PublicFacultyService {
     }
 
     try {
-      // OPTIMIZATION: Limit fetch to 1000 instead of 5000 for trending research
-      const response = await this.listFacultyRecords([limit(1000)]);
+      const rows = await this.getFullFacultySnapshot();
 
       const researchCounts = {};
 
-      (response.records || []).forEach((faculty) => {
+      (rows || []).forEach((faculty) => {
         if (faculty.researchArea) {
           // Split research areas by common delimiters
           const areas = faculty.researchArea

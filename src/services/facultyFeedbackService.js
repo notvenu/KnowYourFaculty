@@ -53,8 +53,74 @@ class FacultyFeedbackService {
   FACULTY_ROWS_FETCH_LIMIT = 300;
   feedbackTotalCountCache = null;
   feedbackTotalCountExpiry = 0;
+  PERSISTENT_CACHE_PREFIX = "kyf.feedback";
+  PERSISTENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
   constructor() {}
+
+  getStorage() {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage || null;
+    } catch {
+      return null;
+    }
+  }
+
+  getPersistentKey(suffix) {
+    return `${this.PERSISTENT_CACHE_PREFIX}:${suffix}`;
+  }
+
+  readPersistentCache(suffix) {
+    const storage = this.getStorage();
+    if (!storage) return null;
+    try {
+      const raw = storage.getItem(this.getPersistentKey(suffix));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.expiresAt <= Date.now()) {
+        storage.removeItem(this.getPersistentKey(suffix));
+        return null;
+      }
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  }
+
+  writePersistentCache(suffix, value, ttlMs = this.PERSISTENT_CACHE_TTL_MS) {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      storage.setItem(
+        this.getPersistentKey(suffix),
+        JSON.stringify({
+          value,
+          expiresAt: Date.now() + ttlMs,
+        }),
+      );
+    } catch {
+      // ignore storage write issues
+    }
+  }
+
+  clearPersistentRatingsSummaryCache() {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      const prefix = `${this.PERSISTENT_CACHE_PREFIX}:ratingsSummary_`;
+      const keysToRemove = [];
+      for (let i = 0; i < storage.length; i += 1) {
+        const key = storage.key(i);
+        if (key && key.startsWith(prefix)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    } catch {
+      // ignore storage cleanup issues
+    }
+  }
 
   get feedbackTableId() {
     return this.reviewCollection;
@@ -257,6 +323,15 @@ class FacultyFeedbackService {
       return cached.value;
     }
 
+    const persisted = this.readPersistentCache(cacheKey);
+    if (persisted) {
+      this.feedbackCache.set(cacheKey, {
+        value: persisted,
+        expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+      });
+      return persisted;
+    }
+
     // OPTIMIZATION: Cap the fetch limit to reduce read size - 5000 is plenty
     const actualLimit = Math.min(limit_num, 5000);
     const response = await this.listRows(this.feedbackTableId, [limit(actualLimit)]);
@@ -356,6 +431,7 @@ class FacultyFeedbackService {
       value: result,
       expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
     });
+    this.writePersistentCache(cacheKey, result);
     return result;
   }
 
@@ -588,6 +664,7 @@ class FacultyFeedbackService {
     this.feedbackCache.clear();
     this.feedbackTotalCountCache = null;
     this.feedbackTotalCountExpiry = 0;
+    this.clearPersistentRatingsSummaryCache();
     return result;
   }
 
@@ -650,6 +727,7 @@ class FacultyFeedbackService {
       this.feedbackCache.clear();
       this.feedbackTotalCountCache = null;
       this.feedbackTotalCountExpiry = 0;
+      this.clearPersistentRatingsSummaryCache();
       return existing;
     } catch (error) {
       throw error;
@@ -663,6 +741,7 @@ class FacultyFeedbackService {
       this.feedbackCache.clear();
       this.feedbackTotalCountCache = null;
       this.feedbackTotalCountExpiry = 0;
+      this.clearPersistentRatingsSummaryCache();
       return { $id: rowId };
     } catch (error) {
       throw error;

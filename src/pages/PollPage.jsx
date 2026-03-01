@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import { addToast } from "../store/uiSlice.js";
@@ -79,8 +79,6 @@ export default function PollPage() {
   const [editingPoll, setEditingPoll] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingPoll, setDeletingPoll] = useState(null);
-  const lookupsLoadedRef = useRef(false);
-  const lookupLoadPromiseRef = useRef(null);
 
   const hasUser = Boolean(currentUser?.$id);
   const safePolls = Array.isArray(polls)
@@ -96,29 +94,51 @@ export default function PollPage() {
     }
   }, [hasUser, activeTab]);
 
-  const ensureLookupData = async () => {
-    if (lookupsLoadedRef.current) return;
-    if (!lookupLoadPromiseRef.current) {
-      lookupLoadPromiseRef.current = (async () => {
-        const [faculty, courses] = await Promise.all([
-          publicFacultyService.getFacultyList({ limit: 1000, page: 1 }),
-          courseService.getAllCourses(1000),
-        ]);
-        setFacultyList(faculty?.faculty || []);
-        setCourseList(courses || []);
-        lookupsLoadedRef.current = true;
-      })().catch((error) => {
-        lookupLoadPromiseRef.current = null;
-        throw error;
-      });
-    }
-    await lookupLoadPromiseRef.current;
+  const upsertRowsById = (currentRows = [], nextRows = []) => {
+    const map = new Map(
+      (currentRows || []).map((row) => [String(row?.$id || ""), row]),
+    );
+    (nextRows || []).forEach((row) => {
+      const id = String(row?.$id || "");
+      if (!id) return;
+      map.set(id, row);
+    });
+    return [...map.values()];
+  };
+
+  const hydrateLookupDataForPolls = async (pollRows = []) => {
+    const facultyIds = Array.from(
+      new Set(
+        (pollRows || [])
+          .map((poll) => String(poll?.facultyId || "").trim())
+          .filter(Boolean),
+      ),
+    );
+    const courseIds = Array.from(
+      new Set(
+        (pollRows || [])
+          .map((poll) => String(poll?.courseId || "").trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const [facultyMap, courseMap] = await Promise.all([
+      publicFacultyService.getFacultyByDocIdBatch(facultyIds),
+      courseService.getCourseByIdBatch(courseIds),
+    ]);
+
+    const facultyRows = facultyIds
+      .map((id) => facultyMap?.[id] || null)
+      .filter(Boolean);
+    const courseRows = courseIds.map((id) => courseMap?.[id] || null).filter(Boolean);
+
+    setFacultyList((prev) => upsertRowsById(prev, facultyRows));
+    setCourseList((prev) => upsertRowsById(prev, courseRows));
   };
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      await ensureLookupData();
 
       if (activeTab === "active") {
         const activePolls = await pollService.getActivePolls();
@@ -144,6 +164,7 @@ export default function PollPage() {
         const activePollIds = (normalizedActivePolls || [])
           .map((poll) => poll?.$id)
           .filter(Boolean);
+        await hydrateLookupDataForPolls(normalizedActivePolls);
         setPolls(normalizedActivePolls);
 
         const resultsMap = await pollService.getPollResultsBulk(activePollIds);
@@ -190,11 +211,12 @@ export default function PollPage() {
         const userPollIds = (normalizedUserPolls || [])
           .map((poll) => poll?.$id)
           .filter(Boolean);
+        await hydrateLookupDataForPolls(normalizedUserPolls);
         setMyPolls(normalizedUserPolls);
         const resultsMap = await pollService.getPollResultsBulk(userPollIds);
         setMyPollResults(resultsMap || {});
       }
-    } catch (err) {
+    } catch {
       dispatch(addToast({ message: "Failed to load polls", type: "error" }));
     } finally {
       setLoading(false);

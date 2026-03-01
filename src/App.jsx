@@ -40,6 +40,29 @@ const PollPage = lazy(() => import("./pages/PollPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.jsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.jsx"));
+const SITE_URL = "https://knowyourfaculty.vercel.app";
+
+function upsertHeadMeta({ key, attribute = "name", content }) {
+  if (typeof document === "undefined") return;
+  let tag = document.head.querySelector(`meta[${attribute}="${key}"]`);
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.setAttribute(attribute, key);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute("content", content);
+}
+
+function upsertCanonical(href) {
+  if (typeof document === "undefined") return;
+  let link = document.head.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "canonical");
+    document.head.appendChild(link);
+  }
+  link.setAttribute("href", href);
+}
 
 function App() {
   const dispatch = useDispatch();
@@ -61,6 +84,87 @@ function App() {
     checkDatabaseAccess();
     dispatch(loadCurrentUser());
   }, [dispatch]);
+
+  useEffect(() => {
+    const path = location.pathname || "/";
+    const seoByRoute = [
+      {
+        test: /^\/$/,
+        title: "KnowYourFaculty - Student-Driven Faculty Feedback",
+        description:
+          "Anonymous faculty feedback from students. Discover teaching quality, reviews, and trends before you choose courses.",
+      },
+      {
+        test: /^\/faculty$/,
+        title: "Faculty Directory - KnowYourFaculty",
+        description:
+          "Browse faculty profiles, departments, and student feedback in one searchable directory.",
+      },
+      {
+        test: /^\/faculty\/[^/]+$/,
+        title: "Faculty Profile - KnowYourFaculty",
+        description:
+          "View faculty ratings, reviews, and student insights to make better academic decisions.",
+      },
+      {
+        test: /^\/rankings$/,
+        title: "Faculty Rankings - KnowYourFaculty",
+        description:
+          "Explore top faculty rankings based on student feedback and review trends.",
+      },
+      {
+        test: /^\/polls$/,
+        title: "Faculty Polls - KnowYourFaculty",
+        description:
+          "Vote and view student polls about faculty strictness and course difficulty.",
+      },
+      {
+        test: /^\/contact$/,
+        title: "Contact - KnowYourFaculty",
+        description: "Contact the KnowYourFaculty team.",
+      },
+      {
+        test: /^\/privacy-policy$/,
+        title: "Privacy Policy - KnowYourFaculty",
+        description: "Read the KnowYourFaculty privacy policy.",
+      },
+      {
+        test: /^\/terms-and-conditions$/,
+        title: "Terms and Conditions - KnowYourFaculty",
+        description: "Read the KnowYourFaculty terms and conditions.",
+      },
+    ];
+
+    const defaultSeo = {
+      title: "KnowYourFaculty - Student-Driven Faculty Feedback",
+      description:
+        "Discover faculty with real student feedback, anonymous reviews, and ratings.",
+    };
+    const matched = seoByRoute.find((entry) => entry.test.test(path)) || defaultSeo;
+    const canonical = `${SITE_URL}${path}`;
+    const isPrivateRoute = path === "/dashboard" || path === "/admin";
+
+    document.title = matched.title;
+    upsertHeadMeta({ key: "description", content: matched.description });
+    upsertHeadMeta({ key: "og:title", attribute: "property", content: matched.title });
+    upsertHeadMeta({
+      key: "og:description",
+      attribute: "property",
+      content: matched.description,
+    });
+    upsertHeadMeta({ key: "og:url", attribute: "property", content: canonical });
+    upsertHeadMeta({ key: "twitter:title", attribute: "property", content: matched.title });
+    upsertHeadMeta({
+      key: "twitter:description",
+      attribute: "property",
+      content: matched.description,
+    });
+    upsertHeadMeta({
+      key: "robots",
+      content: isPrivateRoute ? "noindex, nofollow" : "index, follow",
+    });
+    upsertCanonical(canonical);
+  }, [location.pathname]);
 
   // Set initial theme on document element
   useEffect(() => {
@@ -139,7 +243,9 @@ function App() {
     [currentUser],
   );
 
-  if (!setupChecked || !authChecked) {
+  const needsAuthCheckForRoute =
+    location.pathname === "/dashboard" || location.pathname === "/admin";
+  if (needsAuthCheckForRoute && !authChecked) {
     return (
       <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">
         <div className="animate-fadeIn text-center">
@@ -150,7 +256,7 @@ function App() {
     );
   }
 
-  if (isSetupMode) return <SetupHelper />;
+  if (isSetupMode && setupChecked) return <SetupHelper />;
 
   return (
     <div className="flex min-h-screen flex-col bg-(--bg) text-(--text) transition-colors duration-300">
