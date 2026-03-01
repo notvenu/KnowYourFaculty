@@ -376,20 +376,25 @@ function FacultyDetailPage({ currentUser }) {
         courseIds.map((id) => String(id || "").trim()).filter(Boolean),
       ),
     ];
-    if (uniqueIds.length === 0) return;
+    if (uniqueIds.length === 0) return {};
     const entries = await Promise.all(
       uniqueIds.map(async (courseId) => {
         const course = await courseService.getCourseById(courseId);
         return [courseId, course];
       }),
     );
+    const fetchedLookup = {};
     setCourseLookup((prev) => {
       const merged = { ...prev };
       for (const [courseId, course] of entries) {
-        if (course) merged[courseId] = course;
+        if (course) {
+          merged[courseId] = course;
+          fetchedLookup[courseId] = course;
+        }
       }
       return merged;
     });
+    return fetchedLookup;
   };
 
   const loadFeedback = async () => {
@@ -406,9 +411,10 @@ function FacultyDetailPage({ currentUser }) {
           averages: {},
         },
       );
-      await loadCourseLookup(
-        (response.reviews || []).map((row) => row.courseId),
-      );
+      const preloadedCourses = await loadCourseLookup([
+        ...(response.reviews || []).map((row) => row.courseId),
+        ...(response.ratings || []).map((row) => row.courseId),
+      ]);
 
       if (hasUser) {
         const existing = (response.ratings || []).find(
@@ -459,7 +465,7 @@ function FacultyDetailPage({ currentUser }) {
             labNotes: existing.labNotes || "None",
           });
           if (existing.courseId) {
-            const course = await courseService.getCourseById(existing.courseId);
+            const course = preloadedCourses[existing.courseId] || null;
             if (course) {
               setCourseQuery(`${course.courseCode} - ${course.courseName}`);
               setCourseLookup((prev) => ({ ...prev, [course.$id]: course }));
@@ -569,16 +575,20 @@ function FacultyDetailPage({ currentUser }) {
     }
   };
 
+  const getExistingFeedbackForUser = async () => {
+    if (userFeedback) return userFeedback;
+    return await facultyFeedbackService.getUserFacultyFeedback(
+      currentUser.$id,
+      facultyId,
+    );
+  };
+
   const deleteReviewOnly = async (reviewId) => {
     if (!hasUser) return;
     try {
       setDeleting(true);
       setError(null);
-      const existingFeedback =
-        await facultyFeedbackService.getUserFacultyFeedback(
-          currentUser.$id,
-          facultyId,
-        );
+      const existingFeedback = await getExistingFeedbackForUser();
       if (existingFeedback) {
         await facultyFeedbackService.submitFeedback({
           ...existingFeedback,
@@ -602,11 +612,7 @@ function FacultyDetailPage({ currentUser }) {
   const editReviewOnly = async (reviewId) => {
     if (!hasUser) return;
     try {
-      const existingFeedback =
-        await facultyFeedbackService.getUserFacultyFeedback(
-          currentUser.$id,
-          facultyId,
-        );
+      const existingFeedback = await getExistingFeedbackForUser();
       if (existingFeedback) {
         setCurrentEditingReviewId(reviewId);
         setEditingReviewOnly(true);
@@ -639,11 +645,7 @@ function FacultyDetailPage({ currentUser }) {
       setSaving(true);
       setError(null);
 
-      const existingFeedback =
-        await facultyFeedbackService.getUserFacultyFeedback(
-          currentUser.$id,
-          facultyId,
-        );
+      const existingFeedback = await getExistingFeedbackForUser();
       if (existingFeedback) {
         const isFirstReviewAdd =
           !String(existingFeedback.review || "").trim() &&
@@ -679,11 +681,7 @@ function FacultyDetailPage({ currentUser }) {
   const editRatingsOnly = async (reviewId) => {
     if (!hasUser) return;
     try {
-      const existingFeedback =
-        await facultyFeedbackService.getUserFacultyFeedback(
-          currentUser.$id,
-          facultyId,
-        );
+      const existingFeedback = await getExistingFeedbackForUser();
       if (existingFeedback) {
         const hasTheoryRatings =
           existingFeedback.theoryTeaching ||
@@ -744,11 +742,7 @@ function FacultyDetailPage({ currentUser }) {
       setSaving(true);
       setError(null);
 
-      const existingFeedback =
-        await facultyFeedbackService.getUserFacultyFeedback(
-          currentUser.$id,
-          facultyId,
-        );
+      const existingFeedback = await getExistingFeedbackForUser();
       if (existingFeedback) {
         const payload = {
           userId: currentUser.$id,
@@ -796,11 +790,7 @@ function FacultyDetailPage({ currentUser }) {
     try {
       setDeleting(true);
       setError(null);
-      const existingFeedback =
-        await facultyFeedbackService.getUserFacultyFeedback(
-          currentUser.$id,
-          facultyId,
-        );
+      const existingFeedback = await getExistingFeedbackForUser();
 
       if (existingFeedback) {
         // Delete the entire feedback row (ratings + review)

@@ -1,12 +1,19 @@
 import {
-  Client,
-  Databases,
-  ID,
-  Permission,
-  Query,
-  Role,
-  TablesDB,
-} from "appwrite";
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getCountFromServer,
+  getDocs,
+  getDoc,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
 
 const RATING_FIELDS = [
@@ -39,148 +46,317 @@ function clampRating(value) {
   return Math.round(n);
 }
 
-function getRowPermissions(userId) {
-  const uid = String(userId || "").trim();
-  if (!uid) return [Permission.read(Role.any())];
-  return [
-    Permission.read(Role.any()),
-    Permission.update(Role.user(uid)),
-    Permission.delete(Role.user(uid)),
-  ];
-}
-
 class FacultyFeedbackService {
-  client = new Client();
-  databases;
-  tablesDB;
-  initialized = false;
-  initError = null;
+  reviewCollection = clientConfig.firebaseReviewCollection;
   feedbackCache = new Map();
-  FEEDBACK_CACHE_TTL_MS = 2 * 60 * 1000;
+  FEEDBACK_CACHE_TTL_MS = 10 * 60 * 1000;  // Reviews change more often, 10 min cache
+  FACULTY_ROWS_FETCH_LIMIT = 300;
+  feedbackTotalCountCache = null;
+  feedbackTotalCountExpiry = 0;
 
-  constructor() {
-    // Validate required configuration
-    if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
-      this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
-      console.error(
-        "FacultyFeedbackService initialization failed:",
-        this.initError,
-      );
-      return;
-    }
-
-    try {
-      this.client
-        .setEndpoint(clientConfig.appwriteUrl)
-        .setProject(clientConfig.appwriteProjectId);
-
-      this.databases = new Databases(this.client);
-      this.tablesDB = new TablesDB(this.client);
-      this.initialized = true;
-    } catch (error) {
-      this.initError = error?.message || "Failed to initialize Appwrite client";
-      console.error("FacultyFeedbackService initialization error:", error);
-    }
-  }
+  constructor() {}
 
   get feedbackTableId() {
-    return clientConfig.appwriteReviewTableId;
+    return this.reviewCollection;
   }
 
-  async listRows(tableId, queries) {
-    if (!this.initialized || !this.tablesDB) {
-      throw new Error(this.initError || "Appwrite service not initialized");
+  toTimeMs(value) {
+    if (!value) return 0;
+    if (typeof value?.toDate === "function") {
+      const date = value.toDate();
+      return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
     }
-    try {
-      return await this.tablesDB.listRows(
-        clientConfig.appwriteDBId,
-        tableId,
-        queries,
-      );
-    } catch {
-      if (!this.databases) {
-        throw new Error(
-          this.initError || "Appwrite databases service not initialized",
-        );
-      }
-      const response = await this.databases.listDocuments(
-        clientConfig.appwriteDBId,
-        tableId,
-        queries,
-      );
-      return {
-        rows: response.documents || [],
-        total: response.total || 0,
-      };
-    }
+    const date = new Date(value);
+    const time = date.getTime();
+    return Number.isFinite(time) ? time : 0;
   }
 
-  async createRow(tableId, data, permissions = undefined) {
-    try {
-      return await this.tablesDB.createRow(
-        clientConfig.appwriteDBId,
-        tableId,
-        ID.unique(),
-        data,
-        permissions,
-      );
-    } catch {
-      return this.databases.createDocument(
-        clientConfig.appwriteDBId,
-        tableId,
-        ID.unique(),
-        data,
-        permissions,
-      );
-    }
-  }
-
-  async updateRow(tableId, rowId, data, permissions = undefined) {
-    try {
-      return await this.tablesDB.updateRow(
-        clientConfig.appwriteDBId,
-        tableId,
-        rowId,
-        data,
-        permissions,
-      );
-    } catch {
-      return this.databases.updateDocument(
-        clientConfig.appwriteDBId,
-        tableId,
-        rowId,
-        data,
-        permissions,
-      );
-    }
-  }
-
-  async getFacultyReviews(facultyId, limit = 20) {
-    const response = await this.listRows(this.feedbackTableId, [
-      Query.equal("facultyId", String(facultyId)),
-      Query.orderDesc("$createdAt"),
-      Query.limit(limit),
-    ]);
-    return (response.rows || []).filter(
-      (row) => String(row?.review || "").trim().length > 0,
+  sortRowsByFieldDesc(rows, field) {
+    return [...(rows || [])].sort(
+      (a, b) => this.toTimeMs(b?.[field]) - this.toTimeMs(a?.[field]),
     );
   }
 
-  async getFacultyRatings(facultyId, limit = 200) {
-    const response = await this.listRows(this.feedbackTableId, [
-      Query.equal("facultyId", String(facultyId)),
-      Query.orderDesc("$createdAt"),
-      Query.limit(limit),
-    ]);
-    return response.rows || [];
+  /**
+   * Helper method for backward compatibility with Query-based calls
+   * Converts constraint array to Firestore query
+   */
+  async listRows(collectionName, constraints = []) {
+    try {
+      // Add any constraints
+      // OPTIMIZATION: Default to 1000 instead of 5000 for efficiency
+      let constraints_copy = [...(constraints || [])];
+      if (!constraints_copy.some((c) => c.type === "limit")) {
+        constraints_copy.push(limit(1000));
+      }
+
+      const q = query(collection(db, collectionName), ...constraints_copy);
+      const snapshot = await getDocs(q);
+
+      return {
+        rows: snapshot.docs.map((doc) => ({
+          $id: doc.id,
+          ...doc.data(),
+        })),
+        total: snapshot.docs.length,
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
-  async getAllRatings(limit = 10000) {
+  async createRow(collectionName, data, permissions = undefined) {
+    try {
+      const payload = {
+        ...data,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(collection(db, collectionName), payload);
+      return {
+        $id: docRef.id,
+        ...payload,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateRow(collectionName, docId, data, permissions = undefined) {
+    try {
+      const docRef = doc(db, collectionName, docId);
+      const payload = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await updateDoc(docRef, payload);
+      
+      // OPTIMIZATION: Return optimistic update instead of extra getDoc()
+      // This saves a read operation and is acceptable since we just wrote it
+      return {
+        $id: docId,
+        ...payload,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getFacultyReviews(facultyId, limit_num = 20) {
+    const rows = await this.getFacultyRows(facultyId);
+    return rows
+      .filter((row) => String(row?.review || "").trim().length > 0)
+      .slice(0, limit_num);
+  }
+
+  async getFacultyRatings(facultyId, limit_num = 200) {
+    const rows = await this.getFacultyRows(facultyId);
+    return rows.slice(0, limit_num);
+  }
+
+  async getAllRatings(limit_num = 10000) {
+    const cacheKey = `allRatings_${limit_num}`;
+    const cached = this.feedbackCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    // OPTIMIZATION: Cap the fetch limit to reduce read size
+    const actualLimit = Math.min(limit_num, 5000);
     const response = await this.listRows(this.feedbackTableId, [
-      Query.orderDesc("$createdAt"),
-      Query.limit(limit),
+      limit(actualLimit),
     ]);
-    return response.rows || [];
+    const result = this.sortRowsByFieldDesc(response.rows || [], "createdAt").slice(
+      0,
+      limit_num,
+    );
+    this.feedbackCache.set(cacheKey, {
+      value: result,
+      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    });
+    return result;
+  }
+
+  async getFeedbackTotalCount() {
+    if (
+      Number.isFinite(this.feedbackTotalCountCache) &&
+      this.feedbackTotalCountExpiry > Date.now()
+    ) {
+      return this.feedbackTotalCountCache;
+    }
+
+    const snapshot = await getCountFromServer(
+      query(collection(db, this.feedbackTableId)),
+    );
+    const count = Number(snapshot?.data()?.count || 0);
+    this.feedbackTotalCountCache = count;
+    this.feedbackTotalCountExpiry = Date.now() + this.FEEDBACK_CACHE_TTL_MS;
+    return count;
+  }
+
+  async getRecentFeedbackEntries(limit_num = 200) {
+    const cacheKey = `recentFeedback_${limit_num}`;
+    const cached = this.feedbackCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    const response = await this.listRows(this.feedbackTableId, [
+      orderBy("updatedAt", "desc"),
+      limit(limit_num),
+    ]);
+    const rows = response.rows || [];
+    this.feedbackCache.set(cacheKey, {
+      value: rows,
+      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    });
+    return rows;
+  }
+
+  async getFacultyRows(facultyId, limit_num = this.FACULTY_ROWS_FETCH_LIMIT) {
+    const id = String(facultyId || "").trim();
+    if (!id) return [];
+
+    const cacheKey = `facultyRows_${id}_${limit_num}`;
+    const cached = this.feedbackCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    const response = await this.listRows(this.feedbackTableId, [
+      where("facultyId", "==", id),
+      limit(limit_num),
+    ]);
+    const rows = this.sortRowsByFieldDesc(response.rows || [], "createdAt");
+    this.feedbackCache.set(cacheKey, {
+      value: rows,
+      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    });
+    return rows;
+  }
+
+  /**
+   * 📈 Aggregate ratings by faculty and build lightweight lookup objects.
+   *
+   * This method is intended for pages such as the directory where the full
+   * review rows are not needed.  Instead of returning every document we only
+   * compute an overall score and count for each faculty and build a course
+   *→ faculty map.  The result is cached for a short duration to avoid
+   * repeated scans of the reviews collection, which was the primary cause of
+   * slow page loads when the database grew.
+   *
+   * @param {number} limit_num maximum number of review rows to examine
+   * @returns {{ratings:Object,counts:Object,courseLookup:Map<string,Set<string>>}}
+   */
+  async getRatingsSummary(limit_num = 10000) {
+    const cacheKey = `ratingsSummary_${limit_num}`;
+    const cached = this.feedbackCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    // OPTIMIZATION: Cap the fetch limit to reduce read size - 5000 is plenty
+    const actualLimit = Math.min(limit_num, 5000);
+    const response = await this.listRows(this.feedbackTableId, [limit(actualLimit)]);
+    const ratingAgg = {};
+    const byFacultyCourseAgg = {};
+    const courseLookup = {};
+    const facultyCounts = {};
+    const userSet = new Set();
+
+    const extractRatingStats = (row) => {
+      let scoreSum = 0;
+      let scoreCount = 0;
+      for (const field of RATING_FIELDS) {
+        const value = Number(row?.[field]);
+        if (Number.isFinite(value) && value >= 1 && value <= 5) {
+          scoreSum += value;
+          scoreCount += 1;
+        }
+      }
+      return { scoreSum, scoreCount };
+    };
+
+    for (const row of response.rows || []) {
+      const facultyId = String(row.facultyId || "").trim();
+      if (row.userId) userSet.add(String(row.userId));
+      if (facultyId) {
+        facultyCounts[facultyId] = (facultyCounts[facultyId] || 0) + 1;
+      }
+      if (!facultyId) continue;
+
+      const { scoreSum, scoreCount } = extractRatingStats(row);
+      if (scoreCount > 0) {
+        if (!ratingAgg[facultyId]) {
+          ratingAgg[facultyId] = { scoreSum: 0, scoreCount: 0, rowCount: 0 };
+        }
+        ratingAgg[facultyId].scoreSum += scoreSum;
+        ratingAgg[facultyId].scoreCount += scoreCount;
+        ratingAgg[facultyId].rowCount += 1;
+      }
+
+      const courseId = String(row.courseId || "").trim();
+      if (courseId) {
+        if (!courseLookup[courseId]) courseLookup[courseId] = new Set();
+        courseLookup[courseId].add(facultyId);
+
+        if (scoreCount > 0) {
+          if (!byFacultyCourseAgg[facultyId]) byFacultyCourseAgg[facultyId] = {};
+          if (!byFacultyCourseAgg[facultyId][courseId]) {
+            byFacultyCourseAgg[facultyId][courseId] = {
+              scoreSum: 0,
+              scoreCount: 0,
+              rowCount: 0,
+            };
+          }
+          byFacultyCourseAgg[facultyId][courseId].scoreSum += scoreSum;
+          byFacultyCourseAgg[facultyId][courseId].scoreCount += scoreCount;
+          byFacultyCourseAgg[facultyId][courseId].rowCount += 1;
+        }
+      }
+    }
+
+    const ratings = {};
+    const counts = {};
+    const byFacultyCourse = {};
+
+    for (const [fid, item] of Object.entries(ratingAgg)) {
+      ratings[fid] =
+        item.scoreCount > 0
+          ? Number((item.scoreSum / item.scoreCount).toFixed(2))
+          : null;
+      counts[fid] = item.rowCount || 0;
+    }
+
+    for (const [fid, courseMap] of Object.entries(byFacultyCourseAgg)) {
+      byFacultyCourse[fid] = {};
+      for (const [courseId, item] of Object.entries(courseMap)) {
+        byFacultyCourse[fid][courseId] = {
+          average:
+            item.scoreCount > 0
+              ? Number((item.scoreSum / item.scoreCount).toFixed(2))
+              : null,
+          rowCount: item.rowCount || 0,
+        };
+      }
+    }
+
+    const result = {
+      ratings,
+      counts,
+      byFacultyCourse,
+      courseLookup,
+      facultyCounts,
+      totalReviews: (response.rows || []).length,
+      uniqueUserCount: userSet.size,
+    };
+    this.feedbackCache.set(cacheKey, {
+      value: result,
+      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    });
+    return result;
   }
 
   buildRatingSummary(ratings) {
@@ -311,10 +487,10 @@ class FacultyFeedbackService {
       return cached.value;
     }
 
-    const [reviews, ratings] = await Promise.all([
-      this.getFacultyReviews(facultyId),
-      this.getFacultyRatings(facultyId),
-    ]);
+    const ratings = await this.getFacultyRows(facultyId);
+    const reviews = ratings
+      .filter((row) => String(row?.review || "").trim().length > 0)
+      .slice(0, 20);
 
     const result = {
       reviews,
@@ -330,22 +506,23 @@ class FacultyFeedbackService {
 
   async getUserFacultyFeedback(userId, facultyId) {
     const response = await this.listRows(this.feedbackTableId, [
-      Query.equal("userId", String(userId)),
-      Query.equal("facultyId", String(facultyId)),
-      Query.orderDesc("$createdAt"),
-      Query.limit(1),
+      where("userId", "==", String(userId)),
+      where("facultyId", "==", String(facultyId)),
+      limit(1),
     ]);
-    return response.rows?.[0] || null;
+    return this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
   }
 
-  async getUserFeedbackEntries(userId, limit = 200) {
+  async getUserFeedbackEntries(userId, limit_num = 200) {
     if (!String(userId || "").trim()) return [];
     const response = await this.listRows(this.feedbackTableId, [
-      Query.equal("userId", String(userId)),
-      Query.orderDesc("$updatedAt"),
-      Query.limit(limit),
+      where("userId", "==", String(userId)),
+      limit(limit_num),
     ]);
-    return response.rows || [];
+    return this.sortRowsByFieldDesc(response.rows || [], "updatedAt").slice(
+      0,
+      limit_num,
+    );
   }
 
   async submitFeedback({
@@ -402,19 +579,15 @@ class FacultyFeedbackService {
     }
 
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
-    const permissions = getRowPermissions(userId);
     let result;
     if (existing?.$id) {
-      result = await this.updateRow(
-        this.feedbackTableId,
-        existing.$id,
-        payload,
-        permissions,
-      );
+      result = await this.updateRow(this.feedbackTableId, existing.$id, payload);
     } else {
-      result = await this.createRow(this.feedbackTableId, payload, permissions);
+      result = await this.createRow(this.feedbackTableId, payload);
     }
-    this.feedbackCache.delete(String(facultyId));
+    this.feedbackCache.clear();
+    this.feedbackTotalCountCache = null;
+    this.feedbackTotalCountExpiry = 0;
     return result;
   }
 
@@ -473,37 +646,26 @@ class FacultyFeedbackService {
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
     if (!existing?.$id) return null;
     try {
-      const result = await this.tablesDB.deleteRow(
-        clientConfig.appwriteDBId,
-        this.feedbackTableId,
-        existing.$id,
-      );
-      return result;
-    } catch {
-      return this.databases.deleteDocument(
-        clientConfig.appwriteDBId,
-        this.feedbackTableId,
-        existing.$id,
-      );
-    } finally {
-      this.feedbackCache.delete(String(facultyId));
+      await deleteDoc(doc(db, this.feedbackTableId, existing.$id));
+      this.feedbackCache.clear();
+      this.feedbackTotalCountCache = null;
+      this.feedbackTotalCountExpiry = 0;
+      return existing;
+    } catch (error) {
+      throw error;
     }
   }
 
   async deleteFeedbackById(rowId) {
     if (!String(rowId || "").trim()) return null;
     try {
-      return await this.tablesDB.deleteRow(
-        clientConfig.appwriteDBId,
-        this.feedbackTableId,
-        rowId,
-      );
-    } catch {
-      return this.databases.deleteDocument(
-        clientConfig.appwriteDBId,
-        this.feedbackTableId,
-        rowId,
-      );
+      await deleteDoc(doc(db, this.feedbackTableId, rowId));
+      this.feedbackCache.clear();
+      this.feedbackTotalCountCache = null;
+      this.feedbackTotalCountExpiry = 0;
+      return { $id: rowId };
+    } catch (error) {
+      throw error;
     }
   }
 

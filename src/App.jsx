@@ -1,4 +1,4 @@
-﻿﻿import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import SetupHelper from "./components/admin/SetupHelper.jsx";
@@ -24,7 +24,7 @@ import {
 import {
   clearPendingAuthCheck,
   ALLOWED_EMAIL_DOMAIN,
-} from "./lib/appwrite/auth.js";
+} from "./lib/firebase/auth.js";
 import clientConfig from "./config/client.js";
 import "./App.css";
 import { Analytics } from "@vercel/analytics/react"
@@ -101,10 +101,19 @@ function App() {
 
   const checkDatabaseAccess = async () => {
     try {
-      await publicFacultyService.getFacultyList({ limit: 1 });
+      // Allow slower first-connects on shared/dev networks.
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Database check timeout")), 12000)
+      );
+      
+      await Promise.race([
+        publicFacultyService.getFacultyList({ limit: 1 }),
+        timeoutPromise,
+      ]);
       dispatch(setIsSetupMode(false));
-    } catch {
-      dispatch(setIsSetupMode(true));
+    } catch (error) {
+      // Skip setup mode - app will use sample data if Firestore unavailable
+      dispatch(setIsSetupMode(false));
     } finally {
       dispatch(setSetupChecked(true));
     }

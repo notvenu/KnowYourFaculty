@@ -1,4 +1,17 @@
-import { Client, Databases, ID, Query, TablesDB } from "appwrite";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  getDoc,
+  doc,
+  addDoc,
+  updateDoc,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
 
 function normalizeText(value) {
@@ -35,112 +48,81 @@ function mergeCoursesByCode(courses = []) {
 }
 
 class CourseService {
-  client = new Client();
-  databases;
-  tablesDB;
-  initialized = false;
-  initError = null;
+  coursesCollection = clientConfig.firebaseCoursesCollection;
   allCoursesCache = null;
   allCoursesCacheExpiry = 0;
   allCoursesInflight = null;
   courseByIdCache = new Map();
-  CACHE_TTL_MS = 5 * 60 * 1000;
+  courseByIdCacheExpiry = new Map();
+  CACHE_TTL_MS = 50 * 60 * 1000;  // Courses rarely change, cache for 50 min
 
-  constructor() {
-    // Validate required configuration
-    if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
-      this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
-      console.error("CourseService initialization failed:", this.initError);
-      return;
-    }
-
-    try {
-      this.client
-        .setEndpoint(clientConfig.appwriteUrl)
-        .setProject(clientConfig.appwriteProjectId);
-
-      this.databases = new Databases(this.client);
-      this.tablesDB = new TablesDB(this.client);
-      this.initialized = true;
-    } catch (error) {
-      this.initError = error?.message || "Failed to initialize Appwrite client";
-      console.error("CourseService initialization error:", error);
-    }
-  }
+  constructor() {}
 
   get coursesTableId() {
-    return clientConfig.appwriteCoursesTableId || "courses";
+    return this.coursesCollection;
   }
 
-  async listRows(queries = []) {
-    if (!this.initialized || !this.tablesDB) {
-      throw new Error(this.initError || "Appwrite service not initialized");
-    }
+  async listRows(constraints = []) {
     try {
-      return await this.tablesDB.listRows(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        queries,
-      );
-    } catch {
-      if (!this.databases) {
-        throw new Error(
-          this.initError || "Appwrite databases service not initialized",
-        );
+      // Add default limit if not specified
+      // OPTIMIZATION: Default to 1000 instead of 5000 for efficiency
+      let constraints_copy = [...(constraints || [])];
+      if (!constraints_copy.some((c) => c.type === "limit")) {
+        constraints_copy.push(limit(1000));
       }
-      const response = await this.databases.listDocuments(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        queries,
-      );
+
+      const q = query(collection(db, this.coursesCollection), ...constraints_copy);
+      const snapshot = await getDocs(q);
+
       return {
-        rows: response.documents || [],
-        total: response.total || 0,
+        rows: snapshot.docs.map((doc) => ({
+          $id: doc.id,
+          ...doc.data(),
+        })),
+        total: snapshot.docs.length,
       };
+    } catch (error) {
+      throw error;
     }
   }
 
   async createRow(data) {
     try {
-      const created = await this.tablesDB.createRow(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        ID.unique(),
-        data,
-      );
+      const payload = {
+        ...data,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+
+      const docRef = await addDoc(collection(db, this.coursesCollection), payload);
       this.clearCourseCache();
-      return created;
-    } catch {
-      const created = await this.databases.createDocument(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        ID.unique(),
-        data,
-      );
-      this.clearCourseCache();
-      return created;
+      return {
+        $id: docRef.id,
+        ...payload,
+      };
+    } catch (error) {
+      throw error;
     }
   }
 
-  async updateRow(rowId, data) {
+  async updateRow(docId, data) {
     try {
-      const updated = await this.tablesDB.updateRow(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        rowId,
-        data,
-      );
+      const docRef = doc(db, this.coursesCollection, docId);
+      const payload = {
+        ...data,
+        updatedAt: Timestamp.now(),
+      };
+
+      await updateDoc(docRef, payload);
       this.clearCourseCache();
-      return updated;
-    } catch {
-      const updated = await this.databases.updateDocument(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        rowId,
-        data,
-      );
-      this.clearCourseCache();
-      return updated;
+
+      // OPTIMIZATION: Return optimistic update instead of extra getDoc()
+      return {
+        $id: docId,
+        ...payload,
+      };
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -155,31 +137,115 @@ class CourseService {
     const id = normalizeText(courseId);
     if (!id) return null;
 
+    // Check cache with expiry
     if (this.courseByIdCache.has(id)) {
-      return this.courseByIdCache.get(id);
+      const expiry = this.courseByIdCacheExpiry.get(id);
+      if (expiry && expiry > Date.now()) {
+        return this.courseByIdCache.get(id);
+      }
+      // Expired, remove it
+      this.courseByIdCache.delete(id);
+      this.courseByIdCacheExpiry.delete(id);
     }
 
     try {
-      const row = await this.tablesDB.getRow(
-        clientConfig.appwriteDBId,
-        this.coursesTableId,
-        id,
-      );
-      this.courseByIdCache.set(id, row);
-      return row;
-    } catch {
-      try {
-        const row = await this.databases.getDocument(
-          clientConfig.appwriteDBId,
-          this.coursesTableId,
-          id,
-        );
-        this.courseByIdCache.set(id, row);
-        return row;
-      } catch {
+      const docRef = doc(db, this.coursesCollection, id);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        this.courseByIdCache.set(id, null);
+        this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
         return null;
       }
+
+      const row = {
+        $id: docSnap.id,
+        ...docSnap.data(),
+      };
+      this.courseByIdCache.set(id, row);
+      this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+      return row;
+    } catch (error) {
+      return null;
     }
+  }
+
+  /**
+   * Batch-fetch courses by multiple IDs to avoid N+1 queries
+   * Returns { [courseId]: course_object or null }
+   */
+  async getCourseByIdBatch(courseIds = []) {
+    const sanitized = Array.from(
+      new Set(
+        (courseIds || [])
+          .map((id) => normalizeText(id))
+          .filter(Boolean)
+      )
+    );
+    if (sanitized.length === 0) return {};
+
+    const result = {};
+    const uncached = [];
+
+    // Check what's already cached
+    for (const id of sanitized) {
+      if (this.courseByIdCache.has(id)) {
+        const expiry = this.courseByIdCacheExpiry.get(id);
+        if (expiry && expiry > Date.now()) {
+          result[id] = this.courseByIdCache.get(id);
+        } else {
+          this.courseByIdCache.delete(id);
+          this.courseByIdCacheExpiry.delete(id);
+          uncached.push(id);
+        }
+      } else {
+        uncached.push(id);
+      }
+    }
+
+    if (uncached.length === 0) return result;
+
+    // Batch-fetch in 30-item chunks using 'in' operator
+    const chunks = [];
+    for (let i = 0; i < uncached.length; i += 30) {
+      chunks.push(uncached.slice(i, i + 30));
+    }
+
+    for (const chunk of chunks) {
+      try {
+        // Note: Firestore requires doc IDs to be queried via a query on collection,
+        // not via 'in' operator on __name__. We'll need to read them individually or
+        // store course code as a field and index by that instead. For now, use individual gets.
+        const promises = chunk.map((id) =>
+          getDoc(doc(db, this.coursesCollection, id))
+            .then((snap) => ({ id, snap }))
+            .catch(() => ({ id, snap: null }))
+        );
+
+        const results = await Promise.all(promises);
+        for (const { id, snap } of results) {
+          if (snap && snap.exists()) {
+            const row = {
+              $id: snap.id,
+              ...snap.data(),
+            };
+            result[id] = row;
+            this.courseByIdCache.set(id, row);
+            this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+          } else {
+            result[id] = null;
+            this.courseByIdCache.set(id, null);
+            this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+          }
+        }
+      } catch (error) {
+        for (const id of chunk) {
+          result[id] = null;
+        }
+      }
+    }
+
+    return result;
   }
 
   async getCourseByCode(courseCode) {
@@ -187,8 +253,8 @@ class CourseService {
     if (!normalizedCode) return null;
 
     const response = await this.listRows([
-      Query.equal("courseCode", normalizedCode),
-      Query.limit(1),
+      where("courseCode", "==", normalizedCode),
+      limit(1),
     ]);
     return response.rows?.[0] || null;
   }
@@ -213,24 +279,24 @@ class CourseService {
     return this.createRow(payload);
   }
 
-  async getAllCourses(limit = 5000) {
+  async getAllCourses(limit_num = 5000) {
     if (
       this.allCoursesCache &&
       this.allCoursesCacheExpiry > Date.now() &&
-      this.allCoursesCacheLimit === limit
+      this.allCoursesCacheLimit === limit_num
     ) {
       return this.allCoursesCache;
     }
 
-    if (this.allCoursesInflight && this.allCoursesCacheLimit === limit) {
+    if (this.allCoursesInflight && this.allCoursesCacheLimit === limit_num) {
       return this.allCoursesInflight;
     }
 
-    this.allCoursesCacheLimit = limit;
+    this.allCoursesCacheLimit = limit_num;
     this.allCoursesInflight = (async () => {
       const response = await this.listRows([
-        Query.orderAsc("courseCode"),
-        Query.limit(limit),
+        orderBy("courseCode", "asc"),
+        limit(limit_num),
       ]);
       const rows = response.rows || [];
       this.allCoursesCache = rows;

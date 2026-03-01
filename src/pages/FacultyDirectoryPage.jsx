@@ -1,6 +1,5 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Query } from "appwrite";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -9,7 +8,7 @@ import courseService from "../services/courseService.js";
 import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
 
-const FACULTY_PER_PAGE = 40;
+const FACULTY_PER_PAGE = 20;
 
 const RATING_FIELDS = [
   "theoryTeaching",
@@ -101,45 +100,15 @@ function FacultyDirectoryPage({ currentUser }) {
             sortOrder: "asc",
           }),
           publicFacultyService.getDepartments(),
-          facultyFeedbackService.listRows(
-            facultyFeedbackService.feedbackTableId,
-            [
-              Query.select(["facultyId", "courseId", ...RATING_FIELDS]),
-              Query.limit(5000),
-            ],
-          ),
+          // use the new summary helper to avoid pulling every review row
+          facultyFeedbackService.getRatingsSummary(5000),
         ],
       );
 
       const allFaculty = facultyResponse.faculty || [];
-      const allFeedback = feedbackRows.rows || [];
-
-      const ratingAgg = {};
-      const courseLookup = {};
-      for (const row of allFeedback) {
-        const facultyId = String(row.facultyId || "").trim();
-        if (!facultyId) continue;
-        const overall = getRowOverall(row);
-        if (overall !== null) {
-          if (!ratingAgg[facultyId])
-            ratingAgg[facultyId] = { total: 0, count: 0 };
-          ratingAgg[facultyId].total += overall;
-          ratingAgg[facultyId].count += 1;
-        }
-
-        const courseId = String(row.courseId || "").trim();
-        if (courseId) {
-          if (!courseLookup[courseId]) courseLookup[courseId] = new Set();
-          courseLookup[courseId].add(facultyId);
-        }
-      }
-
-      const mappedRatings = {};
-      const mappedRatingCounts = {};
-      for (const [facultyId, item] of Object.entries(ratingAgg)) {
-        mappedRatings[facultyId] = Number((item.total / item.count).toFixed(2));
-        mappedRatingCounts[facultyId] = item.count;
-      }
+      // the third element is now an object with ratings/counts/courseLookup
+      const { ratings: mappedRatings = {}, counts: mappedRatingCounts = {}, courseLookup = {} } =
+        feedbackRows || {};
 
       setFaculty(allFaculty);
       setDepartments(departmentRows || []);

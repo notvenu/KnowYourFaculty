@@ -1,4 +1,4 @@
-﻿// eslint-disable tailwindcss/no-custom-classname
+// eslint-disable tailwindcss/no-custom-classname
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -87,7 +87,6 @@ function FacultyList({ currentUser = null }) {
       const depts = await publicFacultyService.getDepartments();
       setDepartments(depts);
     } catch (error) {
-      console.error("Failed to load departments:", error);
     }
   };
 
@@ -96,7 +95,6 @@ function FacultyList({ currentUser = null }) {
       const facultyStats = await publicFacultyService.getFacultyStats();
       setStats(facultyStats);
     } catch (error) {
-      console.error("Failed to load stats:", error);
     }
   };
 
@@ -178,7 +176,7 @@ function FacultyList({ currentUser = null }) {
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                   aria-label="Clear search"
                 >
-                  ×
+                  �
                 </button>
               ) : null}
             </div>

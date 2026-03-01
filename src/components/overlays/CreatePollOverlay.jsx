@@ -132,7 +132,6 @@ export default function CreatePollOverlay({
       setFacultyList(faculty.faculty || []);
       setCourseList(courses || []);
     } catch (err) {
-      console.error("Error loading data:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -207,7 +206,6 @@ export default function CreatePollOverlay({
       onPollCreated?.();
       onClose();
     } catch (err) {
-      console.error("Error saving poll:", err);
       setError(err.message);
     } finally {
       setLoading(false);

@@ -62,7 +62,7 @@ VITE_APPWRITE_BUCKET_ID=your_bucket_id
 
 # API Authentication
 VITE_APPWRITE_API_TOKEN=your_api_token
-VITE_AUTH_TOKEN=your_auth_token
+AUTH_TOKEN=your_auth_token
 ```
 
 ### Development Server

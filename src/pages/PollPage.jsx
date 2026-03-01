@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import { addToast } from "../store/uiSlice.js";
@@ -39,6 +39,21 @@ const POLL_OPTIONS = {
   ],
 };
 
+function getPollOptions(pollType) {
+  return POLL_OPTIONS[String(pollType)] || null;
+}
+
+function toTimeMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toDate === "function") {
+    const date = value.toDate();
+    return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
+  }
+  const date = new Date(value);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export default function PollPage() {
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.auth.currentUser);
@@ -64,8 +79,16 @@ export default function PollPage() {
   const [editingPoll, setEditingPoll] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingPoll, setDeletingPoll] = useState(null);
+  const lookupsLoadedRef = useRef(false);
+  const lookupLoadPromiseRef = useRef(null);
 
   const hasUser = Boolean(currentUser?.$id);
+  const safePolls = Array.isArray(polls)
+    ? polls.filter((poll) => poll && poll.$id)
+    : [];
+  const safeMyPolls = Array.isArray(myPolls)
+    ? myPolls.filter((poll) => poll && poll.$id)
+    : [];
 
   useEffect(() => {
     if (hasUser) {
@@ -73,97 +96,105 @@ export default function PollPage() {
     }
   }, [hasUser, activeTab]);
 
+  const ensureLookupData = async () => {
+    if (lookupsLoadedRef.current) return;
+    if (!lookupLoadPromiseRef.current) {
+      lookupLoadPromiseRef.current = (async () => {
+        const [faculty, courses] = await Promise.all([
+          publicFacultyService.getFacultyList({ limit: 1000, page: 1 }),
+          courseService.getAllCourses(1000),
+        ]);
+        setFacultyList(faculty?.faculty || []);
+        setCourseList(courses || []);
+        lookupsLoadedRef.current = true;
+      })().catch((error) => {
+        lookupLoadPromiseRef.current = null;
+        throw error;
+      });
+    }
+    await lookupLoadPromiseRef.current;
+  };
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
-
-      // Load faculty and courses
-      const [faculty, courses] = await Promise.all([
-        publicFacultyService.getFacultyList({ limit: 1000, page: 1 }),
-        courseService.getAllCourses(1000),
-      ]);
-      setFacultyList(faculty.faculty || []);
-      setCourseList(courses || []);
+      await ensureLookupData();
 
       if (activeTab === "active") {
         const activePolls = await pollService.getActivePolls();
 
-        // Auto-deactivate ended polls
+        // Auto-deactivate ended polls in parallel to reduce round-trips.
         const now = new Date();
-        for (const poll of activePolls) {
-          if (poll.isActive) {
-            const endTime = new Date(poll.pollEndTime);
-            if (now >= endTime) {
-              try {
-                await pollService.updatePollStatus(poll.$id, false);
-                poll.isActive = false;
-              } catch (err) {
-                console.error("Error auto-deactivating poll:", err);
-              }
-            }
-          }
-        }
-
-        setPolls(activePolls);
-
-        // Load results and user votes for each poll
-        const resultsPromises = activePolls.map((poll) =>
-          pollService.getPollResults(poll.$id),
-        );
-        const votesPromises = activePolls.map((poll) =>
-          pollService.getUserVote(currentUser.$id, poll.$id),
-        );
-
-        const [results, votes] = await Promise.all([
-          Promise.all(resultsPromises),
-          Promise.all(votesPromises),
-        ]);
-
-        const resultsMap = {};
-        const votesMap = {};
-        activePolls.forEach((poll, index) => {
-          resultsMap[poll.$id] = results[index];
-          votesMap[poll.$id] = votes[index];
+        const endedActivePolls = (activePolls || []).filter((poll) => {
+          if (!poll?.isActive) return false;
+          const endTime = new Date(poll.pollEndTime);
+          return now >= endTime;
         });
+        if (endedActivePolls.length > 0) {
+          const ids = endedActivePolls
+            .map((poll) => poll.$id)
+            .filter(Boolean);
+          await pollService.batchUpdatePollStatus(ids, false);
+        }
+        const endedPollIdSet = new Set(endedActivePolls.map((poll) => poll.$id));
+        const normalizedActivePolls = (activePolls || []).map((poll) =>
+          endedPollIdSet.has(poll?.$id) ? { ...poll, isActive: false } : poll,
+        );
 
-        setPollResults(resultsMap);
-        setUserVotes(votesMap);
+        const activePollIds = (normalizedActivePolls || [])
+          .map((poll) => poll?.$id)
+          .filter(Boolean);
+        setPolls(normalizedActivePolls);
+
+        const resultsMap = await pollService.getPollResultsBulk(activePollIds);
+        const votesMap = {};
+        for (const pollId of activePollIds) {
+          const votes = resultsMap?.[pollId]?.votes || [];
+          const userVotesForPoll = votes.filter(
+            (row) => String(row?.userId || "") === String(currentUser?.$id || ""),
+          );
+          if (userVotesForPoll.length === 0) {
+            votesMap[pollId] = null;
+            continue;
+          }
+          const latestVote = [...userVotesForPoll].sort(
+            (a, b) =>
+              toTimeMs(b?.updatedAt || b?.createdAt) -
+              toTimeMs(a?.updatedAt || a?.createdAt),
+          )[0];
+          votesMap[pollId] = latestVote;
+        }
+        setPollResults(resultsMap || {});
+        setUserVotes(votesMap || {});
       } else if (activeTab === "my-polls") {
         const userPolls = await pollService.getUserPolls(currentUser.$id);
 
-        // Auto-deactivate ended polls
+        // Auto-deactivate ended polls in parallel to reduce round-trips.
         const now = new Date();
-        for (const poll of userPolls) {
-          if (poll.isActive) {
-            const endTime = new Date(poll.pollEndTime);
-            if (now >= endTime) {
-              try {
-                await pollService.updatePollStatus(poll.$id, false);
-                poll.isActive = false;
-              } catch (err) {
-                console.error("Error auto-deactivating poll:", err);
-              }
-            }
-          }
-        }
-
-        setMyPolls(userPolls);
-
-        // Load results for user's polls
-        const resultsPromises = userPolls.map((poll) =>
-          pollService.getPollResults(poll.$id),
-        );
-        const results = await Promise.all(resultsPromises);
-
-        const resultsMap = {};
-        userPolls.forEach((poll, index) => {
-          resultsMap[poll.$id] = results[index];
+        const endedUserPolls = (userPolls || []).filter((poll) => {
+          if (!poll?.isActive) return false;
+          const endTime = new Date(poll.pollEndTime);
+          return now >= endTime;
         });
+        if (endedUserPolls.length > 0) {
+          const ids = endedUserPolls
+            .map((poll) => poll.$id)
+            .filter(Boolean);
+          await pollService.batchUpdatePollStatus(ids, false);
+        }
+        const endedPollIdSet = new Set(endedUserPolls.map((poll) => poll.$id));
+        const normalizedUserPolls = (userPolls || []).map((poll) =>
+          endedPollIdSet.has(poll?.$id) ? { ...poll, isActive: false } : poll,
+        );
 
-        setMyPollResults(resultsMap);
+        const userPollIds = (normalizedUserPolls || [])
+          .map((poll) => poll?.$id)
+          .filter(Boolean);
+        setMyPolls(normalizedUserPolls);
+        const resultsMap = await pollService.getPollResultsBulk(userPollIds);
+        setMyPollResults(resultsMap || {});
       }
     } catch (err) {
-      console.error("Error loading poll data:", err);
       dispatch(addToast({ message: "Failed to load polls", type: "error" }));
     } finally {
       setLoading(false);
@@ -221,19 +252,14 @@ export default function PollPage() {
         vote,
       });
 
-      // Reload results and user vote
-      const [results, userVote] = await Promise.all([
-        pollService.getPollResults(pollId),
-        pollService.getUserVote(currentUser.$id, pollId),
-      ]);
+      // Refresh only aggregate results; selected user vote is already optimistically applied.
+      const results = await pollService.getPollResults(pollId);
 
       setPollResults((prev) => ({ ...prev, [pollId]: results }));
-      setUserVotes((prev) => ({ ...prev, [pollId]: userVote }));
       dispatch(
         addToast({ message: "Vote submitted successfully!", type: "success" }),
       );
     } catch (err) {
-      console.error("Error submitting vote:", err);
       setPollResults((prev) => ({ ...prev, [pollId]: previousResults }));
       setUserVotes((prev) => {
         const next = { ...prev };
@@ -322,7 +348,6 @@ export default function PollPage() {
       // Reload polls to reflect the change
       await loadInitialData();
     } catch (err) {
-      console.error("Error toggling poll status:", err);
       dispatch(
         addToast({
           message: err.message || "Failed to toggle poll status",
@@ -346,7 +371,6 @@ export default function PollPage() {
       // Reload polls
       await loadInitialData();
     } catch (err) {
-      console.error("Error deleting poll:", err);
       dispatch(
         addToast({
           message: err.message || "Failed to delete poll",
@@ -418,7 +442,7 @@ export default function PollPage() {
   const renderPollCard = (poll) => {
     const results = pollResults[poll.$id];
     const userVote = userVotes[poll.$id];
-    const options = POLL_OPTIONS[poll.pollType];
+    const options = getPollOptions(poll.pollType);
     const isActive = isPollActive(poll);
     const isVotePending = Boolean(votePendingByPoll[poll.$id]);
 
@@ -486,7 +510,12 @@ export default function PollPage() {
 
         {/* Voting Options */}
         <div className="space-y-3 mb-4">
-          {options.map((option) => {
+          {!options ? (
+            <div className="rounded-lg border border-(--border) bg-(--panel) px-3 py-2 text-xs sm:text-sm text-(--muted)">
+              Invalid poll configuration (type: {String(poll.pollType || "N/A")}).
+            </div>
+          ) : (
+            options.map((option) => {
             const voteCount = results?.voteCounts?.[option.value] || 0;
             const totalVotes = results?.totalVotes || 0;
             const percentage =
@@ -528,7 +557,8 @@ export default function PollPage() {
                 </div>
               </button>
             );
-          })}
+          })
+          )}
         </div>
 
         <div className="text-xs sm:text-sm text-(--muted) flex items-center justify-between gap-2 pt-3 border-t border-(--border)">
@@ -582,7 +612,7 @@ export default function PollPage() {
 
   const renderMyPollCard = (poll) => {
     const results = myPollResults[poll.$id];
-    const options = POLL_OPTIONS[poll.pollType];
+    const options = getPollOptions(poll.pollType);
     const isActive = isPollActive(poll);
 
     return (
@@ -649,7 +679,12 @@ export default function PollPage() {
 
         {/* Poll Results (non-interactive) */}
         <div className="space-y-3 mb-4">
-          {options.map((option) => {
+          {!options ? (
+            <div className="rounded-lg border border-(--border) bg-(--panel) px-3 py-2 text-xs sm:text-sm text-(--muted)">
+              Invalid poll configuration (type: {String(poll.pollType || "N/A")}).
+            </div>
+          ) : (
+            options.map((option) => {
             const voteCount = results?.voteCounts?.[option.value] || 0;
             const totalVotes = results?.totalVotes || 0;
             const percentage =
@@ -674,7 +709,8 @@ export default function PollPage() {
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
 
         {/* Poll Management Section */}
@@ -824,7 +860,7 @@ export default function PollPage() {
             {/* Active Polls Tab */}
             {activeTab === "active" && (
               <div className="space-y-6">
-                {polls.length === 0 ? (
+                {safePolls.length === 0 ? (
                   <div className="text-center py-12 bg-(--card) rounded-lg border border-(--border)">
                     <FontAwesomeIcon
                       icon={faPoll}
@@ -839,7 +875,7 @@ export default function PollPage() {
                     </button>
                   </div>
                 ) : (
-                  polls.map(renderPollCard)
+                  safePolls.map(renderPollCard)
                 )}
               </div>
             )}
@@ -847,7 +883,7 @@ export default function PollPage() {
             {/* My Polls Tab */}
             {activeTab === "my-polls" && (
               <div className="space-y-6">
-                {myPolls.length === 0 ? (
+                {safeMyPolls.length === 0 ? (
                   <div className="text-center py-12 bg-(--card) rounded-lg border border-(--border)">
                     <FontAwesomeIcon
                       icon={faPoll}
@@ -900,7 +936,7 @@ export default function PollPage() {
                     </div>
 
                     {(() => {
-                      const filteredPolls = myPolls.filter((poll) => {
+                      const filteredPolls = safeMyPolls.filter((poll) => {
                         if (myPollFilter === "all") return true;
                         const isActive = isPollActive(poll);
                         if (myPollFilter === "active") return isActive;

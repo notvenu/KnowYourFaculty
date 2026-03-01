@@ -7,14 +7,27 @@
 import { config } from 'dotenv';
 config();
 
+const readServerEnv = (...keys) => {
+    for (const key of keys) {
+        const value = process.env[key];
+        if (String(value || "").trim()) return value;
+    }
+    return undefined;
+};
+
 const serverConfig = {
-    appwriteUrl: process.env.VITE_APPWRITE_URL,
-    appwriteProjectId: process.env.VITE_APPWRITE_PROJECT_ID,
-    appwriteDBId: process.env.VITE_APPWRITE_DB_ID,
-    appwriteTableId: process.env.VITE_APPWRITE_TABLE_ID,
-    appwriteBucketId: process.env.VITE_APPWRITE_BUCKET_ID,
-    authToken: process.env.VITE_AUTH_TOKEN,
-    appwriteApiKey: process.env.VITE_APPWRITE_API_TOKEN,
+    // Firebase Configuration
+    firebaseProjectId: readServerEnv("FIREBASE_PROJECT_ID", "VITE_FIREBASE_PROJECT_ID"),
+    firebasePrivateKey: readServerEnv("FIREBASE_PRIVATE_KEY", "VITE_FIREBASE_PRIVATE_KEY"),
+    firebaseClientEmail: readServerEnv("FIREBASE_CLIENT_EMAIL", "VITE_FIREBASE_CLIENT_EMAIL"),
+    firebaseStorageBucket: readServerEnv("FIREBASE_STORAGE_BUCKET", "VITE_FIREBASE_STORAGE_BUCKET"),
+
+    // Collection/Database names
+    firebaseFacultyCollection: readServerEnv("FIREBASE_FACULTY_COLLECTION", "VITE_FIREBASE_FACULTY_COLLECTION") || "faculty",
+    firebaseReviewCollection: readServerEnv("FIREBASE_REVIEW_COLLECTION", "VITE_FIREBASE_REVIEW_COLLECTION") || "reviews",
+    firebaseCoursesCollection: readServerEnv("FIREBASE_COURSES_COLLECTION", "VITE_FIREBASE_COURSES_COLLECTION") || "courses",
+
+    authToken: readServerEnv("AUTH_TOKEN", "VITE_AUTH_TOKEN"),
     
     // Server-specific settings
     server: {

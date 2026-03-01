@@ -20,28 +20,7 @@ import {
   getTierFromRating,
   getTierLabel,
   getTierColor,
-  RATING_FIELDS,
 } from "../lib/ratingConfig.js";
-
-// Calculate overall rating from feedback list
-function calculateOverallRating(feedbackList) {
-  if (!feedbackList || feedbackList.length === 0) return null;
-
-  let totalSum = 0;
-  let totalCount = 0;
-
-  for (const row of feedbackList) {
-    for (const field of RATING_FIELDS) {
-      const value = Number(row?.[field.key || field]);
-      if (Number.isFinite(value) && value >= 1 && value <= 5) {
-        totalSum += value;
-        totalCount += 1;
-      }
-    }
-  }
-
-  return totalCount > 0 ? Number((totalSum / totalCount).toFixed(2)) : null;
-}
 
 function RankIcon({ rank }) {
   if (rank === 1) {
@@ -79,7 +58,12 @@ export default function RankingPage({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
-  const [feedbackByFaculty, setFeedbackByFaculty] = useState({});
+  const [ratingsSummary, setRatingsSummary] = useState({
+    ratings: {},
+    counts: {},
+    byFacultyCourse: {},
+    courseLookup: {},
+  });
   const [courseLookup, setCourseLookup] = useState({});
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedDesignation, setSelectedDesignation] = useState("all");
@@ -173,24 +157,10 @@ export default function RankingPage({ currentUser }) {
       }
       setCourseLookup(lookup);
 
-      // Load all ratings at once and group by faculty
-      const allRatings = await facultyFeedbackService.getAllRatings(10000);
-      const feedbackMap = {};
-
-      // Initialize empty arrays for all faculty
-      for (const f of faculty) {
-        feedbackMap[f.employeeId] = [];
-      }
-
-      // Group ratings by facultyId
-      for (const rating of allRatings) {
-        const facultyId = rating.facultyId;
-        if (feedbackMap[facultyId]) {
-          feedbackMap[facultyId].push(rating);
-        }
-      }
-
-      setFeedbackByFaculty(feedbackMap);
+      const summary = await facultyFeedbackService.getRatingsSummary(10000);
+      setRatingsSummary(
+        summary || { ratings: {}, counts: {}, byFacultyCourse: {}, courseLookup: {} },
+      );
     } catch (err) {
       setError(err?.message || "Failed to load ranking data.");
     } finally {
@@ -216,16 +186,11 @@ export default function RankingPage({ currentUser }) {
   }, [facultyList]);
 
   const courses = useMemo(() => {
-    const courseIds = new Set();
-    Object.values(feedbackByFaculty).forEach((feedbackList) => {
-      feedbackList.forEach((feedback) => {
-        if (feedback.courseId) courseIds.add(feedback.courseId);
-      });
-    });
-    return Array.from(courseIds)
+    const courseIds = Object.keys(ratingsSummary?.courseLookup || {});
+    return courseIds
       .map((id) => ({ id, name: courseLookup[id]?.courseCode || id }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [feedbackByFaculty, courseLookup]);
+  }, [ratingsSummary, courseLookup]);
 
   // Calculate rankings with filters
   const rankedFaculty = useMemo(() => {
@@ -244,18 +209,23 @@ export default function RankingPage({ currentUser }) {
     // Calculate ratings and filter by minimum ratings count
     const withRatings = filtered
       .map((f) => {
-        let feedback = feedbackByFaculty[f.employeeId] || [];
-
-        // Filter by course if selected
-        if (selectedCourse !== "all") {
-          feedback = feedback.filter((fb) => fb.courseId === selectedCourse);
+        let overallRating = null;
+        let totalRatings = 0;
+        if (selectedCourse === "all") {
+          overallRating = ratingsSummary?.ratings?.[f.employeeId] ?? null;
+          totalRatings = Number(ratingsSummary?.counts?.[f.employeeId] || 0);
+        } else {
+          const courseStats =
+            ratingsSummary?.byFacultyCourse?.[f.employeeId]?.[selectedCourse] ||
+            null;
+          overallRating = courseStats?.average ?? null;
+          totalRatings = Number(courseStats?.rowCount || 0);
         }
 
-        const overallRating = calculateOverallRating(feedback);
         return {
           ...f,
           overallRating,
-          totalRatings: feedback.length,
+          totalRatings,
         };
       })
       .filter((f) => f.totalRatings >= minRatings && f.overallRating !== null);
@@ -271,7 +241,7 @@ export default function RankingPage({ currentUser }) {
     return withRatings;
   }, [
     facultyList,
-    feedbackByFaculty,
+    ratingsSummary,
     selectedDepartment,
     selectedDesignation,
     selectedCourse,
@@ -366,7 +336,7 @@ export default function RankingPage({ currentUser }) {
 
         {/* Mobile/Tablet Filter Header */}
         <div className="lg:hidden mb-3 sm:mb-4 rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg">
-          <div className="flex items-center justify-between p-3 sm:p-4 pb-0 sm:pb-0">
+          <div className="flex items-center justify-between px-3 py-3 sm:px-4 sm:py-3.5">
             <h3 className="text-base sm:text-lg font-bold text-(--text)">
               <FontAwesomeIcon
                 icon={faFilter}

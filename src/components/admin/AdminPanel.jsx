@@ -1,88 +1,158 @@
 import { useEffect, useMemo, useState } from "react";
-import { Query } from "appwrite";
-import publicFacultyService from "../../services/publicFacultyService.js";
 import facultyFeedbackService from "../../services/facultyFeedbackService.js";
 import courseService from "../../services/courseService.js";
 import ConfirmOverlay from "../overlays/ConfirmOverlay.jsx";
 
-function buildFacultyLookup(facultyRows) {
-  const lookup = {};
-  for (const row of facultyRows || []) {
-    lookup[String(row.employeeId)] = row.name || `Faculty ${row.employeeId}`;
+const RATING_FIELDS = [
+  "theoryTeaching",
+  "theoryAttendance",
+  "theoryClass",
+  "theoryCorrection",
+  "labClass",
+  "labCorrection",
+  "labAttendance",
+  "ecsCapstoneSDPReview",
+  "ecsCapstoneSDPCorrection",
+];
+
+function toTimeMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toDate === "function") {
+    const date = value.toDate();
+    return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
   }
-  return lookup;
+  const date = new Date(value);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function formatDateTime(value) {
+  if (!value) return "N/A";
+  const date = typeof value?.toDate === "function" ? value.toDate() : new Date(value);
+  if (!Number.isFinite(date?.getTime?.())) return "N/A";
+  return date.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function getRowAverageRating(row) {
+  let total = 0;
+  let count = 0;
+  for (const field of RATING_FIELDS) {
+    const value = Number(row?.[field]);
+    if (Number.isFinite(value) && value >= 1 && value <= 5) {
+      total += value;
+      count += 1;
+    }
+  }
+  if (count === 0) return null;
+  return total / count;
 }
 
 function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
-  const [topFaculty, setTopFaculty] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [feedbackEntries, setFeedbackEntries] = useState([]);
+  const [entryFilter, setEntryFilter] = useState("all");
   const [uploading, setUploading] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState(false);
   const [uploadMessage, setUploadMessage] = useState(null);
   const [courseForm, setCourseForm] = useState({ file: null });
   const [showUploadConfirm, setShowUploadConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState(null);
 
   const statsCards = useMemo(() => {
     if (!stats) return [];
     return [
-      { label: "Total Faculty", value: stats.totalFaculty },
-      { label: "Total Reviews", value: stats.totalReviews },
-      { label: "Users Submitted", value: stats.usersSubmitted },
-      { label: "Courses", value: stats.totalCourses },
+      { label: "Feedback Entries", value: stats.totalEntries },
+      { label: "Users Joined", value: stats.usersJoined },
+      { label: "Reviews (Recent)", value: stats.totalReviews },
+      { label: "Ratings (Recent)", value: stats.totalRatings },
     ];
   }, [stats]);
+
+  const userJoinedSeries = useMemo(() => {
+    if (!Array.isArray(feedbackEntries) || feedbackEntries.length === 0) {
+      return [];
+    }
+
+    const firstSeenByUser = {};
+    for (const row of feedbackEntries) {
+      const userId = String(row?.userId || "").trim();
+      if (!userId) continue;
+      const rowTime = toTimeMs(row?.createdAt || row?.updatedAt);
+      if (!rowTime) continue;
+      if (!firstSeenByUser[userId] || rowTime < firstSeenByUser[userId]) {
+        firstSeenByUser[userId] = rowTime;
+      }
+    }
+
+    const byDate = {};
+    for (const time of Object.values(firstSeenByUser)) {
+      const day = new Date(time).toISOString().slice(0, 10);
+      byDate[day] = (byDate[day] || 0) + 1;
+    }
+
+    return Object.entries(byDate)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-10);
+  }, [feedbackEntries]);
+
+  const ratingDistribution = useMemo(() => {
+    const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const row of feedbackEntries || []) {
+      const avg = getRowAverageRating(row);
+      if (!Number.isFinite(avg)) continue;
+      const bucket = Math.min(5, Math.max(1, Math.round(avg)));
+      dist[bucket] += 1;
+    }
+    return dist;
+  }, [feedbackEntries]);
+
+  const filteredEntries = useMemo(() => {
+    const rows = feedbackEntries || [];
+    if (entryFilter === "all") return rows;
+    if (entryFilter === "reviews") {
+      return rows.filter((row) => String(row?.review || "").trim().length > 0);
+    }
+    if (entryFilter === "ratings") {
+      return rows.filter((row) => Number.isFinite(getRowAverageRating(row)));
+    }
+    return rows;
+  }, [feedbackEntries, entryFilter]);
 
   const loadAdminData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [facultyListResponse, feedbackResponse, courseRows] =
-        await Promise.all([
-          publicFacultyService.getFacultyList({ page: 1, limit: 5000 }),
-          facultyFeedbackService.listRows(
-            facultyFeedbackService.feedbackTableId,
-            [Query.limit(5000)],
-          ),
-          courseService.getAllCourses(5000),
-        ]);
+      const [recentRows, totalEntries] = await Promise.all([
+        facultyFeedbackService.getRecentFeedbackEntries(200),
+        facultyFeedbackService.getFeedbackTotalCount(),
+      ]);
+      const rows = recentRows || [];
 
-      const facultyRows = facultyListResponse.faculty || [];
-      const feedbackRows = feedbackResponse.rows || [];
-      const facultyLookup = buildFacultyLookup(facultyRows);
-
-      const uniqueUsers = new Set();
-      const reviewRows = feedbackRows.filter((row) =>
-        String(row.review || "").trim(),
-      );
-      const facultyCounts = {};
-
-      for (const row of feedbackRows) {
-        if (row.userId) uniqueUsers.add(String(row.userId));
-        const facultyId = String(row.facultyId || "");
-        if (!facultyId) continue;
-        facultyCounts[facultyId] = (facultyCounts[facultyId] || 0) + 1;
+      const users = new Set();
+      let reviewsCount = 0;
+      let ratingsCount = 0;
+      for (const row of rows) {
+        const userId = String(row?.userId || "").trim();
+        if (userId) users.add(userId);
+        if (String(row?.review || "").trim()) reviewsCount += 1;
+        if (Number.isFinite(getRowAverageRating(row))) ratingsCount += 1;
       }
 
-      const rankedFaculty = Object.entries(facultyCounts)
-        .map(([facultyId, count]) => ({
-          facultyId,
-          count,
-          facultyName: facultyLookup[facultyId] || `Faculty ${facultyId}`,
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
-
       setStats({
-        totalFaculty: facultyRows.length,
-        totalReviews: reviewRows.length,
-        usersSubmitted: uniqueUsers.size,
-        totalCourses: courseRows.length,
+        totalEntries: Number(totalEntries || 0),
+        usersJoined: users.size,
+        totalReviews: reviewsCount,
+        totalRatings: ratingsCount,
       });
-      setTopFaculty(rankedFaculty);
-      setCourses(courseRows.slice(0, 30));
+      setFeedbackEntries(rows);
     } catch (loadError) {
       setError(loadError?.message || "Failed to load admin data.");
     } finally {
@@ -109,8 +179,7 @@ function AdminPanel() {
       setUploading(true);
       setUploadMessage(null);
 
-      const { extractCoursesFromPdf } =
-        await import("../../lib/parsers/coursePdfParser.js");
+      const { extractCoursesFromPdf } = await import("../../lib/parsers/coursePdfParser.js");
       const parsed = await extractCoursesFromPdf(courseForm.file);
       const result = await courseService.upsertCoursesFromPdf({
         courses: parsed.courses,
@@ -128,6 +197,26 @@ function AdminPanel() {
     }
   };
 
+  const requestDeleteEntry = (entry) => {
+    setEntryToDelete(entry);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteEntry = async () => {
+    if (!entryToDelete?.$id) return;
+    try {
+      setDeletingEntry(true);
+      await facultyFeedbackService.deleteFeedbackById(entryToDelete.$id);
+      setShowDeleteConfirm(false);
+      setEntryToDelete(null);
+      await loadAdminData();
+    } catch (deleteError) {
+      setError(deleteError?.message || "Failed to delete feedback entry.");
+    } finally {
+      setDeletingEntry(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -135,12 +224,12 @@ function AdminPanel() {
           Admin Dashboard
         </h1>
         <p className="mt-1 text-sm text-(--muted)">
-          Manage course uploads and view faculty feedback stats.
+          Manage course uploads, monitor user joins, and moderate reviews and ratings.
         </p>
       </div>
 
       {loading ? (
-        <p className="text-sm font-medium text-(--muted)">Loading…</p>
+        <p className="text-sm font-medium text-(--muted)">Loading...</p>
       ) : null}
       {error ? (
         <p className="rounded-xl border border-red-300 bg-red-500/10 p-4 text-sm font-medium text-red-600">
@@ -168,9 +257,7 @@ function AdminPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-          <h2 className="mb-4 text-lg font-bold text-(--text)">
-            Upload course PDF
-          </h2>
+          <h2 className="mb-4 text-lg font-bold text-(--text)">Upload course PDF</h2>
           <form onSubmit={handleSubmitCourse} className="space-y-4">
             <input
               type="file"
@@ -189,57 +276,134 @@ function AdminPanel() {
               disabled={uploading}
               className="rounded-xl bg-(--primary) px-5 py-2.5 text-sm font-semibold text-white shadow-(--shadow) disabled:opacity-60"
             >
-              {uploading ? "Parsing…" : "Parse PDF and save courses"}
+              {uploading ? "Parsing..." : "Parse PDF and save courses"}
             </button>
-            {uploadMessage ? (
-              <p className="text-sm text-(--muted)">{uploadMessage}</p>
-            ) : null}
+            {uploadMessage ? <p className="text-sm text-(--muted)">{uploadMessage}</p> : null}
           </form>
         </div>
 
         <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-          <h2 className="mb-4 text-lg font-bold text-(--text)">
-            Top faculty by feedback count
-          </h2>
-          {topFaculty.length === 0 ? (
-            <p className="text-sm text-(--muted)">No feedback yet.</p>
+          <h2 className="mb-4 text-lg font-bold text-(--text)">Users Joined (Activity Based)</h2>
+          {userJoinedSeries.length === 0 ? (
+            <p className="text-sm text-(--muted)">No user activity data yet.</p>
           ) : (
             <div className="space-y-3">
-              {topFaculty.map((item) => (
-                <div
-                  key={item.facultyId}
-                  className="flex items-center justify-between rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5"
-                >
-                  <span className="text-sm font-medium text-(--text) truncate">
-                    {item.facultyName}
-                  </span>
-                  <span className="text-sm font-bold text-(--primary)">
-                    {item.count}
-                  </span>
-                </div>
-              ))}
+              {userJoinedSeries.map((item) => {
+                const maxCount = Math.max(...userJoinedSeries.map((x) => x.count), 1);
+                const width = Math.max(8, Math.round((item.count / maxCount) * 100));
+                return (
+                  <div key={item.date} className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-(--muted)">{item.date}</span>
+                      <span className="text-sm font-bold text-(--primary)">{item.count}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-(--bg)">
+                      <div className="h-2 rounded-full bg-(--primary)" style={{ width: `${width}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
       <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-        <h2 className="mb-4 text-lg font-bold text-(--text)">Recent courses</h2>
-        {courses.length === 0 ? (
-          <p className="text-sm text-(--muted)">No courses.</p>
+        <h2 className="mb-4 text-lg font-bold text-(--text)">Ratings Distribution</h2>
+        {feedbackEntries.length === 0 ? (
+          <p className="text-sm text-(--muted)">No ratings yet.</p>
         ) : (
           <div className="space-y-2">
-            {courses.map((course) => (
-              <div
-                key={course.$id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5 text-sm"
+            {[5, 4, 3, 2, 1].map((rating) => {
+              const maxCount = Math.max(...Object.values(ratingDistribution), 1);
+              const count = ratingDistribution[rating] || 0;
+              const width = Math.max(4, Math.round((count / maxCount) * 100));
+              return (
+                <div key={rating} className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-medium text-(--text)">{rating} Star</span>
+                    <span className="text-sm font-bold text-(--primary)">{count}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-(--bg)">
+                    <div className="h-2 rounded-full bg-(--primary)" style={{ width: `${width}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-(--text)">Reviews and Ratings</h2>
+          <div className="flex items-center gap-2">
+            {["all", "reviews", "ratings"].map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setEntryFilter(filter)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${
+                  entryFilter === filter
+                    ? "bg-(--primary) text-white"
+                    : "bg-(--panel) text-(--muted)"
+                }`}
               >
-                <span className="font-medium text-(--text) truncate">
-                  {course.courseCode} – {course.courseName}
-                </span>
-                <span className="text-xs text-(--muted)">Course</span>
-              </div>
+                {filter}
+              </button>
             ))}
+          </div>
+        </div>
+
+        {filteredEntries.length === 0 ? (
+          <p className="text-sm text-(--muted)">No matching entries.</p>
+        ) : (
+          <div className="space-y-2">
+            {filteredEntries.map((entry) => {
+              const facultyId = String(entry?.facultyId || "").trim();
+              const facultyName = `Faculty ${facultyId || "N/A"}`;
+              const hasReview = String(entry?.review || "").trim().length > 0;
+              const avgRating = getRowAverageRating(entry);
+
+              return (
+                <div
+                  key={entry.$id}
+                  className="flex flex-col gap-2 rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-(--text)">{facultyName}</span>
+                    <span className="text-xs text-(--muted)">
+                      {formatDateTime(entry?.updatedAt || entry?.createdAt)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-(--bg) px-2 py-1 text-xs text-(--muted)">
+                      User: {entry.userId || "N/A"}
+                    </span>
+                    {hasReview ? (
+                      <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-600">
+                        Review
+                      </span>
+                    ) : null}
+                    {Number.isFinite(avgRating) ? (
+                      <span className="rounded-md bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-600">
+                        Rating {avgRating.toFixed(1)}
+                      </span>
+                    ) : null}
+                  </div>
+                  {hasReview ? <p className="line-clamp-2 text-xs text-(--muted)">{entry.review}</p> : null}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => requestDeleteEntry(entry)}
+                      className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+                    >
+                      Delete Entry
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -252,6 +416,22 @@ function AdminPanel() {
         cancelLabel="Cancel"
         onConfirm={confirmUploadCourse}
         onCancel={() => setShowUploadConfirm(false)}
+      />
+
+      <ConfirmOverlay
+        open={showDeleteConfirm}
+        title="Delete Feedback Entry"
+        message="Delete this entry permanently? This removes both review and ratings for the selected row."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDeleteEntry}
+        onCancel={() => {
+          if (deletingEntry) return;
+          setShowDeleteConfirm(false);
+          setEntryToDelete(null);
+        }}
+        loading={deletingEntry}
+        danger
       />
     </div>
   );

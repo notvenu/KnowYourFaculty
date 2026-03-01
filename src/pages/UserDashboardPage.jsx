@@ -20,7 +20,7 @@ import pollService from "../services/pollService.js";
 import accountDeletionService, {
   DELETION_DELAY_MS,
 } from "../services/accountDeletionService.js";
-import authService from "../lib/appwrite/auth.js";
+import authService from "../lib/firebase/auth.js";
 import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
 import CreatePollOverlay from "../components/overlays/CreatePollOverlay.jsx";
 
@@ -159,48 +159,31 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
     setChangedEntries(new Set());
     setCourseQueries(queries);
 
-    // Load course lookup for existing courseIds
+    // Load course lookup for existing courseIds using batch method
     const courseIds = [
       ...new Set(
         rows.map((row) => String(row.courseId || "").trim()).filter(Boolean),
       ),
     ];
     if (courseIds.length > 0) {
-      const courseEntries = await Promise.all(
-        courseIds.map(async (courseId) => {
-          const course = await courseService.getCourseById(courseId);
-          return [courseId, course];
-        }),
-      );
-      const courseMap = {};
-      for (const [courseId, course] of courseEntries) {
-        if (course) courseMap[courseId] = course;
-      }
+      const courseMap = await courseService.getCourseByIdBatch(courseIds);
       setCourseLookup(courseMap);
+    } else {
+      setCourseLookup({});
     }
 
+    // Load faculty lookup using batch method
     const facultyIds = [
       ...new Set(
         rows.map((row) => String(row.facultyId || "").trim()).filter(Boolean),
       ),
     ];
-    if (!facultyIds.length) {
+    if (facultyIds.length > 0) {
+      const facultyMap = await publicFacultyService.getFacultyByIdBatch(facultyIds);
+      setFacultyLookup(facultyMap);
+    } else {
       setFacultyLookup({});
-      return;
     }
-
-    const loaded = await Promise.all(
-      facultyIds.map(async (facultyId) => {
-        const record = await publicFacultyService.getFacultyById(facultyId);
-        return [facultyId, record];
-      }),
-    );
-
-    const map = {};
-    for (const [facultyId, record] of loaded) {
-      if (record) map[facultyId] = record;
-    }
-    setFacultyLookup(map);
   };
 
   useEffect(() => {
@@ -278,37 +261,39 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       setLoadingPolls(true);
       const polls = await pollService.getUserPolls(userId);
 
-      // Auto-deactivate ended polls
+      // Auto-deactivate ended polls in a single batch write rather than
+      // firing one network request per poll.
       const now = new Date();
+      const idsToDeactivate = [];
       for (const poll of polls) {
         if (poll.isActive) {
           const endTime = new Date(poll.pollEndTime);
           if (now >= endTime) {
-            try {
-              await pollService.updatePollStatus(poll.$id, false);
-              poll.isActive = false;
-            } catch (err) {
-              console.error("Error auto-deactivating poll:", err);
-            }
+            idsToDeactivate.push(poll.$id);
+            poll.isActive = false;
           }
+        }
+      }
+      if (idsToDeactivate.length > 0) {
+        try {
+          await pollService.batchUpdatePollStatus(idsToDeactivate, false);
+        } catch (err) {
+          // fall back to individual updates so UI still reflects changes
+          await Promise.allSettled(
+            idsToDeactivate.map((id) =>
+              pollService.updatePollStatus(id, false),
+            ),
+          );
         }
       }
 
       setUserPolls(polls);
 
-      // Load results for each poll
-      const resultsPromises = polls.map((poll) =>
-        pollService.getPollResults(poll.$id),
-      );
-      const results = await Promise.all(resultsPromises);
-
-      const resultsMap = {};
-      polls.forEach((poll, index) => {
-        resultsMap[poll.$id] = results[index];
-      });
+      // Load results for all polls at once using batch method
+      const pollIds = polls.map((poll) => poll.$id);
+      const resultsMap = await pollService.getPollResultsBulk(pollIds);
       setPollResults(resultsMap);
     } catch (err) {
-      console.error("Error loading user polls:", err);
     } finally {
       setLoadingPolls(false);
     }
@@ -342,7 +327,6 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       );
       await loadUserPolls();
     } catch (err) {
-      console.error("Error toggling poll status:", err);
       dispatch(
         addToast({
           message: err.message || "Failed to toggle poll status",
@@ -368,7 +352,6 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       );
       await loadUserPolls();
     } catch (err) {
-      console.error("Error deleting poll:", err);
       dispatch(
         addToast({
           message: err.message || "Failed to delete poll",

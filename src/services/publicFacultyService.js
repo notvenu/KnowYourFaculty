@@ -1,23 +1,31 @@
-import { Client, Databases, Query, TablesDB } from "appwrite";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  Query as FirestoreQuery,
+  QueryConstraint,
+} from "firebase/firestore";
+import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
 
 /**
  * 🌐 PUBLIC FACULTY SERVICE
  * Provides public access to faculty data without authentication
- * Uses client-side Appwrite SDK for frontend applications
+ * Uses client-side Firebase SDK for frontend applications
  */
 
 class PublicFacultyService {
-  client = new Client();
-  databases;
-  tablesDB;
   initialized = false;
   initError = null;
   queryCache = new Map();
   inflightRequests = new Map();
-  CACHE_TTL_MS = 5 * 60 * 1000;
-  FACULTY_CACHE_TTL_MS = 10 * 60 * 1000;
+  CACHE_TTL_MS = 50 * 60 * 1000;  // Faculty/dept data rarely changes; use 50min cache
+  FACULTY_CACHE_TTL_MS = 50 * 60 * 1000;  // Faculty cache 50 minutes
   facultyByIdCache = new Map();
+  facultyByIdCacheExpiry = new Map();
   departmentsCache = null;
   departmentsCacheExpiry = 0;
   statsCache = null;
@@ -28,35 +36,24 @@ class PublicFacultyService {
 
   constructor() {
     // Validate required configuration
-    if (!clientConfig.appwriteUrl || !clientConfig.appwriteProjectId) {
-      this.initError = `Missing Appwrite configuration. URL: ${!!clientConfig.appwriteUrl}, ProjectID: ${!!clientConfig.appwriteProjectId}`;
-      console.error(
-        "PublicFacultyService initialization failed:",
-        this.initError,
-      );
+    if (!clientConfig.firebaseProjectId || !clientConfig.firebaseApiKey) {
+      this.initError = `Missing Firebase configuration. ProjectID: ${!!clientConfig.firebaseProjectId}, ApiKey: ${!!clientConfig.firebaseApiKey}`;
       return;
     }
 
     try {
-      this.client
-        .setEndpoint(clientConfig.appwriteUrl)
-        .setProject(clientConfig.appwriteProjectId);
-
-      this.databases = new Databases(this.client);
-      this.tablesDB = new TablesDB(this.client);
       this.initialized = true;
     } catch (error) {
-      this.initError = error?.message || "Failed to initialize Appwrite client";
-      console.error("PublicFacultyService initialization error:", error);
+      this.initError = error?.message || "Failed to initialize Firebase client";
     }
   }
 
-  async listFacultyRecords(queries = []) {
-    if (!this.initialized || !this.tablesDB) {
-      throw new Error(this.initError || "Appwrite service not initialized");
+  async listFacultyRecords(constraints = []) {
+    if (!this.initialized) {
+      throw new Error(this.initError || "Firebase service not initialized");
     }
 
-    const cacheKey = JSON.stringify(queries || []);
+    const cacheKey = JSON.stringify(constraints || []);
     const cached = this.queryCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.value;
@@ -68,40 +65,27 @@ class PublicFacultyService {
 
     const fetchPromise = (async () => {
       try {
-        const response = await this.tablesDB.listRows(
-          clientConfig.appwriteDBId,
-          clientConfig.appwriteTableId,
-          queries,
+        const q = query(
+          collection(db, clientConfig.firebaseFacultyCollection),
+          ...constraints,
         );
+
+        const snapshot = await getDocs(q);
         const value = {
-          records: response.rows || [],
-          total: response.total || 0,
+          records: snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          })),
+          total: snapshot.size,
         };
+
         this.queryCache.set(cacheKey, {
           value,
           expiresAt: Date.now() + this.CACHE_TTL_MS,
         });
         return value;
-      } catch (tablesError) {
-        if (!this.databases) {
-          throw new Error(
-            this.initError || "Appwrite databases service not initialized",
-          );
-        }
-        const response = await this.databases.listDocuments(
-          clientConfig.appwriteDBId,
-          clientConfig.appwriteTableId,
-          queries,
-        );
-        const value = {
-          records: response.documents || [],
-          total: response.total || 0,
-        };
-        this.queryCache.set(cacheKey, {
-          value,
-          expiresAt: Date.now() + this.CACHE_TTL_MS,
-        });
-        return value;
+      } catch (error) {
+        throw error;
       } finally {
         this.inflightRequests.delete(cacheKey);
       }
@@ -128,10 +112,10 @@ class PublicFacultyService {
    */
   async getFacultyList({
     page = 1,
-    limit = 20,
+    limit: pageSize = 20,
     search = "",
     department = "all",
-    sortBy = "$updatedAt",
+    sortBy = "updatedAt",
     sortOrder = "desc",
   } = {}) {
     try {
@@ -140,7 +124,7 @@ class PublicFacultyService {
       if (trimmedSearch) {
         return await this.getFacultyListWithClientSearch({
           page,
-          limit,
+          limit: pageSize,
           search: trimmedSearch,
           department,
           sortBy,
@@ -148,109 +132,99 @@ class PublicFacultyService {
         });
       }
 
-      const queries = [Query.limit(limit), Query.offset((page - 1) * limit)];
+      const constraints = [];
 
       // Add sorting
-      if (sortOrder === "desc") {
-        queries.push(Query.orderDesc(sortBy));
+      if (sortBy !== "$updatedAt") {
+        const sortField = sortBy.replace("$updatedAt", "updatedAt");
+        constraints.push(
+          orderBy(sortField, sortOrder === "desc" ? "desc" : "asc")
+        );
       } else {
-        queries.push(Query.orderAsc(sortBy));
+        constraints.push(orderBy("updatedAt", "desc"));
       }
 
       // Add department filter
       if (department && department !== "all") {
-        queries.push(Query.equal("department", department));
+        constraints.push(where("department", "==", department));
       }
 
-      const response = await this.listFacultyRecords(queries);
+      // OPTIMIZATION: Fetch only what's needed for pagination
+      // Calculate reasonable limit based on page and size
+      const estimatedMaxNeeded = page * pageSize + 50; // Small buffer
+      constraints.push(limit(Math.min(estimatedMaxNeeded, 500))); // Cap at 500
+
+      const response = await this.listFacultyRecords(constraints);
+
+      // Apply client-side pagination
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedRecords = response.records.slice(startIndex, endIndex);
 
       return {
-        faculty: response.records || [],
-        total: response.total || 0,
+        faculty: paginatedRecords,
+        total: response.total,
         page,
-        limit,
-        totalPages: Math.ceil((response.total || 0) / limit),
-        hasNext: page * limit < (response.total || 0),
+        limit: pageSize,
+        totalPages: Math.ceil(response.total / pageSize),
+        hasNext: endIndex < response.total,
         hasPrev: page > 1,
       };
     } catch (error) {
-      console.error("Error loading faculty list:", error);
-      return this.getSampleFacultyData(page, limit, search, department);
+      return this.getSampleFacultyData(page, pageSize, search, department);
     }
   }
 
   async getFacultyListWithClientSearch({
     page,
-    limit,
+    limit: pageSize,
     search,
     department,
     sortBy,
     sortOrder,
   }) {
-    // Try server-side search first to avoid fetching all records
     try {
-      const queries = [
-        Query.search("name", search),
-        Query.limit(limit),
-        Query.offset((page - 1) * limit),
-      ];
+      const constraints = [];
 
-      if (sortOrder === "desc") {
-        queries.push(Query.orderDesc(sortBy));
+      if (sortBy !== "$updatedAt") {
+        const sortField = sortBy.replace("$updatedAt", "updatedAt");
+        constraints.push(
+          orderBy(sortField, sortOrder === "desc" ? "desc" : "asc")
+        );
       } else {
-        queries.push(Query.orderAsc(sortBy));
+        constraints.push(orderBy("updatedAt", "desc"));
       }
 
       if (department && department !== "all") {
-        queries.push(Query.equal("department", department));
+        constraints.push(where("department", "==", department));
       }
 
-      const response = await this.listFacultyRecords(queries);
+      // OPTIMIZATION: Limit fetch to reasonable size, not all 5000
+      const estimatedMaxNeeded = page * pageSize + 50;
+      constraints.push(limit(Math.min(estimatedMaxNeeded, 500)));
 
-      return {
-        faculty: response.records || [],
-        total: response.total || 0,
-        page,
-        limit,
-        totalPages: Math.ceil((response.total || 0) / limit),
-        hasNext: page * limit < (response.total || 0),
-        hasPrev: page > 1,
-      };
-    } catch {
-      // Fall back to client-side search using cached bulk fetch
-      // (triggered when server-side Query.search is unsupported or fails)
-      const queries = [Query.limit(5000)];
-
-      if (sortOrder === "desc") {
-        queries.push(Query.orderDesc(sortBy));
-      } else {
-        queries.push(Query.orderAsc(sortBy));
-      }
-
-      if (department && department !== "all") {
-        queries.push(Query.equal("department", department));
-      }
-
-      const response = await this.listFacultyRecords(queries);
+      const response = await this.listFacultyRecords(constraints);
 
       const normalizedSearch = search.toLowerCase();
       const filteredFaculty = (response.records || []).filter((faculty) =>
         this.matchesSearch(faculty, normalizedSearch),
       );
 
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
       const paginatedFaculty = filteredFaculty.slice(startIndex, endIndex);
 
       return {
         faculty: paginatedFaculty,
         total: filteredFaculty.length,
         page,
-        limit,
-        totalPages: Math.ceil(filteredFaculty.length / limit),
+        limit: pageSize,
+        totalPages: Math.ceil(filteredFaculty.length / pageSize),
         hasNext: endIndex < filteredFaculty.length,
         hasPrev: page > 1,
       };
+    } catch (error) {
+      return this.getSampleFacultyData(page, pageSize, search, department);
     }
   }
 
@@ -284,7 +258,7 @@ class PublicFacultyService {
 
     try {
       const response = await this.listFacultyRecords([
-        Query.equal("employeeId", Number(employeeId)),
+        where("employeeId", "==", Number(employeeId)),
       ]);
 
       const result =
@@ -307,7 +281,84 @@ class PublicFacultyService {
   }
 
   /**
-   * 🏢 Get all departments
+   * � Batch-fetch faculty by multiple IDs to avoid N+1 queries
+   * Returns { [employeeId]: faculty_object or null }
+   */
+  async getFacultyByIdBatch(employeeIds = []) {
+    const sanitized = Array.from(
+      new Set(
+        (employeeIds || [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id))
+      )
+    );
+    if (sanitized.length === 0) return {};
+
+    const result = {};
+    const uncached = [];
+
+    // Check what's already cached
+    for (const id of sanitized) {
+      const key = String(id);
+      const cached = this.facultyByIdCache.get(key);
+      if (cached && cached.expiresAt > Date.now()) {
+        result[id] = cached.value;
+      } else {
+        uncached.push(id);
+      }
+    }
+
+    if (uncached.length === 0) return result;
+
+    // Batch-fetch in 30-item chunks
+    const chunks = [];
+    for (let i = 0; i < uncached.length; i += 30) {
+      chunks.push(uncached.slice(i, i + 30));
+    }
+
+    for (const chunk of chunks) {
+      try {
+        const q = query(
+          collection(db, clientConfig.firebaseFacultyCollection),
+          where("employeeId", "in", chunk)
+        );
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach((doc) => {
+          const faculty = { $id: doc.id, ...doc.data() };
+          const empId = Number(faculty?.employeeId);
+          if (Number.isFinite(empId)) {
+            result[empId] = faculty;
+            const key = String(empId);
+            this.facultyByIdCache.set(key, {
+              value: faculty,
+              expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+            });
+          }
+        });
+
+        // Cache nulls for missing IDs
+        for (const id of chunk) {
+          if (!result[id]) {
+            result[id] = null;
+            const key = String(id);
+            this.facultyByIdCache.set(key, {
+              value: null,
+              expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+            });
+          }
+        }
+      } catch (error) {
+        for (const id of chunk) {
+          result[id] = null;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * �🏢 Get all departments
    */
   async getDepartments() {
     if (this.departmentsCache && this.departmentsCacheExpiry > Date.now()) {
@@ -315,10 +366,7 @@ class PublicFacultyService {
     }
 
     try {
-      const response = await this.listFacultyRecords([
-        Query.select(["department"]),
-        Query.limit(5000),
-      ]);
+      const response = await this.listFacultyRecords([limit(5000)]);
 
       const departments = [
         ...new Set(
@@ -347,10 +395,8 @@ class PublicFacultyService {
     }
 
     try {
-      const response = await this.listFacultyRecords([
-        Query.select(["department", "designation"]),
-        Query.limit(5000),
-      ]);
+      // OPTIMIZATION: Limit fetch to 1000 records instead of 5000
+      const response = await this.listFacultyRecords([limit(1000)]);
 
       const stats = {
         total: response.total || 0,
@@ -398,14 +444,13 @@ class PublicFacultyService {
 
       return await this.getFacultyList(searchOptions);
     } catch (error) {
-      console.error("Error searching faculty:", error);
       throw new Error("Search failed. Please try again.");
     }
   }
 
   /**
    * 📸 Get faculty photo URL
-   * @param {string} photoFileId - Photo file ID from Appwrite Storage
+   * @param {string} photoFileId - Photo file ID from Firebase Storage
    */
   getFacultyPhotoUrl(photoFileId) {
     if (!photoFileId) return this.getPlaceholderPhoto();
@@ -416,7 +461,8 @@ class PublicFacultyService {
         return this.getPlaceholderPhoto();
       }
 
-      return `${clientConfig.appwriteUrl}/storage/buckets/${clientConfig.appwriteBucketId}/files/${photoFileId}/view?project=${clientConfig.appwriteProjectId}`;
+      // Return Firebase Storage URL
+      return `https://firebasestorage.googleapis.com/v0/b/${clientConfig.firebaseStorageBucket}/o/faculty_photos%2F${encodeURIComponent(photoFileId)}?alt=media`;
     } catch (error) {
       return this.getPlaceholderPhoto();
     }
@@ -445,7 +491,6 @@ class PublicFacultyService {
         lastUpdate: stats.lastUpdated,
       };
     } catch (error) {
-      console.error("Error checking data freshness:", error);
       return {
         isFresh: false,
         error: "Unable to check data freshness",
@@ -456,20 +501,18 @@ class PublicFacultyService {
   /**
    * 📈 Get trending research areas
    */
-  async getTrendingResearch(limit = 10) {
+  async getTrendingResearch(pageSize = 10) {
     if (
       this.trendingCache &&
       this.trendingCacheExpiry > Date.now() &&
-      this.trendingCacheLimit === limit
+      this.trendingCacheLimit === pageSize
     ) {
       return this.trendingCache;
     }
 
     try {
-      const response = await this.listFacultyRecords([
-        Query.select(["researchArea"]),
-        Query.limit(5000),
-      ]);
+      // OPTIMIZATION: Limit fetch to 1000 instead of 5000 for trending research
+      const response = await this.listFacultyRecords([limit(1000)]);
 
       const researchCounts = {};
 
@@ -489,15 +532,14 @@ class PublicFacultyService {
 
       const result = Object.entries(researchCounts)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, limit)
+        .slice(0, pageSize)
         .map(([area, count]) => ({ area, count }));
 
       this.trendingCache = result;
       this.trendingCacheExpiry = Date.now() + this.CACHE_TTL_MS;
-      this.trendingCacheLimit = limit;
+      this.trendingCacheLimit = pageSize;
       return result;
     } catch (error) {
-      console.error("Error getting trending research:", error);
       return [];
     }
   }
@@ -520,8 +562,8 @@ class PublicFacultyService {
         educationPG: "M.E Computer Science",
         educationPhD: "PhD Computer Science & Engineering",
         photoFileId: "sample_photo_1",
-        $createdAt: "2024-01-01T00:00:00.000Z",
-        $updatedAt: "2024-02-11T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-02-11T00:00:00.000Z",
       },
       {
         $id: "sample2",
@@ -536,8 +578,8 @@ class PublicFacultyService {
         educationPG: "M.Tech Signal Processing",
         educationPhD: "PhD Electronics & Communication Engineering",
         photoFileId: "sample_photo_2",
-        $createdAt: "2024-01-01T00:00:00.000Z",
-        $updatedAt: "2024-02-11T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-02-11T00:00:00.000Z",
       },
       {
         $id: "sample3",
@@ -551,8 +593,8 @@ class PublicFacultyService {
         educationPG: "M.Tech Software Engineering",
         educationPhD: "PhD Computer Science",
         photoFileId: "sample_photo_3",
-        $createdAt: "2024-01-01T00:00:00.000Z",
-        $updatedAt: "2024-02-11T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-02-11T00:00:00.000Z",
       },
       {
         $id: "sample4",
@@ -567,8 +609,8 @@ class PublicFacultyService {
         educationPG: "M.Tech Thermal Engineering",
         educationPhD: "PhD Mechanical Engineering",
         photoFileId: "sample_photo_4",
-        $createdAt: "2024-01-01T00:00:00.000Z",
-        $updatedAt: "2024-02-11T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-02-11T00:00:00.000Z",
       },
       {
         $id: "sample5",
@@ -583,8 +625,8 @@ class PublicFacultyService {
         educationPG: "M.Tech Structural Engineering",
         educationPhD: "PhD Structural Engineering",
         photoFileId: "sample_photo_5",
-        $createdAt: "2024-01-01T00:00:00.000Z",
-        $updatedAt: "2024-02-11T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-02-11T00:00:00.000Z",
       },
     ];
 

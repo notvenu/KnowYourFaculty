@@ -1,31 +1,50 @@
 import { weeklyScrape } from "./lib/scraper/weeklyScraper.js";
 
 const REQUIRED_ENV_KEYS = [
-  "VITE_APPWRITE_URL",
-  "VITE_APPWRITE_PROJECT_ID",
-  "VITE_APPWRITE_DB_ID",
-  "VITE_APPWRITE_TABLE_ID",
-  "VITE_APPWRITE_BUCKET_ID",
-  "VITE_AUTH_TOKEN",
-  "VITE_APPWRITE_API_TOKEN"
+  "KYF_PROJECT_ID",
+  "KYF_CLIENT_EMAIL",
+  "KYF_PRIVATE_KEY",
+  "KYF_STORAGE_BUCKET",
+  "AUTH_TOKEN",
+  "KYF_FACULTY_COLLECTION",
 ];
 
-export default async (context) => {
-  const { res, log, error } = context;
-  try {
-    const missing = REQUIRED_ENV_KEYS.filter((key) => !String(process.env[key] || "").trim());
-    if (missing.length > 0) {
-      error(`Missing required function env vars: ${missing.join(", ")}`);
-      return res.json({ ok: false, message: "Missing function env vars", missing }, 500);
-    }
-
-    log("Weekly scrape function started");
-    await weeklyScrape();
-    log("Weekly scrape function completed");
-    return res.json({ ok: true, message: "Weekly scrape completed" });
-  } catch (err) {
-    const message = err?.message || String(err);
-    error(`Weekly scrape function failed: ${message}`);
-    return res.json({ ok: false, message }, 500);
+function hasEnvValue(key) {
+  const aliases = {
+    KYF_PROJECT_ID: ["KYF_PROJECT_ID", "FIREBASE_PROJECT_ID", "VITE_FIREBASE_PROJECT_ID"],
+    KYF_CLIENT_EMAIL: ["KYF_CLIENT_EMAIL", "FIREBASE_CLIENT_EMAIL", "VITE_FIREBASE_CLIENT_EMAIL"],
+    KYF_PRIVATE_KEY: ["KYF_PRIVATE_KEY", "FIREBASE_PRIVATE_KEY", "VITE_FIREBASE_PRIVATE_KEY"],
+    KYF_STORAGE_BUCKET: [
+      "KYF_STORAGE_BUCKET",
+      "FIREBASE_STORAGE_BUCKET",
+      "VITE_FIREBASE_STORAGE_BUCKET",
+    ],
+    KYF_FACULTY_COLLECTION: [
+      "KYF_FACULTY_COLLECTION",
+      "FIREBASE_FACULTY_COLLECTION",
+      "VITE_FIREBASE_FACULTY_COLLECTION",
+    ],
+    AUTH_TOKEN: ["AUTH_TOKEN", "VITE_AUTH_TOKEN"],
+  };
+  const keys = aliases[key] || [key];
+  for (const envKey of keys) {
+    if (String(process.env[envKey] || "").trim()) return true;
   }
-};
+  return false;
+}
+
+export async function runWeeklyScrape(logger = console) {
+  const missing = REQUIRED_ENV_KEYS.filter((key) => !hasEnvValue(key));
+  if (missing.length > 0) {
+    const message = `Missing required env vars: ${missing.join(", ")}`;
+    logger.error?.(message);
+    throw new Error(message);
+  }
+
+  logger.log?.("Weekly scrape started");
+  await weeklyScrape();
+  logger.log?.("Weekly scrape completed");
+  return { ok: true };
+}
+
+export { weeklyScrape };

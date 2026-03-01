@@ -1,32 +1,57 @@
-import { Client, Databases, ID, Permission, Query, Role } from "appwrite";
+import {
+  collection,
+  query,
+  where,
+  limit,
+  getDocs,
+  getDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
-
-function getRowPermissions(userId) {
-  const uid = String(userId || "").trim();
-  if (!uid) return [Permission.read(Role.any())];
-  return [
-    Permission.read(Role.any()),
-    Permission.update(Role.user(uid)),
-    Permission.delete(Role.user(uid)),
-  ];
-}
 
 class PollService {
   constructor() {
-    this.client = new Client()
-      .setEndpoint(clientConfig.appwriteUrl)
-      .setProject(clientConfig.appwriteProjectId);
+    this.pollCollection = clientConfig.firebasePollCollection || "polls";
+    this.pollVotesCollection =
+      clientConfig.firebasePollVotesCollection || "poll_votes";
 
-    this.databases = new Databases(this.client);
-    this.databaseId = clientConfig.appwriteDBId;
-    this.pollTableId = import.meta.env.VITE_APPWRITE_POLL_TABLE_ID || "poll";
-    this.pollVotesTableId =
-      import.meta.env.VITE_APPWRITE_POLL_VOTES_TABLE_ID || "poll_votes";
-
-    this.POLL_CACHE_TTL_MS = 30 * 1000;
+    this.POLL_CACHE_TTL_MS = 5 * 60 * 1000;  // Increased from 30s to 5 min
     this.pollResultsCache = new Map();
     this.activePollsCache = null;
     this.activePollsCacheExpiry = 0;
+    this.hasLoggedActivePollFallback = false;
+    this.hasLoggedUserPollFallback = false;
+  }
+
+  toTimeMs(value) {
+    if (!value) return 0;
+    if (typeof value?.toDate === "function") {
+      const date = value.toDate();
+      return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
+    }
+    const date = new Date(value);
+    const time = date.getTime();
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  sortByCreatedAtDesc(rows) {
+    return [...rows].sort(
+      (a, b) => this.toTimeMs(b?.createdAt) - this.toTimeMs(a?.createdAt),
+    );
+  }
+
+  chunkArray(items, chunkSize = 30) {
+    const safeChunkSize = Math.max(1, Number(chunkSize) || 30);
+    const chunks = [];
+    for (let i = 0; i < items.length; i += safeChunkSize) {
+      chunks.push(items.slice(i, i + safeChunkSize));
+    }
+    return chunks;
   }
 
   /**
@@ -59,6 +84,8 @@ class PollService {
       pollType: String(pollTypeNum),
       pollEndTime: pollEndTime,
       isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     if (facultyId) payload.facultyId = String(facultyId);
@@ -66,18 +93,14 @@ class PollService {
     if (courseType) payload.courseType = String(courseType);
     if (pollStartTime) payload.pollStartTime = pollStartTime;
 
-    const permissions = getRowPermissions(userId);
-
-    const result = await this.databases.createDocument(
-      this.databaseId,
-      this.pollTableId,
-      ID.unique(),
-      payload,
-      permissions,
-    );
-    this.activePollsCache = null;
-    this.activePollsCacheExpiry = 0;
-    return result;
+    try {
+      const docRef = await addDoc(collection(db, this.pollCollection), payload);
+      this.activePollsCache = null;
+      this.activePollsCacheExpiry = 0;
+      return { $id: docRef.id, ...payload };
+    } catch (error) {
+      throw error;
+    }
   }
 
   /**
@@ -89,21 +112,44 @@ class PollService {
     }
 
     try {
-      const response = await this.databases.listDocuments(
-        this.databaseId,
-        this.pollTableId,
-        [
-          Query.equal("isActive", true),
-          Query.orderDesc("$createdAt"),
-          Query.limit(100),
-        ],
+      const q = query(
+        collection(db, this.pollCollection),
+        where("isActive", "==", true),
+        limit(100),
       );
-      this.activePollsCache = response.documents;
+      const snapshot = await getDocs(q);
+      const documents = this.sortByCreatedAtDesc(
+        snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        })),
+      );
+      this.activePollsCache = documents;
       this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
-      return response.documents;
+      return documents;
     } catch (error) {
-      console.error("Error fetching active polls:", error);
-      return [];
+      if (!this.hasLoggedActivePollFallback) {
+        this.hasLoggedActivePollFallback = true;
+      }
+      try {
+        const fallbackQuery = query(
+          collection(db, this.pollCollection),
+          limit(200),
+        );
+        const snapshot = await getDocs(fallbackQuery);
+        const documents = snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        }));
+        const activeDocuments = this.sortByCreatedAtDesc(
+          documents.filter((row) => row?.isActive !== false),
+        ).slice(0, 100);
+        this.activePollsCache = activeDocuments;
+        this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
+        return activeDocuments;
+      } catch (fallbackError) {
+        return [];
+      }
     }
   }
 
@@ -112,18 +158,19 @@ class PollService {
    */
   async getPollsByFaculty(facultyId) {
     try {
-      const response = await this.databases.listDocuments(
-        this.databaseId,
-        this.pollTableId,
-        [
-          Query.equal("facultyId", String(facultyId)),
-          Query.orderDesc("$createdAt"),
-          Query.limit(50),
-        ],
+      const q = query(
+        collection(db, this.pollCollection),
+        where("facultyId", "==", String(facultyId)),
+        limit(50),
       );
-      return response.documents;
+      const snapshot = await getDocs(q);
+      return this.sortByCreatedAtDesc(
+        snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        })),
+      );
     } catch (error) {
-      console.error("Error fetching faculty polls:", error);
       return [];
     }
   }
@@ -133,19 +180,37 @@ class PollService {
    */
   async getUserPolls(userId) {
     try {
-      const response = await this.databases.listDocuments(
-        this.databaseId,
-        this.pollTableId,
-        [
-          Query.equal("userId", String(userId)),
-          Query.orderDesc("$createdAt"),
-          Query.limit(100),
-        ],
+      const q = query(
+        collection(db, this.pollCollection),
+        where("userId", "==", String(userId)),
+        limit(100),
       );
-      return response.documents;
+      const snapshot = await getDocs(q);
+      return this.sortByCreatedAtDesc(
+        snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        })),
+      );
     } catch (error) {
-      console.error("Error fetching user polls:", error);
-      return [];
+      if (!this.hasLoggedUserPollFallback) {
+        this.hasLoggedUserPollFallback = true;
+      }
+      try {
+        const fallbackQuery = query(
+          collection(db, this.pollCollection),
+          where("userId", "==", String(userId)),
+          limit(200),
+        );
+        const snapshot = await getDocs(fallbackQuery);
+        const documents = snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        }));
+        return this.sortByCreatedAtDesc(documents).slice(0, 100);
+      } catch (fallbackError) {
+        return [];
+      }
     }
   }
 
@@ -154,18 +219,19 @@ class PollService {
    */
   async getPollsByCourse(courseId) {
     try {
-      const response = await this.databases.listDocuments(
-        this.databaseId,
-        this.pollTableId,
-        [
-          Query.equal("courseId", String(courseId)),
-          Query.orderDesc("$createdAt"),
-          Query.limit(50),
-        ],
+      const q = query(
+        collection(db, this.pollCollection),
+        where("courseId", "==", String(courseId)),
+        limit(50),
       );
-      return response.documents;
+      const snapshot = await getDocs(q);
+      return this.sortByCreatedAtDesc(
+        snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        })),
+      );
     } catch (error) {
-      console.error("Error fetching course polls:", error);
       return [];
     }
   }
@@ -175,13 +241,15 @@ class PollService {
    */
   async getPollById(pollId) {
     try {
-      return await this.databases.getDocument(
-        this.databaseId,
-        this.pollTableId,
-        String(pollId),
+      const docSnapshot = await getDoc(
+        doc(db, this.pollCollection, String(pollId))
       );
+      if (!docSnapshot.exists()) return null;
+      return {
+        $id: docSnapshot.id,
+        ...docSnapshot.data(),
+      };
     } catch (error) {
-      console.error("Error fetching poll:", error);
       return null;
     }
   }
@@ -210,33 +278,31 @@ class PollService {
       userId: String(userId),
       pollId: String(pollId),
       vote: voteValue,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
-    const permissions = getRowPermissions(userId);
+    try {
+      if (existingVote?.$id) {
+        // Update existing vote
+        await updateDoc(
+          doc(db, this.pollVotesCollection, existingVote.$id),
+          payload
+        );
+        this.pollResultsCache.delete(String(pollId));
+        return { $id: existingVote.$id, ...payload };
+      }
 
-    if (existingVote?.$id) {
-      // Update existing vote
-      const result = await this.databases.updateDocument(
-        this.databaseId,
-        this.pollVotesTableId,
-        existingVote.$id,
-        payload,
-        permissions,
+      // Create new vote
+      const docRef = await addDoc(
+        collection(db, this.pollVotesCollection),
+        payload
       );
       this.pollResultsCache.delete(String(pollId));
-      return result;
+      return { $id: docRef.id, ...payload };
+    } catch (error) {
+      throw error;
     }
-
-    // Create new vote
-    const result = await this.databases.createDocument(
-      this.databaseId,
-      this.pollVotesTableId,
-      ID.unique(),
-      payload,
-      permissions,
-    );
-    this.pollResultsCache.delete(String(pollId));
-    return result;
   }
 
   /**
@@ -244,18 +310,20 @@ class PollService {
    */
   async getUserVote(userId, pollId) {
     try {
-      const response = await this.databases.listDocuments(
-        this.databaseId,
-        this.pollVotesTableId,
-        [
-          Query.equal("userId", String(userId)),
-          Query.equal("pollId", String(pollId)),
-          Query.limit(1),
-        ],
+      const q = query(
+        collection(db, this.pollVotesCollection),
+        where("userId", "==", String(userId)),
+        where("pollId", "==", String(pollId)),
+        limit(1)
       );
-      return response.documents[0] || null;
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+      const docSnapshot = snapshot.docs[0];
+      return {
+        $id: docSnapshot.id,
+        ...docSnapshot.data(),
+      };
     } catch (error) {
-      console.error("Error fetching user vote:", error);
       return null;
     }
   }
@@ -271,13 +339,19 @@ class PollService {
     }
 
     try {
-      const response = await this.databases.listDocuments(
-        this.databaseId,
-        this.pollVotesTableId,
-        [Query.equal("pollId", id), Query.limit(5000)],
+      // OPTIMIZATION: Cap fetch to 1000 max instead of 5000 for vote aggregation
+      const q = query(
+        collection(db, this.pollVotesCollection),
+        where("pollId", "==", id),
+        limit(1000)
       );
+      const snapshot = await getDocs(q);
 
-      const votes = response.documents;
+      const votes = snapshot.docs.map((docSnapshot) => ({
+        $id: docSnapshot.id,
+        ...docSnapshot.data(),
+      }));
+
       const voteCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
       votes.forEach((vote) => {
@@ -298,7 +372,6 @@ class PollService {
       });
       return result;
     } catch (error) {
-      console.error("Error fetching poll results:", error);
       return {
         votes: [],
         voteCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
@@ -307,23 +380,166 @@ class PollService {
     }
   }
 
+  async getPollResultsBulk(pollIds = []) {
+    const ids = Array.from(
+      new Set(
+        (pollIds || [])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean),
+      ),
+    );
+    const resultMap = {};
+    if (ids.length === 0) return resultMap;
+
+    const uncachedIds = [];
+    for (const id of ids) {
+      const cached = this.pollResultsCache.get(id);
+      if (cached && cached.expiresAt > Date.now()) {
+        resultMap[id] = cached.value;
+      } else {
+        uncachedIds.push(id);
+      }
+    }
+
+    if (uncachedIds.length === 0) return resultMap;
+
+    for (const id of uncachedIds) {
+      resultMap[id] = {
+        votes: [],
+        voteCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        totalVotes: 0,
+      };
+    }
+
+    const chunks = this.chunkArray(uncachedIds, 30);
+    for (const chunk of chunks) {
+      // OPTIMIZATION: Cap fetch to 1000 instead of 5000 per batch
+      const q = query(
+        collection(db, this.pollVotesCollection),
+        where("pollId", "in", chunk),
+        limit(1000),
+      );
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach((docSnapshot) => {
+        const voteRow = {
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        };
+        const pollId = String(voteRow?.pollId || "").trim();
+        if (!pollId || !resultMap[pollId]) return;
+
+        resultMap[pollId].votes.push(voteRow);
+        const voteValue = Number(voteRow?.vote);
+        if (voteValue >= 1 && voteValue <= 5) {
+          resultMap[pollId].voteCounts[voteValue] += 1;
+        }
+      });
+    }
+
+    for (const id of uncachedIds) {
+      const row = resultMap[id];
+      row.totalVotes = row.votes.length;
+      this.pollResultsCache.set(id, {
+        value: row,
+        expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
+      });
+    }
+
+    return resultMap;
+  }
+
+  async getUserVotesBulk(userId, pollIds = []) {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) return {};
+
+    const ids = Array.from(
+      new Set(
+        (pollIds || [])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean),
+      ),
+    );
+    const resultMap = {};
+    for (const id of ids) {
+      resultMap[id] = null;
+    }
+    if (ids.length === 0) return resultMap;
+
+    const chunks = this.chunkArray(ids, 30);
+    for (const chunk of chunks) {
+      const q = query(
+        collection(db, this.pollVotesCollection),
+        where("userId", "==", normalizedUserId),
+        where("pollId", "in", chunk),
+        limit(5000),
+      );
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach((docSnapshot) => {
+        const voteRow = {
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        };
+        const pollId = String(voteRow?.pollId || "").trim();
+        if (!pollId || !resultMap[pollId]) {
+          resultMap[pollId] = voteRow;
+          return;
+        }
+
+        const existing = resultMap[pollId];
+        const existingTime = this.toTimeMs(
+          existing?.updatedAt || existing?.createdAt,
+        );
+        const nextTime = this.toTimeMs(voteRow?.updatedAt || voteRow?.createdAt);
+        if (nextTime >= existingTime) {
+          resultMap[pollId] = voteRow;
+        }
+      });
+    }
+
+    return resultMap;
+  }
+
   /**
    * Update poll status (activate/deactivate)
    */
   async updatePollStatus(pollId, isActive) {
     try {
-      const result = await this.databases.updateDocument(
-        this.databaseId,
-        this.pollTableId,
-        String(pollId),
-        { isActive: Boolean(isActive) },
-      );
+      await updateDoc(doc(db, this.pollCollection, String(pollId)), {
+        isActive: Boolean(isActive),
+        updatedAt: new Date(),
+      });
       this.activePollsCache = null;
       this.activePollsCacheExpiry = 0;
-      return result;
+      return true;
     } catch (error) {
-      console.error("Error updating poll status:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Update the active flag for a batch of polls in a single write.
+   * This is significantly faster than issuing a separate network call for
+   * each poll when many polls need to be toggled at once (such as during the
+   * automatic deactivation process on the poll page).
+   *
+   * @param {string[]} pollIds array of poll document ids to update
+   * @param {boolean} isActive new active state
+   */
+  async batchUpdatePollStatus(pollIds, isActive) {
+    if (!Array.isArray(pollIds) || pollIds.length === 0) return;
+    const batch = writeBatch(db);
+    const timestamp = new Date();
+    pollIds.forEach((id) => {
+      const ref = doc(db, this.pollCollection, String(id));
+      batch.update(ref, { isActive: Boolean(isActive), updatedAt: timestamp });
+    });
+    try {
+      await batch.commit();
+      this.activePollsCache = null;
+      this.activePollsCacheExpiry = 0;
+      return true;
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -332,7 +548,7 @@ class PollService {
    */
   async updatePoll(pollId, updates) {
     try {
-      const allowedUpdates = {};
+      const allowedUpdates = { updatedAt: new Date() };
 
       // Only allow updating specific fields
       if (updates.pollEndTime !== undefined) {
@@ -348,14 +564,9 @@ class PollService {
         allowedUpdates.courseType = String(updates.courseType);
       }
 
-      return await this.databases.updateDocument(
-        this.databaseId,
-        this.pollTableId,
-        String(pollId),
-        allowedUpdates,
-      );
+      await updateDoc(doc(db, this.pollCollection, String(pollId)), allowedUpdates);
+      return true;
     } catch (error) {
-      console.error("Error updating poll:", error);
       throw error;
     }
   }
@@ -365,17 +576,12 @@ class PollService {
    */
   async deletePoll(pollId) {
     try {
-      await this.databases.deleteDocument(
-        this.databaseId,
-        this.pollTableId,
-        String(pollId),
-      );
+      await deleteDoc(doc(db, this.pollCollection, String(pollId)));
       this.activePollsCache = null;
       this.activePollsCacheExpiry = 0;
       this.pollResultsCache.delete(String(pollId));
       return true;
     } catch (error) {
-      console.error("Error deleting poll:", error);
       throw error;
     }
   }
@@ -385,14 +591,9 @@ class PollService {
    */
   async deleteVote(voteId) {
     try {
-      await this.databases.deleteDocument(
-        this.databaseId,
-        this.pollVotesTableId,
-        String(voteId),
-      );
+      await deleteDoc(doc(db, this.pollVotesCollection, String(voteId)));
       return true;
     } catch (error) {
-      console.error("Error deleting vote:", error);
       throw error;
     }
   }

@@ -3,7 +3,7 @@ import authService, {
   clearPendingAuthCheck,
   hasPendingAuthCheck,
   ALLOWED_EMAIL_DOMAIN,
-} from "../lib/appwrite/auth.js";
+} from "../lib/firebase/auth.js";
 import accountDeletionService from "../services/accountDeletionService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 
@@ -46,7 +46,6 @@ export const loadCurrentUser = createAsyncThunk(
             );
           }
         } catch (deletionError) {
-          console.error("Scheduled deletion processing failed:", deletionError);
         }
 
         return user;
@@ -81,9 +80,17 @@ export const googleSignIn = createAsyncThunk(
       await new Promise((resolve) => setTimeout(resolve, 500));
       await dispatch(loadCurrentUser());
       return true;
-    } catch {
+    } catch (error) {
+      const errorType = String(error?.type || "").toLowerCase();
+      if (errorType === "disallowed_email_domain") {
+        return rejectWithValue(
+          error?.message ||
+            `Login failed. Please sign in using your @${ALLOWED_EMAIL_DOMAIN} account.`,
+        );
+      }
+
       return rejectWithValue(
-        "Google login failed. Check Appwrite OAuth settings.",
+        error?.message || "Google login failed. Check Firebase OAuth settings.",
       );
     }
   },
