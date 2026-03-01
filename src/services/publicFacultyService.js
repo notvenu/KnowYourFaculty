@@ -798,13 +798,35 @@ class PublicFacultyService {
     if (!photoFileId) return this.getPlaceholderPhoto();
 
     try {
+      const rawPhotoValue = String(photoFileId || "").trim();
+      if (!rawPhotoValue) return this.getPlaceholderPhoto();
+
+      // If DB already stores a usable URL, use it directly.
+      if (/^https?:\/\//i.test(rawPhotoValue)) {
+        return rawPhotoValue;
+      }
+
       // For sample data, return placeholder
-      if (photoFileId.startsWith("sample_")) {
+      if (rawPhotoValue.startsWith("sample_")) {
         return this.getPlaceholderPhoto();
       }
 
+      // Normalize legacy/new formats:
+      // - "faculty_photos/123.jpg"
+      // - "/faculty_photos/123.jpg"
+      // - "faculty_photos%2F123.jpg"
+      // - "123.jpg"
+      let normalizedPhotoId = rawPhotoValue;
+      try {
+        normalizedPhotoId = decodeURIComponent(normalizedPhotoId);
+      } catch {
+        // Keep original if it is not URI-encoded.
+      }
+      normalizedPhotoId = normalizedPhotoId.replace(/^\/+/, "");
+      normalizedPhotoId = normalizedPhotoId.replace(/^faculty_photos\//i, "");
+
       // Return Firebase Storage URL
-      return `https://firebasestorage.googleapis.com/v0/b/${clientConfig.firebaseStorageBucket}/o/faculty_photos%2F${encodeURIComponent(photoFileId)}?alt=media`;
+      return `https://firebasestorage.googleapis.com/v0/b/${clientConfig.firebaseStorageBucket}/o/faculty_photos%2F${encodeURIComponent(normalizedPhotoId)}?alt=media`;
     } catch (error) {
       return this.getPlaceholderPhoto();
     }
