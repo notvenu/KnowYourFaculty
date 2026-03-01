@@ -23,6 +23,7 @@
     "dotenv": "^17.2.3",
     "firebase": "^11.0.0",
     "firebase-admin": "^13.7.0",
+    "gh": "^2.8.9",
     "pdfjs-dist": "^5.4.296",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
