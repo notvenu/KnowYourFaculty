@@ -5,6 +5,7 @@ import SetupHelper from "./components/admin/SetupHelper.jsx";
 import SiteNav from "./components/layout/SiteNav.jsx";
 import SiteFooter from "./components/layout/SiteFooter.jsx";
 import LoginOverlay from "./components/overlays/LoginOverlay.jsx";
+import MaintenanceOverlay from "./components/overlays/MaintenanceOverlay.jsx";
 import AdminPanel from "./components/admin/AdminPanel.jsx";
 import ToastContainer from "./components/ui/ToastContainer.jsx";
 import publicFacultyService from "./services/publicFacultyService.js";
@@ -233,6 +234,7 @@ function App() {
         signingIn={loginInProgress}
       />
       <ToastContainer />
+      <MaintenanceOverlay />
       <Analytics />
     </div>
   );
