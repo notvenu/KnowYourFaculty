@@ -57,20 +57,25 @@ const initAdmin = () => {
   return admin;
 };
 
-const normalizeFaculty = (payload) =>
-  (payload?.data || []).map(({ attributes = {} }) => ({
-    employeeId: Number(attributes.Employee_Id) || null,
-    name: attributes.Name || "Unknown",
-    designation: attributes.Designation || "Unknown",
-    department: attributes.Department || "Unknown",
-    subDepartment: attributes.sub_department || null,
-    educationUG: attributes.Education_UG || null,
-    educationPG: attributes.Education_PG || null,
-    educationPhD: attributes.Education_PHD || null,
-    educationOther: attributes.Education_other || null,
-    researchArea: attributes.Research_area_of_specialization || null,
-    photoUrl: attributes.Photo?.data?.attributes?.url || null,
-  }));
+const normalizeFaculty = (payload, baseUrl = "") =>
+  (payload?.data || []).map(({ attributes = {} }) => {
+    const rawUrl = attributes.Photo?.data?.attributes?.url || null;
+    const photoUrl =
+      rawUrl && rawUrl.startsWith("/") ? `${baseUrl}${rawUrl}` : rawUrl;
+    return {
+      employeeId: Number(attributes.Employee_Id) || null,
+      name: attributes.Name || "Unknown",
+      designation: attributes.Designation || "Unknown",
+      department: attributes.Department || "Unknown",
+      subDepartment: attributes.sub_department || null,
+      educationUG: attributes.Education_UG || null,
+      educationPG: attributes.Education_PG || null,
+      educationPhD: attributes.Education_PHD || null,
+      educationOther: attributes.Education_other || null,
+      researchArea: attributes.Research_area_of_specialization || null,
+      photoUrl,
+    };
+  });
 
 const scrapeFaculty = async () => {
   const baseUrl = "https://cms.vitap.ac.in";
@@ -92,7 +97,7 @@ const scrapeFaculty = async () => {
     headers: { Authorization: `Bearer ${toEnv("AUTH_TOKEN")}` },
     timeout: 30000,
   });
-  return normalizeFaculty(response.data);
+  return normalizeFaculty(response.data, baseUrl);
 };
 
 const listExistingEmployeeIds = async (db, collectionName) => {
@@ -106,15 +111,20 @@ const listExistingEmployeeIds = async (db, collectionName) => {
 
 const uploadPhoto = async (storage, employeeId, photoUrl) => {
   if (!photoUrl) return null;
-  const photoResponse = await fetch(photoUrl);
-  if (!photoResponse.ok) return null;
-  const buffer = Buffer.from(await photoResponse.arrayBuffer());
-  const filename = `${employeeId}.jpg`;
-  const file = storage.bucket().file(`faculty_photos/${filename}`);
-  await file.save(buffer, {
-    metadata: { contentType: "image/jpeg", cacheControl: "public, max-age=86400" },
-  });
-  return filename;
+  try {
+    const photoResponse = await fetch(photoUrl);
+    if (!photoResponse.ok) return null;
+    const buffer = Buffer.from(await photoResponse.arrayBuffer());
+    const filename = `${employeeId}.jpg`;
+    const file = storage.bucket().file(`faculty_photos/${filename}`);
+    await file.save(buffer, {
+      metadata: { contentType: "image/jpeg", cacheControl: "public, max-age=86400" },
+    });
+    return filename;
+  } catch (uploadError) {
+    console.error(`Failed to upload photo for employee ${employeeId} (url: ${photoUrl}): ${uploadError?.message}`);
+    return null;
+  }
 };
 
 export async function runWeeklyScrape(logger = console) {
