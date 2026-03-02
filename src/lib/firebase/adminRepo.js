@@ -117,8 +117,9 @@ export async function uploadPhotoFromUrlAdmin(
 
     await file.save(Buffer.from(buffer), { metadata });
     return filename;
-  } catch (error) {
-    throw error;
+  } catch (uploadError) {
+    console.error(`Failed to upload photo for employee ${employeeId}:`, uploadError?.message);
+    return null;
   }
 }
 
