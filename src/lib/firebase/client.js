@@ -1,6 +1,10 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import clientConfig from "../../config/client.js";
 
@@ -20,12 +24,15 @@ const firebaseConfig = {
 
 export const firebaseAppInstance = initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseAppInstance);
-export const db = getFirestore(firebaseAppInstance);
-export const storage = getStorage(firebaseAppInstance);
 
-// Enable offline persistence when supported.
-enableIndexedDbPersistence(db).catch(() => {
-  // Offline persistence errors are non-fatal
+// Use persistent local cache (IndexedDB) to dramatically reduce Firestore reads.
+// persistentMultipleTabManager allows the cache to work across multiple browser tabs.
+export const db = initializeFirestore(firebaseAppInstance, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
 });
+
+export const storage = getStorage(firebaseAppInstance);
 
 export default firebaseAppInstance;

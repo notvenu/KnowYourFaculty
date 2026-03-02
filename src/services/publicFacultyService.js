@@ -105,7 +105,7 @@ class PublicFacultyService {
   }
 
   hydrateFullFacultyFromPersistentCache() {
-    const persisted = this.readPersistentCache("fullFaculty:v1");
+    const persisted = this.readPersistentCache("fullFaculty:v2");
     if (!Array.isArray(persisted) || persisted.length === 0) return;
     this.fullFacultyCache = persisted;
     this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
@@ -148,7 +148,7 @@ class PublicFacultyService {
 
       this.fullFacultyCache = records;
       this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
-      this.writePersistentCache("fullFaculty:v1", records);
+      this.writePersistentCache("fullFaculty:v2", records);
 
       records.forEach((row) => {
         if (row?.$id) {
@@ -498,7 +498,7 @@ class PublicFacultyService {
     }
 
     try {
-      const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v1");
+      const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v2");
       if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
         const match =
           fullSnapshot.find(
@@ -564,7 +564,7 @@ class PublicFacultyService {
 
     if (uncached.length === 0) return result;
 
-    const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v1");
+    const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v2");
     if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
       const byEmployeeId = new Map();
       fullSnapshot.forEach((row) => {
@@ -658,7 +658,7 @@ class PublicFacultyService {
 
     if (uncached.length === 0) return result;
 
-    const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v1");
+    const fullSnapshot = this.fullFacultyCache || this.readPersistentCache("fullFaculty:v2");
     if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
       const byDocId = new Map(fullSnapshot.map((row) => [String(row?.$id || ""), row]));
       for (const id of uncached) {
@@ -813,7 +813,28 @@ class PublicFacultyService {
       const rawPhotoValue = String(photoFileId || "").trim();
       if (!rawPhotoValue) return [placeholder];
 
+      // If DB already stores a URL, normalize it before use.
       if (/^https?:\/\//i.test(rawPhotoValue)) {
+        // Legacy Appwrite URLs are not valid for Firebase-backed photos.
+        if (/cloud\.appwrite\.io/i.test(rawPhotoValue)) {
+          return [placeholder];
+        }
+
+        // Tokenized Firebase URLs can break after re-upload (token rotation).
+        // Remove token and force alt=media for stable access.
+        if (/firebasestorage\.googleapis\.com/i.test(rawPhotoValue)) {
+          try {
+            const urlObj = new URL(rawPhotoValue);
+            urlObj.searchParams.delete("token");
+            if (!urlObj.searchParams.has("alt")) {
+              urlObj.searchParams.set("alt", "media");
+            }
+            return [urlObj.toString()];
+          } catch {
+            return [placeholder];
+          }
+        }
+
         return [rawPhotoValue];
       }
 

@@ -1,20 +1,27 @@
 import axios from "axios";
 import serverConfig from "../../config/server.js";
 
-function processFacultyData(rawData) {
-  return rawData.data.map(({ attributes }) => ({
-    name: attributes.Name || null,
-    employeeid: attributes.Employee_Id || null,
-    designation: attributes.Designation || null,
-    department: attributes.Department || null,
-    subDepartment: attributes.sub_department || null,
-    educationUG: attributes.Education_UG || null,
-    educationPG: attributes.Education_PG || null,
-    educationPhD: attributes.Education_PHD || null,
-    educationOther: attributes.Education_other || null,
-    researchArea: attributes.Research_area_of_specialization || null,
-    photoUrl: attributes.Photo?.data?.attributes?.url || null
-  }));
+function processFacultyData(rawData, baseUrl = "") {
+  return rawData.data.map(({ attributes }) => {
+    const rawPhotoUrl = attributes.Photo?.data?.attributes?.url || null;
+    const photoUrl =
+      rawPhotoUrl && rawPhotoUrl.startsWith("/")
+        ? `${baseUrl}${rawPhotoUrl}`
+        : rawPhotoUrl;
+    return {
+      name: attributes.Name || null,
+      employeeid: attributes.Employee_Id || null,
+      designation: attributes.Designation || null,
+      department: attributes.Department || null,
+      subDepartment: attributes.sub_department || null,
+      educationUG: attributes.Education_UG || null,
+      educationPG: attributes.Education_PG || null,
+      educationPhD: attributes.Education_PHD || null,
+      educationOther: attributes.Education_other || null,
+      researchArea: attributes.Research_area_of_specialization || null,
+      photoUrl,
+    };
+  });
 }
 
 export async function fetchFacultyProfiles() {
@@ -43,5 +50,5 @@ export async function fetchFacultyProfiles() {
     timeout: 20000
   });
 
-  return processFacultyData(response.data);
+  return processFacultyData(response.data, baseUrl);
 }
