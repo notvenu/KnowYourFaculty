@@ -54,7 +54,9 @@ class FacultyFeedbackService {
   feedbackTotalCountCache = null;
   feedbackTotalCountExpiry = 0;
   PERSISTENT_CACHE_PREFIX = "kyf.feedback";
-  PERSISTENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  RATINGS_SUMMARY_BG_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+  ratingsSummaryRefreshInflight = new Map();
 
   constructor() {}
 
@@ -316,24 +318,7 @@ class FacultyFeedbackService {
    * @param {number} limit_num maximum number of review rows to examine
    * @returns {{ratings:Object,counts:Object,courseLookup:Map<string,Set<string>>}}
    */
-  async getRatingsSummary(limit_num = 10000) {
-    const cacheKey = `ratingsSummary_${limit_num}`;
-    const cached = this.feedbackCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value;
-    }
-
-    const persisted = this.readPersistentCache(cacheKey);
-    if (persisted) {
-      this.feedbackCache.set(cacheKey, {
-        value: persisted,
-        expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
-      });
-      return persisted;
-    }
-
-    // OPTIMIZATION: Cap the fetch limit to reduce read size - 5000 is plenty
-    const actualLimit = Math.min(limit_num, 5000);
+  async buildRatingsSummarySnapshot(actualLimit = 5000) {
     const response = await this.listRows(this.feedbackTableId, [limit(actualLimit)]);
     const ratingAgg = {};
     const byFacultyCourseAgg = {};
@@ -418,7 +403,7 @@ class FacultyFeedbackService {
       }
     }
 
-    const result = {
+    return {
       ratings,
       counts,
       byFacultyCourse,
@@ -427,12 +412,79 @@ class FacultyFeedbackService {
       totalReviews: (response.rows || []).length,
       uniqueUserCount: userSet.size,
     };
+  }
+
+  normalizeRatingsSummaryPayload(payload) {
+    if (!payload) return null;
+    if (payload.summary && typeof payload.summary === "object") {
+      return payload;
+    }
+    // Backward compatibility with older cache shape.
+    return {
+      summary: payload,
+      refreshedAt: 0,
+    };
+  }
+
+  refreshRatingsSummaryInBackground(cacheKey, actualLimit) {
+    if (this.ratingsSummaryRefreshInflight.has(cacheKey)) return;
+    const refreshPromise = (async () => {
+      try {
+        const summary = await this.buildRatingsSummarySnapshot(actualLimit);
+        this.feedbackCache.set(cacheKey, {
+          value: summary,
+          expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+        });
+        this.writePersistentCache(cacheKey, {
+          summary,
+          refreshedAt: Date.now(),
+        });
+      } catch {
+        // Best-effort refresh only.
+      } finally {
+        this.ratingsSummaryRefreshInflight.delete(cacheKey);
+      }
+    })();
+    this.ratingsSummaryRefreshInflight.set(cacheKey, refreshPromise);
+  }
+
+  async getRatingsSummary(limit_num = 10000) {
+    // 5000 rows is already enough for stable aggregate ranking; keep one cache key.
+    const actualLimit = Math.min(limit_num, 5000);
+    const cacheKey = `ratingsSummary_${actualLimit}`;
+    const cached = this.feedbackCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
+    }
+
+    const persistedPayload = this.normalizeRatingsSummaryPayload(
+      this.readPersistentCache(cacheKey),
+    );
+    if (persistedPayload?.summary) {
+      const summary = persistedPayload.summary;
+      this.feedbackCache.set(cacheKey, {
+        value: summary,
+        expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+      });
+
+      const refreshedAt = Number(persistedPayload.refreshedAt || 0);
+      const ageMs = Date.now() - refreshedAt;
+      if (ageMs > this.RATINGS_SUMMARY_BG_REFRESH_MS) {
+        this.refreshRatingsSummaryInBackground(cacheKey, actualLimit);
+      }
+      return summary;
+    }
+
+    const freshSummary = await this.buildRatingsSummarySnapshot(actualLimit);
     this.feedbackCache.set(cacheKey, {
-      value: result,
+      value: freshSummary,
       expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
     });
-    this.writePersistentCache(cacheKey, result);
-    return result;
+    this.writePersistentCache(cacheKey, {
+      summary: freshSummary,
+      refreshedAt: Date.now(),
+    });
+    return freshSummary;
   }
 
   buildRatingSummary(ratings) {

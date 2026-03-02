@@ -39,8 +39,9 @@ class PublicFacultyService {
   fullFacultyInflight = null;
   facultyByDocIdCache = new Map();
   PERSISTENT_CACHE_PREFIX = "kyf.publicFaculty";
-  PERSISTENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   FULL_FACULTY_LIMIT = 5000;
+  PAGINATION_PREFETCH_BUFFER = 5;
 
   constructor() {
     // Validate required configuration
@@ -366,8 +367,9 @@ class PublicFacultyService {
 
       // OPTIMIZATION: Fetch only what's needed for pagination
       // Calculate reasonable limit based on page and size
-      const estimatedMaxNeeded = page * pageSize + 50; // Small buffer
-      constraints.push(limit(Math.min(estimatedMaxNeeded, 500))); // Cap at 500
+      const estimatedMaxNeeded =
+        page * pageSize + Math.min(this.PAGINATION_PREFETCH_BUFFER, pageSize);
+      constraints.push(limit(Math.min(estimatedMaxNeeded, 500)));
 
       const response = await this.listFacultyRecords(constraints);
 
@@ -415,7 +417,8 @@ class PublicFacultyService {
       }
 
       // OPTIMIZATION: Limit fetch to reasonable size, not all 5000
-      const estimatedMaxNeeded = page * pageSize + 50;
+      const estimatedMaxNeeded =
+        page * pageSize + Math.min(this.PAGINATION_PREFETCH_BUFFER, pageSize);
       constraints.push(limit(Math.min(estimatedMaxNeeded, 500)));
 
       const response = await this.listFacultyRecords(constraints);
@@ -449,6 +452,14 @@ class PublicFacultyService {
       .replace(/[^\w\s]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  async ping() {
+    if (!this.initialized) {
+      throw new Error(this.initError || "Firebase service not initialized");
+    }
+    await this.listFacultyRecords([limit(1)]);
+    return true;
   }
 
   matchesSearch(faculty, query) {
@@ -794,42 +805,71 @@ class PublicFacultyService {
    * 📸 Get faculty photo URL
    * @param {string} photoFileId - Photo file ID from Firebase Storage
    */
-  getFacultyPhotoUrl(photoFileId) {
-    if (!photoFileId) return this.getPlaceholderPhoto();
+  getFacultyPhotoCandidates(photoFileId) {
+    const placeholder = this.getPlaceholderPhoto();
+    if (!photoFileId) return [placeholder];
 
     try {
       const rawPhotoValue = String(photoFileId || "").trim();
-      if (!rawPhotoValue) return this.getPlaceholderPhoto();
+      if (!rawPhotoValue) return [placeholder];
 
-      // If DB already stores a usable URL, use it directly.
       if (/^https?:\/\//i.test(rawPhotoValue)) {
-        return rawPhotoValue;
+        return [rawPhotoValue];
       }
 
-      // For sample data, return placeholder
       if (rawPhotoValue.startsWith("sample_")) {
-        return this.getPlaceholderPhoto();
+        return [placeholder];
       }
 
-      // Normalize legacy/new formats:
-      // - "faculty_photos/123.jpg"
-      // - "/faculty_photos/123.jpg"
-      // - "faculty_photos%2F123.jpg"
-      // - "123.jpg"
       let normalizedPhotoId = rawPhotoValue;
       try {
         normalizedPhotoId = decodeURIComponent(normalizedPhotoId);
       } catch {
-        // Keep original if it is not URI-encoded.
+        // keep original when malformed encoding
       }
       normalizedPhotoId = normalizedPhotoId.replace(/^\/+/, "");
       normalizedPhotoId = normalizedPhotoId.replace(/^faculty_photos\//i, "");
 
-      // Return Firebase Storage URL
-      return `https://firebasestorage.googleapis.com/v0/b/${clientConfig.firebaseStorageBucket}/o/faculty_photos%2F${encodeURIComponent(normalizedPhotoId)}?alt=media`;
-    } catch (error) {
-      return this.getPlaceholderPhoto();
+      const configuredBucket = String(clientConfig.firebaseStorageBucket || "").trim();
+      const projectId = String(clientConfig.firebaseProjectId || "").trim();
+      const bucketCandidates = Array.from(
+        new Set(
+          [
+            configuredBucket,
+            projectId ? `${projectId}.firebasestorage.app` : "",
+            projectId ? `${projectId}.appspot.com` : "",
+            configuredBucket.endsWith(".firebasestorage.app")
+              ? configuredBucket.replace(/\.firebasestorage\.app$/i, ".appspot.com")
+              : "",
+            configuredBucket.endsWith(".appspot.com")
+              ? configuredBucket.replace(/\.appspot\.com$/i, ".firebasestorage.app")
+              : "",
+          ].filter(Boolean),
+        ),
+      );
+
+      const encodedObjectPath = encodeURIComponent(
+        `faculty_photos/${normalizedPhotoId}`,
+      );
+
+      const urls = [];
+      for (const bucket of bucketCandidates) {
+        urls.push(
+          `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedObjectPath}?alt=media`,
+        );
+        urls.push(
+          `https://storage.googleapis.com/${bucket}/faculty_photos/${encodeURIComponent(normalizedPhotoId)}`,
+        );
+      }
+
+      return urls.length > 0 ? urls : [placeholder];
+    } catch {
+      return [placeholder];
     }
+  }
+
+  getFacultyPhotoUrl(photoFileId) {
+    return this.getFacultyPhotoCandidates(photoFileId)[0] || this.getPlaceholderPhoto();
   }
 
   /**

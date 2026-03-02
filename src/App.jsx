@@ -211,7 +211,7 @@ function App() {
       );
       
       await Promise.race([
-        publicFacultyService.getFacultyList({ limit: 1 }),
+        publicFacultyService.ping(),
         timeoutPromise,
       ]);
       dispatch(setIsSetupMode(false));

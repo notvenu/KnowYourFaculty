@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { memo } from "react";
+import { memo, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
 import publicFacultyService from "../../services/publicFacultyService.js";
@@ -25,11 +25,19 @@ function formatDepartmentLine(department, subDepartment) {
 function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
   const facultyName = String(faculty?.name || "").trim();
   const facultyEmployeeId = String(faculty?.employeeId || "").trim();
-  if (!facultyName || !facultyEmployeeId) return null;
-
-  const photoUrl = publicFacultyService.getFacultyPhotoUrl(faculty.photoFileId);
+  const photoFileId = faculty?.photoFileId;
+  const photoUrl = publicFacultyService.getFacultyPhotoUrl(photoFileId);
+  const photoCandidates = useMemo(
+    () => publicFacultyService.getFacultyPhotoCandidates(photoFileId),
+    [photoFileId],
+  );
   const placeholderUrl =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'%3E%3Crect width='800' height='600' fill='%23d1d5db'/%3E%3Cg transform='translate(400 300)'%3E%3Ccircle r='95' fill='%23b7bcc4'/%3E%3C/g%3E%3C/svg%3E";
+  const [imageState, setImageState] = useState({ key: "", index: 0 });
+  const photoIndex = imageState.key === photoFileId ? imageState.index : 0;
+  const imageSrc = photoCandidates[photoIndex] || photoUrl || placeholderUrl;
+
+  if (!facultyName || !facultyEmployeeId) return null;
   const overall =
     overallRating != null && Number.isFinite(overallRating)
       ? overallRating
@@ -55,11 +63,15 @@ function FacultyCard({ faculty, overallRating, ratingCount = 0 }) {
     >
       <div className="aspect-4/3 overflow-hidden rounded-t-lg bg-(--panel) relative">
         <img
-          src={photoUrl}
+          src={imageSrc}
           alt={facultyName}
           className="h-full w-full object-cover object-[50%_20%] transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
+            if (photoIndex < photoCandidates.length - 1) {
+              setImageState({ key: photoFileId, index: photoIndex + 1 });
+              return;
+            }
             e.currentTarget.src = placeholderUrl;
           }}
         />

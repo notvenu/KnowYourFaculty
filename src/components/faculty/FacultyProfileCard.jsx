@@ -1,4 +1,5 @@
 import publicFacultyService from "../../services/publicFacultyService.js";
+import { useMemo, useState } from "react";
 
 function DetailRow({ label, value }) {
   if (value == null || String(value).trim() === "") return null;
@@ -11,9 +12,17 @@ function DetailRow({ label, value }) {
 }
 
 export default function FacultyProfileCard({ faculty }) {
-  if (!faculty) return null;
-  const photoUrl = publicFacultyService.getFacultyPhotoUrl(faculty.photoFileId);
+  const photoFileId = faculty?.photoFileId;
+  const photoUrl = publicFacultyService.getFacultyPhotoUrl(photoFileId);
+  const photoCandidates = useMemo(
+    () => publicFacultyService.getFacultyPhotoCandidates(photoFileId),
+    [photoFileId],
+  );
   const placeholderUrl = publicFacultyService.getPlaceholderPhoto();
+  const [imageState, setImageState] = useState({ key: "", index: 0 });
+  const photoIndex = imageState.key === photoFileId ? imageState.index : 0;
+  const imageSrc = photoCandidates[photoIndex] || photoUrl || placeholderUrl;
+  if (!faculty) return null;
   const researchArea = faculty.researchArea
     ? String(faculty.researchArea).trim()
     : null;
@@ -22,10 +31,14 @@ export default function FacultyProfileCard({ faculty }) {
     <div className="flex flex-col rounded-xl border border-(--line) bg-(--bg-elev) p-3 shadow-lg sm:p-4 md:p-5 pb-6">
       <div className="aspect-4/3 w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--bg-elev)">
         <img
-          src={photoUrl}
+          src={imageSrc}
           alt={faculty.name}
           className="w-full h-full object-cover object-[50%_10%]"
           onError={(e) => {
+            if (photoIndex < photoCandidates.length - 1) {
+              setImageState({ key: photoFileId, index: photoIndex + 1 });
+              return;
+            }
             e.currentTarget.src = placeholderUrl;
           }}
         />
