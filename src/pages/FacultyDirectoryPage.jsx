@@ -7,7 +7,7 @@ import { faFilter, faXmark } from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
 import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
-import { fuzzyMatchAny } from "../lib/fuzzySearch.js";
+import { fuzzyMatchAny, fuzzyScoreAny } from "../lib/fuzzySearch.js";
 
 const FACULTY_PER_PAGE = 20;
 const DIRECTORY_STATE_KEY = "kyf.facultyDirectory.state.v1";
@@ -36,6 +36,31 @@ function getRowOverall(row) {
   }
   if (count === 0) return null;
   return total / count;
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function getSearchRank(name, query) {
+  const normalizedName = normalizeSearchText(name);
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return { tier: 3, score: 0 };
+
+  if (normalizedName === normalizedQuery) {
+    return { tier: 0, score: Number.MAX_SAFE_INTEGER };
+  }
+  if (normalizedName.startsWith(normalizedQuery)) {
+    return { tier: 1, score: Number.MAX_SAFE_INTEGER - 1 };
+  }
+  if (normalizedName.includes(normalizedQuery)) {
+    return { tier: 2, score: Number.MAX_SAFE_INTEGER - 2 };
+  }
+
+  return {
+    tier: 3,
+    score: fuzzyScoreAny([name], normalizedQuery),
+  };
 }
 
 function FacultyDirectoryPage({ currentUser }) {
@@ -195,27 +220,35 @@ function FacultyDirectoryPage({ currentUser }) {
       );
     });
 
-    // Apply sorting
-    if (filters.sortBy === "rating-high") {
-      rows = [...rows].sort((a, b) => {
+    const applySelectedSort = (a, b) => {
+      if (filters.sortBy === "rating-high") {
         const ratingA = ratingLookup[String(a.employeeId || "")] || 0;
         const ratingB = ratingLookup[String(b.employeeId || "")] || 0;
         return ratingB - ratingA;
-      });
-    } else if (filters.sortBy === "rating-low") {
-      rows = [...rows].sort((a, b) => {
+      }
+      if (filters.sortBy === "rating-low") {
         const ratingA = ratingLookup[String(a.employeeId || "")] || 0;
         const ratingB = ratingLookup[String(b.employeeId || "")] || 0;
         return ratingA - ratingB;
+      }
+      if (filters.sortBy === "za") {
+        return String(b.name || "").localeCompare(String(a.name || ""));
+      }
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    };
+
+    if (deferredKeyword) {
+      rows = [...rows].sort((a, b) => {
+        const rankA = getSearchRank(a.name, deferredKeyword);
+        const rankB = getSearchRank(b.name, deferredKeyword);
+
+        if (rankA.tier !== rankB.tier) return rankA.tier - rankB.tier;
+        if (rankA.score !== rankB.score) return rankB.score - rankA.score;
+
+        return applySelectedSort(a, b);
       });
-    } else if (filters.sortBy === "az") {
-      rows = [...rows].sort((a, b) =>
-        String(a.name || "").localeCompare(String(b.name || "")),
-      );
-    } else if (filters.sortBy === "za") {
-      rows = [...rows].sort((a, b) =>
-        String(b.name || "").localeCompare(String(a.name || "")),
-      );
+    } else if (filters.sortBy !== "none") {
+      rows = [...rows].sort(applySelectedSort);
     }
 
     return rows;

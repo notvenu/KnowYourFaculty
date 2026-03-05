@@ -16,15 +16,22 @@ function SiteFooter() {
         <div className="flex flex-col gap-2 text-center md:text-left">
           <p className="font-medium">© 2026 KnowYourFaculty</p>
           <p className="flex items-center justify-center gap-2 text-sm md:justify-start">
-            <span>Built with ❤️ by</span>
-            <a
-              href="https://github.com/notvenu"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-(--primary) hover:underline"
-            >
-              Venu K
-            </a>
+            { currentUser && ( <>
+              <span>Built with ❤️ by</span>
+              <a
+                href="https://github.com/notvenu"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-(--primary) hover:underline"
+              >
+                Venu K
+              </a> 
+            </>)}
+            { !currentUser && (
+              <>
+                <span>Built with ❤️ for students</span>
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-col gap-3 items-center md:items-end">

@@ -69,6 +69,8 @@ export default function FacultyRatingsCard({
 }) {
   const hasRatings = ratingSummary.totalRatings > 0;
   const [showFiltersOverlay, setShowFiltersOverlay] = useState(false);
+  const showTopShareButton = !alreadySubmitted && hasRatings;
+  const showEmptyStateShareButton = !alreadySubmitted && !hasRatings;
   const activeFiltersCount =
     (timeFilter !== "all" ? 1 : 0) + (courseFilter ? 1 : 0);
   const clearFilters = () => {
@@ -156,7 +158,7 @@ export default function FacultyRatingsCard({
       )}
 
       <div className="mb-3 sm:mb-4 flex flex-wrap items-start justify-between gap-2">
-        {(setTimeFilter || setCourseFilter) && (
+        {hasRatings && (setTimeFilter || setCourseFilter) && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -184,7 +186,7 @@ export default function FacultyRatingsCard({
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          {!alreadySubmitted && (
+          {showTopShareButton && (
             <button
               type="button"
               onClick={onShareFeedback}
@@ -232,6 +234,15 @@ export default function FacultyRatingsCard({
           <p className="mt-2 text-xs font-medium text-(--muted)">
             No ratings yet
           </p>
+          {showEmptyStateShareButton ? (
+            <button
+              type="button"
+              onClick={onShareFeedback}
+              className="mt-4 rounded-xl bg-(--primary) px-6 py-3 text-sm font-bold text-white shadow-(--shadow) hover:opacity-90 sm:px-8 sm:py-3.5 sm:text-base"
+            >
+              Share feedback
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="border-b border-(--line) pb-4 text-center sm:pb-5">
