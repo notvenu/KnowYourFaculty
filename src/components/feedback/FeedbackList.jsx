@@ -104,7 +104,8 @@ export default function FeedbackList({
     }
 
     feedbackWithReviews = feedbackWithReviews.filter((row) => {
-      const createdDate = row.$createdAt ? new Date(row.$createdAt) : null;
+      const createdSource = row.$createdAt || row.createdAt || null;
+      const createdDate = createdSource ? new Date(createdSource) : null;
       return createdDate && createdDate >= cutoffTime;
     });
   }
@@ -284,15 +285,16 @@ export default function FeedbackList({
           );
 
           // Determine if review was edited and which timestamp to show
-          const createdTime = row.$createdAt ? new Date(row.$createdAt) : null;
-          const updatedTime = row.$updatedAt ? new Date(row.$updatedAt) : null;
+          const createdSource = row.$createdAt || row.createdAt || null;
+          const updatedSource = row.$updatedAt || row.updatedAt || null;
+          const createdTime = createdSource ? new Date(createdSource) : null;
+          const updatedTime = updatedSource ? new Date(updatedSource) : null;
           const wasEdited =
             createdTime &&
             updatedTime &&
             Math.abs(updatedTime.getTime() - createdTime.getTime()) > 1000; // More than 1 second difference
 
-          const displayTime =
-            wasEdited && updatedTime ? row.$updatedAt : row.$createdAt;
+          const displayTime = wasEdited && updatedTime ? updatedSource : createdSource;
           const timePrefix = wasEdited ? "(Edited)" : null;
           const when = timeAgo(displayTime);
 

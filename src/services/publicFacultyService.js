@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
+import { fuzzyMatchAny } from "../lib/fuzzySearch.js";
 
 /**
  * 🌐 PUBLIC FACULTY SERVICE
@@ -446,14 +447,6 @@ class PublicFacultyService {
     }
   }
 
-  normalizeSearchText(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/[^\w\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
   async ping() {
     if (!this.initialized) {
       throw new Error(this.initError || "Firebase service not initialized");
@@ -463,26 +456,19 @@ class PublicFacultyService {
   }
 
   matchesSearch(faculty, query) {
-    const normalizedQuery = this.normalizeSearchText(query);
-    if (!normalizedQuery) return true;
-    const tokens = normalizedQuery.split(" ").filter(Boolean);
+    const searchTerm = String(query || "").trim();
+    if (!searchTerm) return true;
 
-    const searchable = [
-      faculty.name,
-      faculty.department,
-      faculty.designation,
-      faculty.researchArea,
-      faculty.employeeId,
-      faculty.employeeid,
-    ]
-      .filter((value) => value !== null && value !== undefined);
-
-    const normalizedSearchable = searchable
-      .map((value) => this.normalizeSearchText(value))
-      .filter(Boolean);
-
-    return normalizedSearchable.some((value) =>
-      tokens.every((token) => value.includes(token)),
+    return fuzzyMatchAny(
+      [
+        faculty.name,
+        faculty.department,
+        faculty.designation,
+        faculty.researchArea,
+        faculty.employeeId,
+        faculty.employeeid,
+      ].filter((value) => value !== null && value !== undefined),
+      searchTerm,
     );
   }
 
@@ -1057,12 +1043,19 @@ class PublicFacultyService {
     // Apply search filter
     let filteredFaculty = sampleFaculty;
     if (search && search.trim()) {
-      const searchTerm = search.toLowerCase();
+      const searchTerm = search.trim();
       filteredFaculty = sampleFaculty.filter(
         (faculty) =>
-          faculty.name.toLowerCase().includes(searchTerm) ||
-          faculty.department.toLowerCase().includes(searchTerm) ||
-          faculty.designation.toLowerCase().includes(searchTerm),
+          fuzzyMatchAny(
+            [
+              faculty.name,
+              faculty.department,
+              faculty.designation,
+              faculty.researchArea,
+              faculty.employeeId,
+            ],
+            searchTerm,
+          ),
       );
     }
 

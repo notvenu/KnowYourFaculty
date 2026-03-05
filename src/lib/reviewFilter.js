@@ -4,9 +4,20 @@
  */
 
 import filterData from "../data/reviewFilter.json";
+import {
+  RegExpMatcher,
+  englishDataset,
+  englishRecommendedTransformers,
+} from "obscenity";
 
 /** Regex to remove emoji and other symbols (Unicode). Keeps letters, numbers, basic punctuation. */
 const EMOJI_REGEX = /\p{Extended_Pictographic}/gu;
+const NON_ASCII_REGEX = /[^\x00-\x7F]/;
+
+const obscenityMatcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+});
 
 /**
  * Remove emoji and similar symbols from text (no trim). Use for live input.
@@ -46,7 +57,12 @@ export function getReviewFilter() {
  */
 export function containsDisallowed(text, filter) {
   const { words, phrases } = filter || getReviewFilter();
-  const lower = String(text || "").toLowerCase();
+  const source = String(text || "");
+  const lower = source.toLowerCase();
+
+  if (obscenityMatcher.hasMatch(source)) {
+    return { blocked: true, matched: "obscenity" };
+  }
 
   const escapeRegex = (value) =>
     String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -85,6 +101,47 @@ export function containsDisallowed(text, filter) {
     }
   }
   return { blocked: false };
+}
+
+/**
+ * Restrict review text to English/ASCII characters only.
+ * @param {string} text
+ * @returns {boolean}
+ */
+export function containsNonEnglishChars(text) {
+  return NON_ASCII_REGEX.test(String(text || ""));
+}
+
+/**
+ * Validate and normalize review text before persisting.
+ * @param {string} text
+ * @param {{ words: string[], phrases: string[] }} [filter]
+ * @returns {{ valid: boolean, text: string, message?: string }}
+ */
+export function validateReviewText(text, filter) {
+  const cleaned = stripEmoji(text);
+  if (!cleaned) {
+    return { valid: true, text: "" };
+  }
+
+  if (containsNonEnglishChars(cleaned)) {
+    return {
+      valid: false,
+      text: cleaned,
+      message: "Only English reviews are allowed.",
+    };
+  }
+
+  const disallowed = containsDisallowed(cleaned, filter);
+  if (disallowed.blocked) {
+    return {
+      valid: false,
+      text: cleaned,
+      message: "Review contains content that isn't allowed.",
+    };
+  }
+
+  return { valid: true, text: cleaned };
 }
 
 /**

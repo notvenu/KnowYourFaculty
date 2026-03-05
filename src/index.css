@@ -101,6 +101,7 @@ div {
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
 }
 
 /* Toast animations */

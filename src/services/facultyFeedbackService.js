@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
+import { validateReviewText } from "../lib/reviewFilter.js";
 
 const RATING_FIELDS = [
   "theoryTeaching",
@@ -682,7 +683,13 @@ class FacultyFeedbackService {
     };
 
     if (courseId) payload.courseId = String(courseId).trim();
-    if (typeof review === "string") payload.review = review.trim();
+    if (typeof review === "string") {
+      const reviewValidation = validateReviewText(review);
+      if (!reviewValidation.valid) {
+        throw new Error(reviewValidation.message || "Invalid review text.");
+      }
+      payload.review = reviewValidation.text;
+    }
     if (Boolean(theoryNotes)) payload.theoryNotes = true;
     if (
       allowedLabNotes.has(normalizedLabNotes) &&

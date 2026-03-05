@@ -1,13 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import SetupHelper from "./components/admin/SetupHelper.jsx";
 import SiteNav from "./components/layout/SiteNav.jsx";
 import SiteFooter from "./components/layout/SiteFooter.jsx";
-import LoginOverlay from "./components/overlays/LoginOverlay.jsx";
-import AdminPanel from "./components/admin/AdminPanel.jsx";
-import ToastContainer from "./components/ui/ToastContainer.jsx";
-import publicFacultyService from "./services/publicFacultyService.js";
 import {
   loadCurrentUser,
   googleSignIn,
@@ -29,6 +24,10 @@ import clientConfig from "./config/client.js";
 import "./App.css";
 import { Analytics } from "@vercel/analytics/react"
 
+const SetupHelper = lazy(() => import("./components/admin/SetupHelper.jsx"));
+const AdminPanel = lazy(() => import("./components/admin/AdminPanel.jsx"));
+const LoginOverlay = lazy(() => import("./components/overlays/LoginOverlay.jsx"));
+const ToastContainer = lazy(() => import("./components/ui/ToastContainer.jsx"));
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const FacultyDirectoryPage = lazy(
   () => import("./pages/FacultyDirectoryPage.jsx"),
@@ -81,8 +80,27 @@ function App() {
   );
 
   useEffect(() => {
-    checkDatabaseAccess();
     dispatch(loadCurrentUser());
+
+    let timeoutId = null;
+    let idleId = null;
+
+    const runSetupCheck = () => {
+      checkDatabaseAccess();
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(runSetupCheck, { timeout: 3000 });
+    } else {
+      timeoutId = setTimeout(runSetupCheck, 1200);
+    }
+
+    return () => {
+      if (idleId && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [dispatch]);
 
   useEffect(() => {
@@ -187,19 +205,19 @@ function App() {
     window.history.replaceState({}, "", cleanUrl);
   }, [dispatch]);
 
-  useEffect(() => {
-    // Show navbar by default on non-landing pages
+  useLayoutEffect(() => {
+    // Ensure first paint has correct navbar visibility to avoid CLS.
     if (location.pathname !== "/") {
       dispatch(setShowNavbar(true));
       return;
     }
 
-    // For landing page, show navbar on scroll
     const handleScroll = () => {
       dispatch(setShowNavbar(window.scrollY > 50));
     };
 
-    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [location.pathname, dispatch]);
 
@@ -210,6 +228,7 @@ function App() {
         setTimeout(() => reject(new Error("Database check timeout")), 12000)
       );
       
+      const { default: publicFacultyService } = await import("./services/publicFacultyService.js");
       await Promise.race([
         publicFacultyService.ping(),
         timeoutPromise,
@@ -256,7 +275,19 @@ function App() {
     );
   }
 
-  if (isSetupMode && setupChecked) return <SetupHelper />;
+  if (isSetupMode && setupChecked) {
+    return (
+      <Suspense
+        fallback={
+          <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text)">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)" />
+          </div>
+        }
+      >
+        <SetupHelper />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-(--bg) text-(--text) transition-colors duration-300">
@@ -340,14 +371,20 @@ function App() {
       </main>
 
       <SiteFooter />
-      <LoginOverlay
-        open={showLoginOverlay}
-        onClose={() => dispatch(setShowLoginOverlay(false))}
-        authError={authError}
-        onSignIn={handleGoogleLogin}
-        signingIn={loginInProgress}
-      />
-      <ToastContainer />
+      {showLoginOverlay ? (
+        <Suspense fallback={null}>
+          <LoginOverlay
+            open={showLoginOverlay}
+            onClose={() => dispatch(setShowLoginOverlay(false))}
+            authError={authError}
+            onSignIn={handleGoogleLogin}
+            signingIn={loginInProgress}
+          />
+        </Suspense>
+      ) : null}
+      <Suspense fallback={null}>
+        <ToastContainer />
+      </Suspense>
       <Analytics />
     </div>
   );

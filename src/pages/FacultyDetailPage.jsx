@@ -32,7 +32,7 @@ import {
   getTierFromRating,
   getTierColor,
 } from "../lib/ratingConfig.js";
-import { stripEmoji, containsDisallowed } from "../lib/reviewFilter.js";
+import { validateReviewText } from "../lib/reviewFilter.js";
 
 const byPrefixAndName = {
   fas: {
@@ -173,7 +173,8 @@ function FacultyDetailPage({ currentUser }) {
       }
 
       filtered = filtered.filter((row) => {
-        const createdDate = row.$createdAt ? new Date(row.$createdAt) : null;
+        const createdSource = row.$createdAt || row.createdAt || null;
+        const createdDate = createdSource ? new Date(createdSource) : null;
         return createdDate && createdDate >= cutoffTime;
       });
     }
@@ -517,14 +518,12 @@ function FacultyDetailPage({ currentUser }) {
       return;
     }
 
-    const reviewText = stripEmoji(feedbackForm.review).trim();
-    if (reviewText) {
-      const disallowed = containsDisallowed(reviewText);
-      if (disallowed.blocked) {
-        setError(`Review contains content that isn't allowed.`);
-        return;
-      }
+    const reviewValidation = validateReviewText(feedbackForm.review);
+    if (!reviewValidation.valid) {
+      setError(reviewValidation.message || "Invalid review text.");
+      return;
     }
+    const reviewText = reviewValidation.text;
     try {
       setSaving(true);
       setError(null);
@@ -633,14 +632,12 @@ function FacultyDetailPage({ currentUser }) {
     event.preventDefault();
     if (!hasUser || !currentEditingReviewId) return;
 
-    const reviewText = stripEmoji(feedbackForm.review).trim();
-    if (reviewText) {
-      const disallowed = containsDisallowed(reviewText);
-      if (disallowed.blocked) {
-        setError(`Review contains content that isn't allowed.`);
-        return;
-      }
+    const reviewValidation = validateReviewText(feedbackForm.review);
+    if (!reviewValidation.valid) {
+      setError(reviewValidation.message || "Invalid review text.");
+      return;
     }
+    const reviewText = reviewValidation.text;
     try {
       setSaving(true);
       setError(null);

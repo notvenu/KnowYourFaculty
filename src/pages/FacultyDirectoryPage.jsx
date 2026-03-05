@@ -1,5 +1,5 @@
 // eslint-disable tailwindcss/no-custom-classname
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -10,6 +10,7 @@ import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
 import { fuzzyMatchAny } from "../lib/fuzzySearch.js";
 
 const FACULTY_PER_PAGE = 20;
+const DIRECTORY_STATE_KEY = "kyf.facultyDirectory.state.v1";
 
 const RATING_FIELDS = [
   "theoryTeaching",
@@ -38,6 +39,19 @@ function getRowOverall(row) {
 }
 
 function FacultyDirectoryPage({ currentUser }) {
+  const readPersistedState = () => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.sessionStorage.getItem(DIRECTORY_STATE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const persistedState = readPersistedState();
   const hasUser = Boolean(currentUser?.$id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,20 +60,46 @@ function FacultyDirectoryPage({ currentUser }) {
   const [ratingLookup, setRatingLookup] = useState({});
   const [ratingCountLookup, setRatingCountLookup] = useState({});
   const [courseFacultyLookup, setCourseFacultyLookup] = useState({});
-  const [courseQuery, setCourseQuery] = useState("");
+  const [courseQuery, setCourseQuery] = useState(
+    String(persistedState?.courseQuery || ""),
+  );
   const [courseSuggestions, setCourseSuggestions] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(
+    persistedState?.selectedCourse && typeof persistedState.selectedCourse === "object"
+      ? persistedState.selectedCourse
+      : null,
+  );
   const [filters, setFilters] = useState({
-    search: "",
-    department: "all",
-    alpha: "all",
-    topRated: false,
-    tier: "all",
-    sortBy: "none", // none, rating-high, rating-low
+    search: String(persistedState?.filters?.search || ""),
+    department: String(persistedState?.filters?.department || "all"),
+    topRated: Boolean(persistedState?.filters?.topRated || false),
+    tier: String(persistedState?.filters?.tier || "all"),
+    sortBy: String(persistedState?.filters?.sortBy || "none"), // none, rating-high, rating-low
   });
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(
+    Number.isFinite(Number(persistedState?.currentPage)) &&
+      Number(persistedState.currentPage) > 0
+      ? Number(persistedState.currentPage)
+      : 1,
+  );
   const deferredSearch = useDeferredValue(filters.search);
+  const didInitPageResetRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const payload = {
+        filters,
+        courseQuery,
+        selectedCourse,
+        currentPage,
+      };
+      window.sessionStorage.setItem(DIRECTORY_STATE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore storage failures
+    }
+  }, [filters, courseQuery, selectedCourse, currentPage]);
 
   useEffect(() => {
     loadDirectory();
@@ -133,10 +173,7 @@ function FacultyDirectoryPage({ currentUser }) {
 
       const matchesText =
         !deferredKeyword ||
-        fuzzyMatchAny(
-          [item.name, item.department, item.designation, item.researchArea],
-          deferredKeyword,
-        );
+        fuzzyMatchAny([item.name], deferredKeyword);
       const matchesDepartment =
         filters.department === "all" || item.department === filters.department;
       const matchesTopRated = !filters.topRated || rating >= 4;
@@ -171,11 +208,11 @@ function FacultyDirectoryPage({ currentUser }) {
         const ratingB = ratingLookup[String(b.employeeId || "")] || 0;
         return ratingA - ratingB;
       });
-    } else if (filters.alpha === "az") {
+    } else if (filters.sortBy === "az") {
       rows = [...rows].sort((a, b) =>
         String(a.name || "").localeCompare(String(b.name || "")),
       );
-    } else if (filters.alpha === "za") {
+    } else if (filters.sortBy === "za") {
       rows = [...rows].sort((a, b) =>
         String(b.name || "").localeCompare(String(a.name || "")),
       );
@@ -193,11 +230,14 @@ function FacultyDirectoryPage({ currentUser }) {
   ]);
 
   useEffect(() => {
+    if (!didInitPageResetRef.current) {
+      didInitPageResetRef.current = true;
+      return;
+    }
     setCurrentPage(1);
   }, [
     filters.search,
     filters.department,
-    filters.alpha,
     filters.topRated,
     filters.tier,
     filters.sortBy,
@@ -216,7 +256,6 @@ function FacultyDirectoryPage({ currentUser }) {
   const activeFilterCount = useMemo(() => {
     let n = 0;
     if (filters.department !== "all") n += 1;
-    if (filters.alpha !== "all") n += 1;
     if (filters.topRated) n += 1;
     if (hasUser && filters.tier !== "all") n += 1;
     if (filters.sortBy !== "none") n += 1;
@@ -231,8 +270,7 @@ function FacultyDirectoryPage({ currentUser }) {
           Find faculty
         </h1>
         <p className="mt-2 text-sm text-(--muted) sm:text-base">
-          Filter by department, course, or top ratings. Search by name, role, or
-          research area.
+          Filter by department, course, or top ratings. Search by faculty name.
         </p>
       </section>
 
@@ -242,7 +280,7 @@ function FacultyDirectoryPage({ currentUser }) {
           <div className="relative min-w-0 flex-1">
             <input
               type="text"
-              placeholder="Search name, department, role, research"
+              placeholder="Search faculty name"
               value={filters.search}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, search: e.target.value }))
