@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
+import { fuzzyScoreAny } from "../lib/fuzzySearch.js";
 
 function normalizeText(value) {
   return String(value || "").trim();
@@ -316,14 +317,20 @@ class CourseService {
   }
 
   async searchCourses(query, limit = 10) {
-    const normalized = normalizeText(query).toLowerCase();
+    const normalized = normalizeText(query);
     const courses = await this.getAllCourses();
     const filtered = normalized
-      ? courses.filter((course) => {
-          const code = normalizeText(course.courseCode).toLowerCase();
-          const name = normalizeText(course.courseName).toLowerCase();
-          return code.includes(normalized) || name.includes(normalized);
-        })
+      ? courses
+          .map((course) => ({
+            course,
+            score: fuzzyScoreAny(
+              [normalizeText(course.courseCode), normalizeText(course.courseName)],
+              normalized,
+            ),
+          }))
+          .filter((item) => item.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .map((item) => item.course)
       : courses;
 
     return filtered.slice(0, limit);

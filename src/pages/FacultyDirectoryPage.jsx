@@ -7,6 +7,7 @@ import { faFilter, faXmark } from "@fortawesome/free-solid-svg-icons";
 import courseService from "../services/courseService.js";
 import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
+import { fuzzyMatchAny } from "../lib/fuzzySearch.js";
 
 const FACULTY_PER_PAGE = 20;
 
@@ -123,25 +124,19 @@ function FacultyDirectoryPage({ currentUser }) {
   };
 
   const filteredFaculty = useMemo(() => {
-    const deferredKeyword = String(deferredSearch || "")
-      .trim()
-      .toLowerCase();
+    const deferredKeyword = String(deferredSearch || "").trim();
 
     let rows = faculty.filter((item) => {
       const facultyId = String(item.employeeId || "").trim();
-      const name = String(item.name || "").toLowerCase();
-      const dept = String(item.department || "").toLowerCase();
-      const designation = String(item.designation || "").toLowerCase();
-      const research = String(item.researchArea || "").toLowerCase();
       const rating = ratingLookup[facultyId] || 0;
       const tier = getTierFromRating(rating);
 
       const matchesText =
         !deferredKeyword ||
-        name.includes(deferredKeyword) ||
-        dept.includes(deferredKeyword) ||
-        designation.includes(deferredKeyword) ||
-        research.includes(deferredKeyword);
+        fuzzyMatchAny(
+          [item.name, item.department, item.designation, item.researchArea],
+          deferredKeyword,
+        );
       const matchesDepartment =
         filters.department === "all" || item.department === filters.department;
       const matchesTopRated = !filters.topRated || rating >= 4;

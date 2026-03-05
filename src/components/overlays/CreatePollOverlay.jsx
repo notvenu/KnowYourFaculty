@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch, faTimes } from "@fortawesome/free-solid-svg-icons";
 import Overlay from "./Overlay.jsx";
 import pollService from "../../services/pollService.js";
 import publicFacultyService from "../../services/publicFacultyService.js";
 import courseService from "../../services/courseService.js";
+import { fuzzyMatchAny } from "../../lib/fuzzySearch.js";
 
 const COURSE_TYPES = ["Theory", "Lab", "ECS"];
 
@@ -217,6 +218,22 @@ export default function CreatePollOverlay({
     onClose();
   };
 
+  const filteredFaculty = useMemo(() => {
+    const query = String(facultySearch || "").trim();
+    if (!query) return facultyList;
+    return facultyList.filter((faculty) =>
+      fuzzyMatchAny([faculty.name, faculty.department], query),
+    );
+  }, [facultyList, facultySearch]);
+
+  const filteredCourses = useMemo(() => {
+    const query = String(courseSearch || "").trim();
+    if (!query) return courseList;
+    return courseList.filter((course) =>
+      fuzzyMatchAny([course.courseCode, course.courseName], query),
+    );
+  }, [courseList, courseSearch]);
+
   return (
     <Overlay open={open} onClose={handleClose}>
       <div className="p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
@@ -284,28 +301,8 @@ export default function CreatePollOverlay({
                 !editMode &&
                 facultyList.length > 0 && (
                   <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
-                    {facultyList.filter(
-                      (faculty) =>
-                        facultySearch === "" ||
-                        faculty.name
-                          .toLowerCase()
-                          .includes(facultySearch.toLowerCase()) ||
-                        faculty.department
-                          ?.toLowerCase()
-                          .includes(facultySearch.toLowerCase()),
-                    ).length > 0 ? (
-                      facultyList
-                        .filter(
-                          (faculty) =>
-                            facultySearch === "" ||
-                            faculty.name
-                              .toLowerCase()
-                              .includes(facultySearch.toLowerCase()) ||
-                            faculty.department
-                              ?.toLowerCase()
-                              .includes(facultySearch.toLowerCase()),
-                        )
-                        .map((faculty) => (
+                    {filteredFaculty.length > 0 ? (
+                      filteredFaculty.map((faculty) => (
                           <button
                             key={faculty.$id}
                             type="button"
@@ -398,28 +395,8 @@ export default function CreatePollOverlay({
                 !editMode &&
                 courseList.length > 0 && (
                   <div className="absolute z-40 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
-                    {courseList.filter(
-                      (course) =>
-                        courseSearch === "" ||
-                        course.courseCode
-                          ?.toLowerCase()
-                          .includes(courseSearch.toLowerCase()) ||
-                        course.courseName
-                          ?.toLowerCase()
-                          .includes(courseSearch.toLowerCase()),
-                    ).length > 0 ? (
-                      courseList
-                        .filter(
-                          (course) =>
-                            courseSearch === "" ||
-                            course.courseCode
-                              ?.toLowerCase()
-                              .includes(courseSearch.toLowerCase()) ||
-                            course.courseName
-                              ?.toLowerCase()
-                              .includes(courseSearch.toLowerCase()),
-                        )
-                        .map((course) => (
+                    {filteredCourses.length > 0 ? (
+                      filteredCourses.map((course) => (
                           <button
                             key={course.$id}
                             type="button"
