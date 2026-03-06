@@ -51,6 +51,7 @@ function StarRating({ rating, size = "text-lg", color = null }) {
 export default function FacultyRatingsCard({
   ratingSummary,
   sectionAverages,
+  sectionCounts = {},
   averages,
   notesSummary = null,
   timeFilter = "all",
@@ -320,6 +321,10 @@ export default function FacultyRatingsCard({
                 <div className="flex items-center justify-between w-full">
                   <span className="font-semibold text-(--text)">Theory</span>
                   <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-(--muted)">
+                      {sectionCounts.theory || 0}{" "}
+                      {sectionCounts.theory === 1 ? "rating" : "ratings"}
+                    </span>
                     <span
                       className="font-bold"
                       style={{
@@ -410,6 +415,10 @@ export default function FacultyRatingsCard({
                 <div className="flex items-center justify-between w-full">
                   <span className="font-semibold text-(--text)">Lab</span>
                   <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-(--muted)">
+                      {sectionCounts.lab || 0}{" "}
+                      {sectionCounts.lab === 1 ? "rating" : "ratings"}
+                    </span>
                     <span
                       className="font-bold"
                       style={{
@@ -502,6 +511,10 @@ export default function FacultyRatingsCard({
                     ECS / Capstone
                   </span>
                   <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-(--muted)">
+                      {sectionCounts.ecs || 0}{" "}
+                      {sectionCounts.ecs === 1 ? "rating" : "ratings"}
+                    </span>
                     <span
                       className="font-bold"
                       style={{
@@ -653,6 +666,34 @@ export default function FacultyRatingsCard({
                 )}
               </div>
             )}
+
+          <div className="rounded-lg border border-(--line) bg-(--panel) p-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-(--muted)">
+              Section Rating Count
+            </p>
+            <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+              <div className="rounded-md border border-(--line) bg-(--bg-elev) px-2 py-1.5 text-center">
+                <p className="text-[10px] font-semibold text-(--muted)">Theory</p>
+                <p className="text-xs font-bold text-(--text)">
+                  {sectionCounts.theory || 0}
+                </p>
+              </div>
+              <div className="rounded-md border border-(--line) bg-(--bg-elev) px-2 py-1.5 text-center">
+                <p className="text-[10px] font-semibold text-(--muted)">Lab</p>
+                <p className="text-xs font-bold text-(--text)">
+                  {sectionCounts.lab || 0}
+                </p>
+              </div>
+              <div className="rounded-md border border-(--line) bg-(--bg-elev) px-2 py-1.5 text-center">
+                <p className="text-[10px] font-semibold text-(--muted)">
+                  ECS / Capstone
+                </p>
+                <p className="text-xs font-bold text-(--text)">
+                  {sectionCounts.ecs || 0}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

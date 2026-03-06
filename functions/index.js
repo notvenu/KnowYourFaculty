@@ -1,6 +1,9 @@
 import { logger } from "firebase-functions";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2/options";
+import { defineSecret } from "firebase-functions/params";
+
+const authToken = defineSecret("AUTH_TOKEN");
 
 setGlobalOptions({
   region: "asia-south1",
@@ -13,6 +16,7 @@ export const weeklyFacultyScraper = onSchedule(
     schedule: "0 3 * * 1",
     timeZone: "Asia/Kolkata",
     retryCount: 1,
+    secrets: [authToken],
   },
   async () => {
     logger.info("weeklyFacultyScraper triggered");

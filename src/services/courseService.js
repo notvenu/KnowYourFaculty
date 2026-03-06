@@ -25,6 +25,14 @@ function normalizeCourseCode(value) {
     .replace(/[\s-]+/g, "");
 }
 
+function normalizeSearchText(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+function normalizeSearchCompact(value) {
+  return normalizeSearchText(value).replace(/[^a-z0-9]+/g, "");
+}
+
 function mergeCoursesByCode(courses = []) {
   const merged = new Map();
 
@@ -318,16 +326,37 @@ class CourseService {
 
   async searchCourses(query, limit = 10) {
     const normalized = normalizeText(query);
+    const normalizedLower = normalizeSearchText(query);
+    const normalizedCompact = normalizeSearchCompact(query);
     const courses = await this.getAllCourses();
     const filtered = normalized
       ? courses
-          .map((course) => ({
-            course,
-            score: fuzzyScoreAny(
-              [normalizeText(course.courseCode), normalizeText(course.courseName)],
-              normalized,
-            ),
-          }))
+          .map((course) => {
+            const code = normalizeText(course.courseCode);
+            const name = normalizeText(course.courseName);
+            const codeLower = normalizeSearchText(code);
+            const nameLower = normalizeSearchText(name);
+            const codeCompact = normalizeSearchCompact(code);
+            const nameCompact = normalizeSearchCompact(name);
+            let score = 0;
+
+            // Deterministic contains/prefix matching first.
+            if (normalizedLower && codeLower === normalizedLower) score += 1200;
+            if (normalizedLower && nameLower === normalizedLower) score += 1100;
+            if (normalizedLower && codeLower.startsWith(normalizedLower)) score += 1000;
+            if (normalizedLower && nameLower.startsWith(normalizedLower)) score += 900;
+            if (normalizedLower && codeLower.includes(normalizedLower)) score += 700;
+            if (normalizedLower && nameLower.includes(normalizedLower)) score += 650;
+            if (normalizedCompact && codeCompact.includes(normalizedCompact)) score += 400;
+            if (normalizedCompact && nameCompact.includes(normalizedCompact)) score += 350;
+
+            // Fuzzy only as fallback signal.
+            if (score <= 0) {
+              score = fuzzyScoreAny([code, name], normalized);
+            }
+
+            return { course, score };
+          })
           .filter((item) => item.score > 0)
           .sort((a, b) => b.score - a.score)
           .map((item) => item.course)

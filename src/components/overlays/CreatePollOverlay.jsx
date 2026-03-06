@@ -229,8 +229,25 @@ export default function CreatePollOverlay({
   const filteredCourses = useMemo(() => {
     const query = String(courseSearch || "").trim();
     if (!query) return courseList;
+    const queryLower = query.toLowerCase();
+    const queryCompact = queryLower.replace(/[^a-z0-9]+/g, "");
     return courseList.filter((course) =>
-      fuzzyMatchAny([course.courseCode, course.courseName], query),
+      {
+        const code = String(course?.courseCode || "").trim();
+        const name = String(course?.courseName || "").trim();
+        const codeLower = code.toLowerCase();
+        const nameLower = name.toLowerCase();
+        const codeCompact = codeLower.replace(/[^a-z0-9]+/g, "");
+        const nameCompact = nameLower.replace(/[^a-z0-9]+/g, "");
+        return (
+          codeLower.includes(queryLower) ||
+          nameLower.includes(queryLower) ||
+          (queryCompact &&
+            (codeCompact.includes(queryCompact) ||
+              nameCompact.includes(queryCompact))) ||
+          fuzzyMatchAny([course.courseCode, course.courseName], query)
+        );
+      },
     );
   }, [courseList, courseSearch]);
 
@@ -337,7 +354,7 @@ export default function CreatePollOverlay({
             </div>
           </div>
 
-          {/* Course Selection - Optional, disabled in edit mode */}
+          {/* Course Selection - Optional */}
           <div className="course-search-container">
             <label className="block text-sm font-medium text-(--text) mb-2">
               Select Course (Optional)
@@ -355,12 +372,11 @@ export default function CreatePollOverlay({
                     setCourseSearch(e.target.value);
                     setShowCourseDropdown(true);
                   }}
-                  onFocus={() => !editMode && setShowCourseDropdown(true)}
+                  onFocus={() => setShowCourseDropdown(true)}
                   placeholder="Search course by code or name..."
                   className="w-full pl-10 pr-10 py-2 border border-(--border) rounded-lg bg-(--background) text-(--text) focus:outline-none focus:ring-2 focus:ring-(--primary) disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={editMode}
                 />
-                {selectedCourse && !editMode && (
+                {selectedCourse && (
                   <button
                     type="button"
                     onClick={() => {
@@ -392,7 +408,6 @@ export default function CreatePollOverlay({
               )}
               {showCourseDropdown &&
                 !selectedCourse &&
-                !editMode &&
                 courseList.length > 0 && (
                   <div className="absolute z-40 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
                     {filteredCourses.length > 0 ? (

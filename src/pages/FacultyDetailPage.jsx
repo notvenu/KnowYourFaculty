@@ -98,6 +98,7 @@ function FacultyDetailPage({ currentUser }) {
     totalRatings: 0,
     overallAverage: null,
     sectionAverages: {},
+    sectionCounts: {},
     averages: {},
   });
   const [feedbackForm, setFeedbackForm] = useState(INITIAL_FEEDBACK_FORM);
@@ -243,6 +244,11 @@ function FacultyDetailPage({ currentUser }) {
     }
 
     const sectionAverages = {};
+    const sectionCounts = {
+      theory: 0,
+      lab: 0,
+      ecs: 0,
+    };
     const sectionFields = {
       theory: [
         "theoryTeaching",
@@ -253,6 +259,18 @@ function FacultyDetailPage({ currentUser }) {
       lab: ["labClass", "labCorrection", "labAttendance"],
       ecs: ["ecsCapstoneSDPReview", "ecsCapstoneSDPCorrection"],
     };
+
+    for (const row of filtered || []) {
+      for (const [sectionKey, fieldNames] of Object.entries(sectionFields)) {
+        const hasSectionRating = fieldNames.some((fieldName) => {
+          const value = Number(row?.[fieldName]);
+          return Number.isFinite(value) && value >= 1 && value <= 5;
+        });
+        if (hasSectionRating) {
+          sectionCounts[sectionKey] += 1;
+        }
+      }
+    }
 
     for (const [sectionKey, fieldNames] of Object.entries(sectionFields)) {
       let sectionTotal = 0;
@@ -311,6 +329,7 @@ function FacultyDetailPage({ currentUser }) {
           ? Number((weightedTotal / weightedCount).toFixed(2))
           : null,
       sectionAverages,
+      sectionCounts,
       averages,
       notesSummary: Object.keys(notesSummary).length > 0 ? notesSummary : null,
     };
@@ -328,7 +347,8 @@ function FacultyDetailPage({ currentUser }) {
     let active = true;
     const timer = setTimeout(async () => {
       const query = String(courseQuery || "").trim();
-      if (!isEditing || !query) {
+      const canSearchCourses = isEditing || editingRatingsOnly;
+      if (!canSearchCourses || !query) {
         setCourseSuggestions([]);
         return;
       }
@@ -352,7 +372,7 @@ function FacultyDetailPage({ currentUser }) {
       active = false;
       clearTimeout(timer);
     };
-  }, [courseQuery, isEditing]);
+  }, [courseQuery, isEditing, editingRatingsOnly]);
 
   const loadFaculty = async () => {
     try {
@@ -409,6 +429,7 @@ function FacultyDetailPage({ currentUser }) {
           totalRatings: 0,
           overallAverage: null,
           sectionAverages: {},
+          sectionCounts: {},
           averages: {},
         },
       );
@@ -723,7 +744,7 @@ function FacultyDetailPage({ currentUser }) {
           existingFeedback.courseId,
         );
         if (course) {
-          setCourseQuery(course.courseCode);
+          setCourseQuery(`${course.courseCode} - ${course.courseName}`);
         }
       }
     } catch (error) {
@@ -955,6 +976,11 @@ function FacultyDetailPage({ currentUser }) {
                   theory: filteredRatingSummary.sectionAverages?.theory ?? null,
                   lab: filteredRatingSummary.sectionAverages?.lab ?? null,
                   ecs: filteredRatingSummary.sectionAverages?.ecs ?? null,
+                }}
+                sectionCounts={{
+                  theory: filteredRatingSummary.sectionCounts?.theory ?? 0,
+                  lab: filteredRatingSummary.sectionCounts?.lab ?? 0,
+                  ecs: filteredRatingSummary.sectionCounts?.ecs ?? 0,
                 }}
                 averages={filteredRatingSummary.averages || {}}
                 notesSummary={filteredRatingSummary.notesSummary || null}

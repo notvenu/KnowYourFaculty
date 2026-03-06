@@ -322,7 +322,9 @@ class FacultyFeedbackService {
   async buildRatingsSummarySnapshot(actualLimit = 5000) {
     const response = await this.listRows(this.feedbackTableId, [limit(actualLimit)]);
     const ratingAgg = {};
+    const byFacultyTypeAgg = {};
     const byFacultyCourseAgg = {};
+    const byFacultyCourseTypeAgg = {};
     const courseLookup = {};
     const facultyCounts = {};
     const userSet = new Set();
@@ -339,6 +341,22 @@ class FacultyFeedbackService {
       }
       return { scoreSum, scoreCount };
     };
+    const extractSectionStats = (row) => {
+      const stats = {};
+      for (const [sectionKey, fields] of Object.entries(SECTION_FIELDS)) {
+        let scoreSum = 0;
+        let scoreCount = 0;
+        for (const field of fields) {
+          const value = Number(row?.[field]);
+          if (Number.isFinite(value) && value >= 1 && value <= 5) {
+            scoreSum += value;
+            scoreCount += 1;
+          }
+        }
+        stats[sectionKey] = { scoreSum, scoreCount };
+      }
+      return stats;
+    };
 
     for (const row of response.rows || []) {
       const facultyId = String(row.facultyId || "").trim();
@@ -349,6 +367,7 @@ class FacultyFeedbackService {
       if (!facultyId) continue;
 
       const { scoreSum, scoreCount } = extractRatingStats(row);
+      const sectionStats = extractSectionStats(row);
       if (scoreCount > 0) {
         if (!ratingAgg[facultyId]) {
           ratingAgg[facultyId] = { scoreSum: 0, scoreCount: 0, rowCount: 0 };
@@ -356,6 +375,20 @@ class FacultyFeedbackService {
         ratingAgg[facultyId].scoreSum += scoreSum;
         ratingAgg[facultyId].scoreCount += scoreCount;
         ratingAgg[facultyId].rowCount += 1;
+      }
+      for (const [sectionKey, stats] of Object.entries(sectionStats)) {
+        if (stats.scoreCount <= 0) continue;
+        if (!byFacultyTypeAgg[facultyId]) byFacultyTypeAgg[facultyId] = {};
+        if (!byFacultyTypeAgg[facultyId][sectionKey]) {
+          byFacultyTypeAgg[facultyId][sectionKey] = {
+            scoreSum: 0,
+            scoreCount: 0,
+            rowCount: 0,
+          };
+        }
+        byFacultyTypeAgg[facultyId][sectionKey].scoreSum += stats.scoreSum;
+        byFacultyTypeAgg[facultyId][sectionKey].scoreCount += stats.scoreCount;
+        byFacultyTypeAgg[facultyId][sectionKey].rowCount += 1;
       }
 
       const courseId = String(row.courseId || "").trim();
@@ -376,12 +409,34 @@ class FacultyFeedbackService {
           byFacultyCourseAgg[facultyId][courseId].scoreCount += scoreCount;
           byFacultyCourseAgg[facultyId][courseId].rowCount += 1;
         }
+
+        for (const [sectionKey, stats] of Object.entries(sectionStats)) {
+          if (stats.scoreCount <= 0) continue;
+          if (!byFacultyCourseTypeAgg[facultyId]) byFacultyCourseTypeAgg[facultyId] = {};
+          if (!byFacultyCourseTypeAgg[facultyId][courseId]) {
+            byFacultyCourseTypeAgg[facultyId][courseId] = {};
+          }
+          if (!byFacultyCourseTypeAgg[facultyId][courseId][sectionKey]) {
+            byFacultyCourseTypeAgg[facultyId][courseId][sectionKey] = {
+              scoreSum: 0,
+              scoreCount: 0,
+              rowCount: 0,
+            };
+          }
+          byFacultyCourseTypeAgg[facultyId][courseId][sectionKey].scoreSum +=
+            stats.scoreSum;
+          byFacultyCourseTypeAgg[facultyId][courseId][sectionKey].scoreCount +=
+            stats.scoreCount;
+          byFacultyCourseTypeAgg[facultyId][courseId][sectionKey].rowCount += 1;
+        }
       }
     }
 
     const ratings = {};
     const counts = {};
     const byFacultyCourse = {};
+    const byFacultyType = {};
+    const byFacultyCourseType = {};
 
     for (const [fid, item] of Object.entries(ratingAgg)) {
       ratings[fid] =
@@ -404,10 +459,41 @@ class FacultyFeedbackService {
       }
     }
 
+    for (const [fid, sectionMap] of Object.entries(byFacultyTypeAgg)) {
+      byFacultyType[fid] = {};
+      for (const [sectionKey, item] of Object.entries(sectionMap)) {
+        byFacultyType[fid][sectionKey] = {
+          average:
+            item.scoreCount > 0
+              ? Number((item.scoreSum / item.scoreCount).toFixed(2))
+              : null,
+          rowCount: item.rowCount || 0,
+        };
+      }
+    }
+
+    for (const [fid, courseMap] of Object.entries(byFacultyCourseTypeAgg)) {
+      byFacultyCourseType[fid] = {};
+      for (const [courseId, sectionMap] of Object.entries(courseMap)) {
+        byFacultyCourseType[fid][courseId] = {};
+        for (const [sectionKey, item] of Object.entries(sectionMap)) {
+          byFacultyCourseType[fid][courseId][sectionKey] = {
+            average:
+              item.scoreCount > 0
+                ? Number((item.scoreSum / item.scoreCount).toFixed(2))
+                : null,
+            rowCount: item.rowCount || 0,
+          };
+        }
+      }
+    }
+
     return {
       ratings,
       counts,
+      byFacultyType,
       byFacultyCourse,
+      byFacultyCourseType,
       courseLookup,
       facultyCounts,
       totalReviews: (response.rows || []).length,
@@ -425,6 +511,15 @@ class FacultyFeedbackService {
       summary: payload,
       refreshedAt: 0,
     };
+  }
+
+  hasTypeBreakdown(summary) {
+    return Boolean(
+      summary &&
+        typeof summary === "object" &&
+        summary.byFacultyType &&
+        summary.byFacultyCourseType,
+    );
   }
 
   refreshRatingsSummaryInBackground(cacheKey, actualLimit) {
@@ -455,6 +550,18 @@ class FacultyFeedbackService {
     const cacheKey = `ratingsSummary_${actualLimit}`;
     const cached = this.feedbackCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
+      if (!this.hasTypeBreakdown(cached.value)) {
+        const freshSummary = await this.buildRatingsSummarySnapshot(actualLimit);
+        this.feedbackCache.set(cacheKey, {
+          value: freshSummary,
+          expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+        });
+        this.writePersistentCache(cacheKey, {
+          summary: freshSummary,
+          refreshedAt: Date.now(),
+        });
+        return freshSummary;
+      }
       return cached.value;
     }
 
@@ -463,6 +570,18 @@ class FacultyFeedbackService {
     );
     if (persistedPayload?.summary) {
       const summary = persistedPayload.summary;
+      if (!this.hasTypeBreakdown(summary)) {
+        const freshSummary = await this.buildRatingsSummarySnapshot(actualLimit);
+        this.feedbackCache.set(cacheKey, {
+          value: freshSummary,
+          expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+        });
+        this.writePersistentCache(cacheKey, {
+          summary: freshSummary,
+          refreshedAt: Date.now(),
+        });
+        return freshSummary;
+      }
       this.feedbackCache.set(cacheKey, {
         value: summary,
         expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,

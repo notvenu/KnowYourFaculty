@@ -97,6 +97,8 @@ function isAllowedEmailInternal(email) {
 }
 
 const AUTH_CHECK_KEY = "kyf_auth_check";
+const SESSION_START_KEY = "kyf_session_started_at";
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function hasStorage() {
   return typeof window !== "undefined" && !!window.localStorage;
@@ -114,6 +116,30 @@ function setAuthCheckFlag(enabled) {
   } else {
     window.localStorage.removeItem(AUTH_CHECK_KEY);
   }
+}
+
+function getSessionStartedAt() {
+  if (!hasStorage()) return null;
+  const raw = window.localStorage.getItem(SESSION_START_KEY);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function setSessionStartedAt(timestamp = Date.now()) {
+  if (!hasStorage()) return;
+  window.localStorage.setItem(SESSION_START_KEY, String(timestamp));
+}
+
+function clearSessionStartedAt() {
+  if (!hasStorage()) return;
+  window.localStorage.removeItem(SESSION_START_KEY);
+}
+
+function isSessionExpired() {
+  const startedAt = getSessionStartedAt();
+  if (!startedAt) return false;
+  return Date.now() - startedAt > SESSION_MAX_AGE_MS;
 }
 
 export function hasPendingAuthCheck() {
@@ -174,12 +200,15 @@ export class AuthService {
       if (!isAllowedEmailInternal(user.email)) {
         await signOut(auth);
         setAuthCheckFlag(false);
+        clearSessionStartedAt();
         const error = new Error(
           `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
         );
         error.type = "disallowed_email_domain";
         throw error;
       }
+
+      setSessionStartedAt(Date.now());
 
       return normalizeUser(user);
     } catch (error) {
@@ -200,12 +229,28 @@ export class AuthService {
 
       if (!user) {
         setAuthCheckFlag(false);
+        clearSessionStartedAt();
         return null;
+      }
+
+      if (isSessionExpired()) {
+        await signOut(auth);
+        setAuthCheckFlag(false);
+        clearSessionStartedAt();
+        const error = new Error("Session expired. Please sign in again.");
+        error.type = "session_expired";
+        throw error;
+      }
+
+      if (!getSessionStartedAt()) {
+        // Backfill timestamp for older persisted sessions.
+        setSessionStartedAt(Date.now());
       }
 
       if (!isAllowedEmailInternal(user.email)) {
         await signOut(auth);
         setAuthCheckFlag(false);
+        clearSessionStartedAt();
         const error = new Error(
           `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
         );
@@ -236,6 +281,7 @@ export class AuthService {
     try {
       await signOut(auth);
       setAuthCheckFlag(false);
+      clearSessionStartedAt();
       this.currentUser = null;
       return true;
     } catch (error) {
@@ -256,6 +302,7 @@ export class AuthService {
     try {
       await deleteUser(user);
       setAuthCheckFlag(false);
+      clearSessionStartedAt();
       this.currentUser = null;
       return true;
     } catch (error) {

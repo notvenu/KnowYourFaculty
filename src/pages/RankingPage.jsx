@@ -61,13 +61,16 @@ export default function RankingPage({ currentUser }) {
   const [ratingsSummary, setRatingsSummary] = useState({
     ratings: {},
     counts: {},
+    byFacultyType: {},
     byFacultyCourse: {},
+    byFacultyCourseType: {},
     courseLookup: {},
   });
   const [courseLookup, setCourseLookup] = useState({});
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [selectedCourse, setSelectedCourse] = useState("all");
+  const [selectedType, setSelectedType] = useState("all");
   const [minRatings, setMinRatings] = useState(1); // Minimum number of ratings to be ranked
   const [showFilters, setShowFilters] = useState(false);
   const filterDropdownRef = useRef(null);
@@ -159,7 +162,14 @@ export default function RankingPage({ currentUser }) {
 
       const summary = await facultyFeedbackService.getRatingsSummary(10000);
       setRatingsSummary(
-        summary || { ratings: {}, counts: {}, byFacultyCourse: {}, courseLookup: {} },
+        summary || {
+          ratings: {},
+          counts: {},
+          byFacultyType: {},
+          byFacultyCourse: {},
+          byFacultyCourseType: {},
+          courseLookup: {},
+        },
       );
     } catch (err) {
       setError(err?.message || "Failed to load ranking data.");
@@ -211,15 +221,28 @@ export default function RankingPage({ currentUser }) {
       .map((f) => {
         let overallRating = null;
         let totalRatings = 0;
-        if (selectedCourse === "all") {
+        if (selectedCourse === "all" && selectedType === "all") {
           overallRating = ratingsSummary?.ratings?.[f.employeeId] ?? null;
           totalRatings = Number(ratingsSummary?.counts?.[f.employeeId] || 0);
-        } else {
+        } else if (selectedCourse === "all" && selectedType !== "all") {
+          const typeStats =
+            ratingsSummary?.byFacultyType?.[f.employeeId]?.[selectedType] ||
+            null;
+          overallRating = typeStats?.average ?? null;
+          totalRatings = Number(typeStats?.rowCount || 0);
+        } else if (selectedCourse !== "all" && selectedType === "all") {
           const courseStats =
             ratingsSummary?.byFacultyCourse?.[f.employeeId]?.[selectedCourse] ||
             null;
           overallRating = courseStats?.average ?? null;
           totalRatings = Number(courseStats?.rowCount || 0);
+        } else {
+          const courseTypeStats =
+            ratingsSummary?.byFacultyCourseType?.[f.employeeId]?.[
+              selectedCourse
+            ]?.[selectedType] || null;
+          overallRating = courseTypeStats?.average ?? null;
+          totalRatings = Number(courseTypeStats?.rowCount || 0);
         }
 
         return {
@@ -245,6 +268,7 @@ export default function RankingPage({ currentUser }) {
     selectedDepartment,
     selectedDesignation,
     selectedCourse,
+    selectedType,
     minRatings,
   ]);
 
@@ -322,6 +346,7 @@ export default function RankingPage({ currentUser }) {
             {(selectedDepartment !== "all" ||
               selectedDesignation !== "all" ||
               selectedCourse !== "all" ||
+              selectedType !== "all" ||
               minRatings !== 3) && (
               <span className="ml-1 rounded-full bg-(--primary) px-2 py-0.5 text-xs text-white">
                 Active
@@ -436,6 +461,30 @@ export default function RankingPage({ currentUser }) {
 
               <div>
                 <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                  Type
+                </label>
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="w-full rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-(--text) outline-none focus:ring-2 focus:ring-(--primary)"
+                >
+                  <option value="all" className="bg-(--bg-elev) text-(--text)">
+                    All Types
+                  </option>
+                  <option value="theory" className="bg-(--bg-elev) text-(--text)">
+                    Theory
+                  </option>
+                  <option value="lab" className="bg-(--bg-elev) text-(--text)">
+                    Lab
+                  </option>
+                  <option value="ecs" className="bg-(--bg-elev) text-(--text)">
+                    ECS / Capstone / SDP
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
                   Min. Ratings Required
                 </label>
                 <select
@@ -469,6 +518,7 @@ export default function RankingPage({ currentUser }) {
                   setSelectedDepartment("all");
                   setSelectedDesignation("all");
                   setSelectedCourse("all");
+                  setSelectedType("all");
                   setMinRatings(3);
                 }}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"

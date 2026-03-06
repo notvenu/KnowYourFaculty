@@ -1,14 +1,24 @@
 import axios from "axios";
 import admin from "firebase-admin";
+import { config as loadDotenv } from "dotenv";
+
+// Support local execution by reading env from both functions/.env and repo .env.
+loadDotenv();
+loadDotenv({ path: "../.env" });
 
 const REQUIRED_ENV_KEYS = [
-  "KYF_PROJECT_ID",
-  "KYF_CLIENT_EMAIL",
-  "KYF_PRIVATE_KEY",
-  "KYF_STORAGE_BUCKET",
-  "KYF_FACULTY_COLLECTION",
   "AUTH_TOKEN",
 ];
+
+const parseFirebaseConfig = () => {
+  try {
+    const raw = String(process.env.FIREBASE_CONFIG || "").trim();
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+};
 
 const toEnv = (key) => {
   const aliases = {
@@ -27,6 +37,8 @@ const toEnv = (key) => {
     ],
     AUTH_TOKEN: ["AUTH_TOKEN", "VITE_AUTH_TOKEN"],
     SCRAPER_SYNC_EXISTING_PHOTOS: ["SCRAPER_SYNC_EXISTING_PHOTOS"],
+    KYF_DRY_RUN: ["KYF_DRY_RUN"],
+    KYF_TEST_FIREBASE_ONLY: ["KYF_TEST_FIREBASE_ONLY"],
   };
 
   const keys = aliases[key] || [key];
@@ -37,7 +49,33 @@ const toEnv = (key) => {
   return "";
 };
 
+const sanitizeBucketName = (bucketName) =>
+  String(bucketName || "").trim().replace(/^gs:\/\//, "");
+
+const resolveProjectId = () =>
+  toEnv("KYF_PROJECT_ID") ||
+  String(process.env.GCLOUD_PROJECT || "").trim() ||
+  String(process.env.GCP_PROJECT || "").trim() ||
+  String(parseFirebaseConfig().projectId || "").trim();
+
+const resolveStorageBucket = () => {
+  const explicit = sanitizeBucketName(toEnv("KYF_STORAGE_BUCKET"));
+  if (explicit) return explicit;
+
+  const firebaseConfigBucket = sanitizeBucketName(
+    parseFirebaseConfig().storageBucket,
+  );
+  if (firebaseConfigBucket) return firebaseConfigBucket;
+
+  const projectId = resolveProjectId();
+  return projectId ? `${projectId}.firebasestorage.app` : "";
+};
+
 const validateEnv = () => {
+  const firebaseOnlyTest =
+    String(toEnv("KYF_TEST_FIREBASE_ONLY")).toLowerCase() === "true";
+  if (firebaseOnlyTest) return;
+
   const missing = REQUIRED_ENV_KEYS.filter((key) => !toEnv(key));
   if (missing.length > 0) {
     throw new Error(`Missing required env vars: ${missing.join(", ")}`);
@@ -46,14 +84,27 @@ const validateEnv = () => {
 
 const initAdmin = () => {
   if (admin.apps.length > 0) return admin;
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: toEnv("KYF_PROJECT_ID"),
-      clientEmail: toEnv("KYF_CLIENT_EMAIL"),
-      privateKey: toEnv("KYF_PRIVATE_KEY").replace(/\\n/g, "\n"),
-    }),
-    storageBucket: toEnv("KYF_STORAGE_BUCKET"),
-  });
+  const projectId = resolveProjectId();
+  const clientEmail = toEnv("KYF_CLIENT_EMAIL");
+  const privateKey = toEnv("KYF_PRIVATE_KEY");
+  const storageBucket = resolveStorageBucket();
+  const hasExplicitCreds = Boolean(projectId && clientEmail && privateKey);
+
+  if (hasExplicitCreds) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, "\n"),
+      }),
+      ...(storageBucket ? { storageBucket } : {}),
+    });
+  } else {
+    // Cloud Functions runtime credentials (ADC).
+    admin.initializeApp({
+      ...(storageBucket ? { storageBucket } : {}),
+    });
+  }
   return admin;
 };
 
@@ -109,14 +160,18 @@ const listExistingEmployeeIds = async (db, collectionName) => {
   );
 };
 
-const uploadPhoto = async (storage, employeeId, photoUrl) => {
+const uploadPhoto = async (storage, storageBucket, employeeId, photoUrl) => {
   if (!photoUrl) return null;
+  if (!storageBucket) {
+    console.error(`Failed to upload photo for employee ${employeeId}: storage bucket is not configured.`);
+    return null;
+  }
   try {
     const photoResponse = await fetch(photoUrl);
     if (!photoResponse.ok) return null;
     const buffer = Buffer.from(await photoResponse.arrayBuffer());
     const filename = `${employeeId}.jpg`;
-    const file = storage.bucket().file(`faculty_photos/${filename}`);
+    const file = storage.bucket(storageBucket).file(`faculty_photos/${filename}`);
     await file.save(buffer, {
       metadata: { contentType: "image/jpeg", cacheControl: "public, max-age=86400" },
     });
@@ -131,18 +186,37 @@ export async function runWeeklyScrape(logger = console) {
   validateEnv();
   const adminSdk = initAdmin();
   const db = adminSdk.firestore();
-  const storage = adminSdk.storage();
   const collectionName = toEnv("KYF_FACULTY_COLLECTION") || "faculty";
+  const firebaseOnlyTest =
+    String(toEnv("KYF_TEST_FIREBASE_ONLY")).toLowerCase() === "true";
+  const dryRun = String(toEnv("KYF_DRY_RUN")).toLowerCase() === "true";
+
+  const existingIds = await listExistingEmployeeIds(db, collectionName);
+
+  if (firebaseOnlyTest) {
+    const probe = {
+      mode: "firebase-only-test",
+      collectionName,
+      existingFacultyCount: existingIds.size,
+      timestamp: new Date().toISOString(),
+    };
+    logger.log?.(`Firebase connectivity test completed: ${JSON.stringify(probe)}`);
+    return probe;
+  }
+
+  const storage = adminSdk.storage();
+  const storageBucket = resolveStorageBucket();
   const syncExistingPhotos =
     String(toEnv("SCRAPER_SYNC_EXISTING_PHOTOS")).toLowerCase() === "true";
 
-  logger.log?.("Scrape started");
+  logger.log?.(`Scrape started${dryRun ? " (dry-run)" : ""}`);
   const scrapedFaculty = await scrapeFaculty();
-  const existingIds = await listExistingEmployeeIds(db, collectionName);
 
   let added = 0;
+  let wouldAdd = 0;
   let photosUploaded = 0;
   let updatedPhotos = 0;
+  let wouldUpdatePhotos = 0;
 
   for (const faculty of scrapedFaculty) {
     const employeeId = Number(faculty.employeeId);
@@ -150,7 +224,11 @@ export async function runWeeklyScrape(logger = console) {
 
     if (existingIds.has(employeeId)) {
       if (!syncExistingPhotos || !faculty.photoUrl) continue;
-      const uploaded = await uploadPhoto(storage, employeeId, faculty.photoUrl);
+      if (dryRun) {
+        wouldUpdatePhotos += 1;
+        continue;
+      }
+      const uploaded = await uploadPhoto(storage, storageBucket, employeeId, faculty.photoUrl);
       if (!uploaded) continue;
       const row = await db
         .collection(collectionName)
@@ -168,9 +246,15 @@ export async function runWeeklyScrape(logger = console) {
       continue;
     }
 
+    if (dryRun) {
+      wouldAdd += 1;
+      existingIds.add(employeeId);
+      continue;
+    }
+
     let photoFileId = null;
     if (faculty.photoUrl) {
-      photoFileId = await uploadPhoto(storage, employeeId, faculty.photoUrl);
+      photoFileId = await uploadPhoto(storage, storageBucket, employeeId, faculty.photoUrl);
       if (photoFileId) photosUploaded += 1;
     }
 
@@ -195,10 +279,13 @@ export async function runWeeklyScrape(logger = console) {
   }
 
   const summary = {
+    mode: dryRun ? "dry-run" : "live",
     scanned: scrapedFaculty.length,
     added,
+    wouldAdd,
     photosUploaded,
     updatedPhotos,
+    wouldUpdatePhotos,
   };
   logger.log?.(`Scrape completed: ${JSON.stringify(summary)}`);
   return summary;
