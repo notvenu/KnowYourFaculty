@@ -16,6 +16,7 @@ import {
   faUser,
   faTrophy,
   faPoll,
+  faArrowUpRightFromSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import ConfirmOverlay from "../overlays/ConfirmOverlay.jsx";
 
@@ -110,6 +111,14 @@ export default function SiteNav({
               <NavLink to="/faculty" className={navClass}>
                 Find Professors
               </NavLink>
+              <a
+                href="https://slotify-vitap.vercel.app/course-selector"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={navClass({ isActive: false })}
+              >
+                Course Selector
+              </a>
               {currentUser ? (
                 <NavLink to="/rankings" className={navClass}>
                   Rankings
@@ -303,6 +312,21 @@ export default function SiteNav({
                             Find Professors
                           </span>
                         </NavLink>
+                        <a
+                          href="https://slotify-vitap.vercel.app/course-selector"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={mobileNavClass({ isActive: false })}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <span className="flex items-center gap-2">
+                            <FontAwesomeIcon
+                              icon={faArrowUpRightFromSquare}
+                              className="w-4 h-4 text-(--primary)"
+                            />
+                            Course Selector
+                          </span>
+                        </a>
                         {currentUser ? (
                           <NavLink
                             to="/rankings"
