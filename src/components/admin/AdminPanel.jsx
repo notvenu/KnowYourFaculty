@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import facultyFeedbackService from "../../services/facultyFeedbackService.js";
 import courseService from "../../services/courseService.js";
 import ConfirmOverlay from "../overlays/ConfirmOverlay.jsx";
+import { PAGINATION_LIMITS } from "../../config/pagination.js";
+import clientConfig from "../../config/client.js";
+
+const ADMIN_ENTRIES_PER_PAGE = PAGINATION_LIMITS.adminEntriesPerPage;
 
 const RATING_FIELDS = [
   "theoryTeaching",
@@ -56,6 +60,7 @@ function AdminPanel() {
   const [stats, setStats] = useState(null);
   const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [entryFilter, setEntryFilter] = useState("all");
+  const [entryPage, setEntryPage] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState(false);
   const [uploadMessage, setUploadMessage] = useState(null);
@@ -125,6 +130,25 @@ function AdminPanel() {
     return rows;
   }, [feedbackEntries, entryFilter]);
 
+  const totalEntryPages = Math.max(
+    1,
+    Math.ceil(filteredEntries.length / ADMIN_ENTRIES_PER_PAGE),
+  );
+  const paginatedEntries = useMemo(() => {
+    const start = (entryPage - 1) * ADMIN_ENTRIES_PER_PAGE;
+    return filteredEntries.slice(start, start + ADMIN_ENTRIES_PER_PAGE);
+  }, [filteredEntries, entryPage]);
+
+  useEffect(() => {
+    setEntryPage(1);
+  }, [entryFilter]);
+
+  useEffect(() => {
+    if (entryPage > totalEntryPages) {
+      setEntryPage(totalEntryPages);
+    }
+  }, [entryPage, totalEntryPages]);
+
   const loadAdminData = async () => {
     try {
       setLoading(true);
@@ -191,7 +215,21 @@ function AdminPanel() {
       setCourseForm({ file: null });
       await loadAdminData();
     } catch (submitError) {
-      setUploadMessage(submitError?.message || "Unable to save course.");
+      const msg = String(submitError?.message || "");
+      const isPermissionError =
+        msg.toLowerCase().includes("insufficient permissions") ||
+        msg.toLowerCase().includes("permission") ||
+        String(submitError?.code || "").toLowerCase().includes("permission-denied");
+      if (isPermissionError) {
+        const adminsConfigured = (clientConfig.adminEmails || []).length > 0;
+        setUploadMessage(
+          adminsConfigured
+            ? `${msg} If this account should be admin, add it to VITE_ADMIN_EMAILS and redeploy, then deploy Firestore rules.`
+            : `${msg} Configure VITE_ADMIN_EMAILS with your admin email and deploy Firestore rules.`,
+        );
+      } else {
+        setUploadMessage(msg || "Unable to save course.");
+      }
     } finally {
       setUploading(false);
     }
@@ -359,7 +397,32 @@ function AdminPanel() {
           <p className="text-sm text-(--muted)">No matching entries.</p>
         ) : (
           <div className="space-y-2">
-            {filteredEntries.map((entry) => {
+            {totalEntryPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setEntryPage((p) => Math.max(1, p - 1))}
+                  disabled={entryPage <= 1}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-(--muted)">
+                  Page {entryPage} of {totalEntryPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEntryPage((p) => Math.min(totalEntryPages, p + 1))
+                  }
+                  disabled={entryPage >= totalEntryPages}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
+            {paginatedEntries.map((entry) => {
               const facultyId = String(entry?.facultyId || "").trim();
               const facultyName = `Faculty ${facultyId || "N/A"}`;
               const hasReview = String(entry?.review || "").trim().length > 0;
@@ -404,6 +467,31 @@ function AdminPanel() {
                 </div>
               );
             })}
+            {totalEntryPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEntryPage((p) => Math.max(1, p - 1))}
+                  disabled={entryPage <= 1}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-(--muted)">
+                  Page {entryPage} of {totalEntryPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEntryPage((p) => Math.min(totalEntryPages, p + 1))
+                  }
+                  disabled={entryPage >= totalEntryPages}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

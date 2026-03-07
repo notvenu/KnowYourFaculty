@@ -1,5 +1,11 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import SiteNav from "./components/layout/SiteNav.jsx";
 import SiteFooter from "./components/layout/SiteFooter.jsx";
@@ -66,6 +72,8 @@ function upsertCanonical(href) {
 function App() {
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigationType = useNavigationType();
+  const scrollRestoreTimeoutRef = useRef(null);
 
   // Redux selectors
   const {
@@ -184,6 +192,48 @@ function App() {
     upsertCanonical(canonical);
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const routeKey = `${location.pathname || "/"}${location.search || ""}`;
+    const storageKey = `kyf.scroll:${routeKey}`;
+    const restoreTo = Number(window.sessionStorage.getItem(storageKey) || 0);
+
+    if (scrollRestoreTimeoutRef.current) {
+      clearTimeout(scrollRestoreTimeoutRef.current);
+      scrollRestoreTimeoutRef.current = null;
+    }
+
+    scrollRestoreTimeoutRef.current = setTimeout(() => {
+      if (navigationType === "POP" && Number.isFinite(restoreTo) && restoreTo > 0) {
+        window.scrollTo(0, restoreTo);
+      } else {
+        window.scrollTo(0, 0);
+      }
+      scrollRestoreTimeoutRef.current = null;
+    }, 0);
+
+    const saveScroll = () => {
+      try {
+        window.sessionStorage.setItem(storageKey, String(window.scrollY || 0));
+      } catch {
+        // ignore storage failures
+      }
+    };
+
+    const onScroll = () => saveScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      saveScroll();
+      window.removeEventListener("scroll", onScroll);
+      if (scrollRestoreTimeoutRef.current) {
+        clearTimeout(scrollRestoreTimeoutRef.current);
+        scrollRestoreTimeoutRef.current = null;
+      }
+    };
+  }, [location.pathname, location.search, navigationType]);
+
   // Set initial theme on document element
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -251,14 +301,15 @@ function App() {
   };
 
   const isAdminUser = useMemo(
-    () =>
-      Boolean(
-        currentUser?.email &&
-        (clientConfig.adminEmails.length === 0 ||
-          clientConfig.adminEmails.includes(
-            String(currentUser.email).trim().toLowerCase(),
-          )),
-      ),
+    () => {
+      const email = String(currentUser?.email || "").trim().toLowerCase();
+      if (!email) return false;
+      const configuredAdmins =
+        clientConfig.adminEmails.length > 0
+          ? clientConfig.adminEmails
+          : clientConfig.explicitAllowedEmails || [];
+      return configuredAdmins.includes(email);
+    },
     [currentUser],
   );
 

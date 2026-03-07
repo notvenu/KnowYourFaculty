@@ -22,10 +22,49 @@ class PollService {
 
     this.POLL_CACHE_TTL_MS = 5 * 60 * 1000;  // Increased from 30s to 5 min
     this.pollResultsCache = new Map();
+    this.pollQueryCache = new Map();
+    this.inflightRequests = new Map();
     this.activePollsCache = null;
     this.activePollsCacheExpiry = 0;
     this.hasLoggedActivePollFallback = false;
     this.hasLoggedUserPollFallback = false;
+  }
+
+  getCachedValue(cacheKey) {
+    const cached = this.pollQueryCache.get(cacheKey);
+    if (!cached) return undefined;
+    if (cached.expiresAt > Date.now()) return cached.value;
+    this.pollQueryCache.delete(cacheKey);
+    return undefined;
+  }
+
+  setCachedValue(cacheKey, value, ttlMs = this.POLL_CACHE_TTL_MS) {
+    this.pollQueryCache.set(cacheKey, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+  }
+
+  async getOrCreateInflight(cacheKey, loader) {
+    if (this.inflightRequests.has(cacheKey)) {
+      return this.inflightRequests.get(cacheKey);
+    }
+    const promise = (async () => {
+      try {
+        return await loader();
+      } finally {
+        this.inflightRequests.delete(cacheKey);
+      }
+    })();
+    this.inflightRequests.set(cacheKey, promise);
+    return promise;
+  }
+
+  invalidatePollQueryCache() {
+    this.pollQueryCache.clear();
+    this.inflightRequests.clear();
+    this.activePollsCache = null;
+    this.activePollsCacheExpiry = 0;
   }
 
   toTimeMs(value) {
@@ -95,8 +134,7 @@ class PollService {
 
     try {
       const docRef = await addDoc(collection(db, this.pollCollection), payload);
-      this.activePollsCache = null;
-      this.activePollsCacheExpiry = 0;
+      this.invalidatePollQueryCache();
       return { $id: docRef.id, ...payload };
     } catch (error) {
       throw error;
@@ -111,147 +149,190 @@ class PollService {
       return this.activePollsCache;
     }
 
-    try {
-      const q = query(
-        collection(db, this.pollCollection),
-        where("isActive", "==", true),
-        limit(100),
-      );
-      const snapshot = await getDocs(q);
-      const documents = this.sortByCreatedAtDesc(
-        snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        })),
-      );
-      this.activePollsCache = documents;
-      this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
-      return documents;
-    } catch (error) {
-      if (!this.hasLoggedActivePollFallback) {
-        this.hasLoggedActivePollFallback = true;
-      }
+    return this.getOrCreateInflight("activePolls", async () => {
       try {
-        const fallbackQuery = query(
+        const q = query(
           collection(db, this.pollCollection),
-          limit(200),
+          where("isActive", "==", true),
+          limit(100),
         );
-        const snapshot = await getDocs(fallbackQuery);
-        const documents = snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        }));
-        const activeDocuments = this.sortByCreatedAtDesc(
-          documents.filter((row) => row?.isActive !== false),
-        ).slice(0, 100);
-        this.activePollsCache = activeDocuments;
+        const snapshot = await getDocs(q);
+        const documents = this.sortByCreatedAtDesc(
+          snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          })),
+        );
+        this.activePollsCache = documents;
         this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
-        return activeDocuments;
-      } catch (fallbackError) {
-        return [];
+        return documents;
+      } catch (error) {
+        if (!this.hasLoggedActivePollFallback) {
+          this.hasLoggedActivePollFallback = true;
+        }
+        try {
+          const fallbackQuery = query(
+            collection(db, this.pollCollection),
+            limit(200),
+          );
+          const snapshot = await getDocs(fallbackQuery);
+          const documents = snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          }));
+          const activeDocuments = this.sortByCreatedAtDesc(
+            documents.filter((row) => row?.isActive !== false),
+          ).slice(0, 100);
+          this.activePollsCache = activeDocuments;
+          this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
+          return activeDocuments;
+        } catch (fallbackError) {
+          return [];
+        }
       }
-    }
+    });
   }
 
   /**
    * Get polls by faculty
    */
   async getPollsByFaculty(facultyId) {
-    try {
-      const q = query(
-        collection(db, this.pollCollection),
-        where("facultyId", "==", String(facultyId)),
-        limit(50),
-      );
-      const snapshot = await getDocs(q);
-      return this.sortByCreatedAtDesc(
-        snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        })),
-      );
-    } catch (error) {
-      return [];
-    }
+    const normalizedFacultyId = String(facultyId || "").trim();
+    if (!normalizedFacultyId) return [];
+    const cacheKey = `pollsByFaculty_${normalizedFacultyId}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) return cached;
+    return this.getOrCreateInflight(cacheKey, async () => {
+      try {
+        const q = query(
+          collection(db, this.pollCollection),
+          where("facultyId", "==", normalizedFacultyId),
+          limit(50),
+        );
+        const snapshot = await getDocs(q);
+        const rows = this.sortByCreatedAtDesc(
+          snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          })),
+        );
+        this.setCachedValue(cacheKey, rows);
+        return rows;
+      } catch (error) {
+        return [];
+      }
+    });
   }
 
   /**
    * Get polls created by a specific user
    */
   async getUserPolls(userId) {
-    try {
-      const q = query(
-        collection(db, this.pollCollection),
-        where("userId", "==", String(userId)),
-        limit(100),
-      );
-      const snapshot = await getDocs(q);
-      return this.sortByCreatedAtDesc(
-        snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        })),
-      );
-    } catch (error) {
-      if (!this.hasLoggedUserPollFallback) {
-        this.hasLoggedUserPollFallback = true;
-      }
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) return [];
+    const cacheKey = `userPolls_${normalizedUserId}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) return cached;
+    return this.getOrCreateInflight(cacheKey, async () => {
       try {
-        const fallbackQuery = query(
+        const q = query(
           collection(db, this.pollCollection),
-          where("userId", "==", String(userId)),
-          limit(200),
+          where("userId", "==", normalizedUserId),
+          limit(100),
         );
-        const snapshot = await getDocs(fallbackQuery);
-        const documents = snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        }));
-        return this.sortByCreatedAtDesc(documents).slice(0, 100);
-      } catch (fallbackError) {
-        return [];
+        const snapshot = await getDocs(q);
+        const rows = this.sortByCreatedAtDesc(
+          snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          })),
+        );
+        this.setCachedValue(cacheKey, rows);
+        return rows;
+      } catch (error) {
+        if (!this.hasLoggedUserPollFallback) {
+          this.hasLoggedUserPollFallback = true;
+        }
+        try {
+          const fallbackQuery = query(
+            collection(db, this.pollCollection),
+            where("userId", "==", normalizedUserId),
+            limit(200),
+          );
+          const snapshot = await getDocs(fallbackQuery);
+          const documents = snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          }));
+          const rows = this.sortByCreatedAtDesc(documents).slice(0, 100);
+          this.setCachedValue(cacheKey, rows);
+          return rows;
+        } catch (fallbackError) {
+          return [];
+        }
       }
-    }
+    });
   }
 
   /**
    * Get polls by course
    */
   async getPollsByCourse(courseId) {
-    try {
-      const q = query(
-        collection(db, this.pollCollection),
-        where("courseId", "==", String(courseId)),
-        limit(50),
-      );
-      const snapshot = await getDocs(q);
-      return this.sortByCreatedAtDesc(
-        snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        })),
-      );
-    } catch (error) {
-      return [];
-    }
+    const normalizedCourseId = String(courseId || "").trim();
+    if (!normalizedCourseId) return [];
+    const cacheKey = `pollsByCourse_${normalizedCourseId}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) return cached;
+    return this.getOrCreateInflight(cacheKey, async () => {
+      try {
+        const q = query(
+          collection(db, this.pollCollection),
+          where("courseId", "==", normalizedCourseId),
+          limit(50),
+        );
+        const snapshot = await getDocs(q);
+        const rows = this.sortByCreatedAtDesc(
+          snapshot.docs.map((docSnapshot) => ({
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          })),
+        );
+        this.setCachedValue(cacheKey, rows);
+        return rows;
+      } catch (error) {
+        return [];
+      }
+    });
   }
 
   /**
    * Get a single poll by ID
    */
   async getPollById(pollId) {
-    try {
-      const docSnapshot = await getDoc(
-        doc(db, this.pollCollection, String(pollId))
-      );
-      if (!docSnapshot.exists()) return null;
-      return {
-        $id: docSnapshot.id,
-        ...docSnapshot.data(),
-      };
-    } catch (error) {
-      return null;
-    }
+    const normalizedPollId = String(pollId || "").trim();
+    if (!normalizedPollId) return null;
+    const cacheKey = `pollById_${normalizedPollId}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) return cached;
+    return this.getOrCreateInflight(cacheKey, async () => {
+      try {
+        const docSnapshot = await getDoc(
+          doc(db, this.pollCollection, normalizedPollId)
+        );
+        if (!docSnapshot.exists()) {
+          this.setCachedValue(cacheKey, null);
+          return null;
+        }
+        const row = {
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        };
+        this.setCachedValue(cacheKey, row);
+        return row;
+      } catch (error) {
+        return null;
+      }
+    });
   }
 
   /**
@@ -290,6 +371,10 @@ class PollService {
           payload
         );
         this.pollResultsCache.delete(String(pollId));
+        this.setCachedValue(
+          `userVote_${String(userId)}_${String(pollId)}`,
+          { $id: existingVote.$id, ...payload },
+        );
         return { $id: existingVote.$id, ...payload };
       }
 
@@ -299,6 +384,10 @@ class PollService {
         payload
       );
       this.pollResultsCache.delete(String(pollId));
+      this.setCachedValue(
+        `userVote_${String(userId)}_${String(pollId)}`,
+        { $id: docRef.id, ...payload },
+      );
       return { $id: docRef.id, ...payload };
     } catch (error) {
       throw error;
@@ -309,23 +398,36 @@ class PollService {
    * Get user's vote for a specific poll
    */
   async getUserVote(userId, pollId) {
-    try {
-      const q = query(
-        collection(db, this.pollVotesCollection),
-        where("userId", "==", String(userId)),
-        where("pollId", "==", String(pollId)),
-        limit(1)
-      );
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
-      const docSnapshot = snapshot.docs[0];
-      return {
-        $id: docSnapshot.id,
-        ...docSnapshot.data(),
-      };
-    } catch (error) {
-      return null;
-    }
+    const normalizedUserId = String(userId || "").trim();
+    const normalizedPollId = String(pollId || "").trim();
+    if (!normalizedUserId || !normalizedPollId) return null;
+    const cacheKey = `userVote_${normalizedUserId}_${normalizedPollId}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) return cached;
+    return this.getOrCreateInflight(cacheKey, async () => {
+      try {
+        const q = query(
+          collection(db, this.pollVotesCollection),
+          where("userId", "==", normalizedUserId),
+          where("pollId", "==", normalizedPollId),
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+          this.setCachedValue(cacheKey, null);
+          return null;
+        }
+        const docSnapshot = snapshot.docs[0];
+        const row = {
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        };
+        this.setCachedValue(cacheKey, row);
+        return row;
+      } catch (error) {
+        return null;
+      }
+    });
   }
 
   /**
@@ -338,46 +440,48 @@ class PollService {
       return cached.value;
     }
 
-    try {
-      // OPTIMIZATION: Cap fetch to 1000 max instead of 5000 for vote aggregation
-      const q = query(
-        collection(db, this.pollVotesCollection),
-        where("pollId", "==", id),
-        limit(1000)
-      );
-      const snapshot = await getDocs(q);
+    return this.getOrCreateInflight(`pollResults_${id}`, async () => {
+      try {
+        // OPTIMIZATION: Cap fetch to 1000 max instead of 5000 for vote aggregation
+        const q = query(
+          collection(db, this.pollVotesCollection),
+          where("pollId", "==", id),
+          limit(1000)
+        );
+        const snapshot = await getDocs(q);
 
-      const votes = snapshot.docs.map((docSnapshot) => ({
-        $id: docSnapshot.id,
-        ...docSnapshot.data(),
-      }));
+        const votes = snapshot.docs.map((docSnapshot) => ({
+          $id: docSnapshot.id,
+          ...docSnapshot.data(),
+        }));
 
-      const voteCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        const voteCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
-      votes.forEach((vote) => {
-        if (vote.vote >= 1 && vote.vote <= 5) {
-          voteCounts[vote.vote]++;
-        }
-      });
+        votes.forEach((vote) => {
+          if (vote.vote >= 1 && vote.vote <= 5) {
+            voteCounts[vote.vote]++;
+          }
+        });
 
-      const result = {
-        votes,
-        voteCounts,
-        totalVotes: votes.length,
-      };
+        const result = {
+          votes,
+          voteCounts,
+          totalVotes: votes.length,
+        };
 
-      this.pollResultsCache.set(id, {
-        value: result,
-        expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
-      });
-      return result;
-    } catch (error) {
-      return {
-        votes: [],
-        voteCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-        totalVotes: 0,
-      };
-    }
+        this.pollResultsCache.set(id, {
+          value: result,
+          expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
+        });
+        return result;
+      } catch (error) {
+        return {
+          votes: [],
+          voteCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+          totalVotes: 0,
+        };
+      }
+    });
   }
 
   async getPollResultsBulk(pollIds = []) {
@@ -465,38 +569,47 @@ class PollService {
     }
     if (ids.length === 0) return resultMap;
 
-    const chunks = this.chunkArray(ids, 30);
-    for (const chunk of chunks) {
-      const q = query(
-        collection(db, this.pollVotesCollection),
-        where("userId", "==", normalizedUserId),
-        where("pollId", "in", chunk),
-        limit(5000),
-      );
-      const snapshot = await getDocs(q);
-      snapshot.docs.forEach((docSnapshot) => {
-        const voteRow = {
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        };
-        const pollId = String(voteRow?.pollId || "").trim();
-        if (!pollId || !resultMap[pollId]) {
-          resultMap[pollId] = voteRow;
-          return;
-        }
+    const cacheKey = `userVotesBulk_${normalizedUserId}_${ids.join(",")}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) return cached;
 
-        const existing = resultMap[pollId];
-        const existingTime = this.toTimeMs(
-          existing?.updatedAt || existing?.createdAt,
+    return this.getOrCreateInflight(cacheKey, async () => {
+      const chunks = this.chunkArray(ids, 30);
+      for (const chunk of chunks) {
+        const q = query(
+          collection(db, this.pollVotesCollection),
+          where("userId", "==", normalizedUserId),
+          where("pollId", "in", chunk),
+          limit(5000),
         );
-        const nextTime = this.toTimeMs(voteRow?.updatedAt || voteRow?.createdAt);
-        if (nextTime >= existingTime) {
-          resultMap[pollId] = voteRow;
-        }
-      });
-    }
+        const snapshot = await getDocs(q);
+        snapshot.docs.forEach((docSnapshot) => {
+          const voteRow = {
+            $id: docSnapshot.id,
+            ...docSnapshot.data(),
+          };
+          const pollId = String(voteRow?.pollId || "").trim();
+          if (!pollId || !resultMap[pollId]) {
+            resultMap[pollId] = voteRow;
+            return;
+          }
 
-    return resultMap;
+          const existing = resultMap[pollId];
+          const existingTime = this.toTimeMs(
+            existing?.updatedAt || existing?.createdAt,
+          );
+          const nextTime = this.toTimeMs(voteRow?.updatedAt || voteRow?.createdAt);
+          if (nextTime >= existingTime) {
+            resultMap[pollId] = voteRow;
+          }
+        });
+      }
+      for (const [pid, vote] of Object.entries(resultMap)) {
+        this.setCachedValue(`userVote_${normalizedUserId}_${pid}`, vote);
+      }
+      this.setCachedValue(cacheKey, resultMap);
+      return resultMap;
+    });
   }
 
   /**
@@ -508,8 +621,7 @@ class PollService {
         isActive: Boolean(isActive),
         updatedAt: new Date(),
       });
-      this.activePollsCache = null;
-      this.activePollsCacheExpiry = 0;
+      this.invalidatePollQueryCache();
       return true;
     } catch (error) {
       throw error;
@@ -535,8 +647,7 @@ class PollService {
     });
     try {
       await batch.commit();
-      this.activePollsCache = null;
-      this.activePollsCacheExpiry = 0;
+      this.invalidatePollQueryCache();
       return true;
     } catch (err) {
       throw err;
@@ -565,6 +676,7 @@ class PollService {
       }
 
       await updateDoc(doc(db, this.pollCollection, String(pollId)), allowedUpdates);
+      this.invalidatePollQueryCache();
       return true;
     } catch (error) {
       throw error;
@@ -577,8 +689,7 @@ class PollService {
   async deletePoll(pollId) {
     try {
       await deleteDoc(doc(db, this.pollCollection, String(pollId)));
-      this.activePollsCache = null;
-      this.activePollsCacheExpiry = 0;
+      this.invalidatePollQueryCache();
       this.pollResultsCache.delete(String(pollId));
       return true;
     } catch (error) {
@@ -592,6 +703,9 @@ class PollService {
   async deleteVote(voteId) {
     try {
       await deleteDoc(doc(db, this.pollVotesCollection, String(voteId)));
+      this.pollResultsCache.clear();
+      this.pollQueryCache.clear();
+      this.inflightRequests.clear();
       return true;
     } catch (error) {
       throw error;

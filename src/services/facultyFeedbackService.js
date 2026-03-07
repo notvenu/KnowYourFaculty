@@ -50,6 +50,7 @@ function clampRating(value) {
 class FacultyFeedbackService {
   reviewCollection = clientConfig.firebaseReviewCollection;
   feedbackCache = new Map();
+  inflightRequests = new Map();
   FEEDBACK_CACHE_TTL_MS = 10 * 60 * 1000;  // Reviews change more often, 10 min cache
   FACULTY_ROWS_FETCH_LIMIT = 300;
   feedbackTotalCountCache = null;
@@ -146,6 +147,36 @@ class FacultyFeedbackService {
     );
   }
 
+  getCachedValue(cacheKey) {
+    const cached = this.feedbackCache.get(cacheKey);
+    if (!cached) return undefined;
+    if (cached.expiresAt > Date.now()) return cached.value;
+    this.feedbackCache.delete(cacheKey);
+    return undefined;
+  }
+
+  setCachedValue(cacheKey, value, ttlMs = this.FEEDBACK_CACHE_TTL_MS) {
+    this.feedbackCache.set(cacheKey, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+  }
+
+  async getOrCreateInflight(cacheKey, loader) {
+    if (this.inflightRequests.has(cacheKey)) {
+      return this.inflightRequests.get(cacheKey);
+    }
+    const promise = (async () => {
+      try {
+        return await loader();
+      } finally {
+        this.inflightRequests.delete(cacheKey);
+      }
+    })();
+    this.inflightRequests.set(cacheKey, promise);
+    return promise;
+  }
+
   /**
    * Helper method for backward compatibility with Query-based calls
    * Converts constraint array to Firestore query
@@ -227,25 +258,24 @@ class FacultyFeedbackService {
 
   async getAllRatings(limit_num = 10000) {
     const cacheKey = `allRatings_${limit_num}`;
-    const cached = this.feedbackCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) {
+      return cached;
     }
 
-    // OPTIMIZATION: Cap the fetch limit to reduce read size
-    const actualLimit = Math.min(limit_num, 5000);
-    const response = await this.listRows(this.feedbackTableId, [
-      limit(actualLimit),
-    ]);
-    const result = this.sortRowsByFieldDesc(response.rows || [], "createdAt").slice(
-      0,
-      limit_num,
-    );
-    this.feedbackCache.set(cacheKey, {
-      value: result,
-      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    return this.getOrCreateInflight(cacheKey, async () => {
+      // OPTIMIZATION: Cap the fetch limit to reduce read size
+      const actualLimit = Math.min(limit_num, 5000);
+      const response = await this.listRows(this.feedbackTableId, [
+        limit(actualLimit),
+      ]);
+      const result = this.sortRowsByFieldDesc(response.rows || [], "createdAt").slice(
+        0,
+        limit_num,
+      );
+      this.setCachedValue(cacheKey, result);
+      return result;
     });
-    return result;
   }
 
   async getFeedbackTotalCount() {
@@ -256,32 +286,33 @@ class FacultyFeedbackService {
       return this.feedbackTotalCountCache;
     }
 
-    const snapshot = await getCountFromServer(
-      query(collection(db, this.feedbackTableId)),
-    );
-    const count = Number(snapshot?.data()?.count || 0);
-    this.feedbackTotalCountCache = count;
-    this.feedbackTotalCountExpiry = Date.now() + this.FEEDBACK_CACHE_TTL_MS;
-    return count;
+    return this.getOrCreateInflight("feedbackTotalCount", async () => {
+      const snapshot = await getCountFromServer(
+        query(collection(db, this.feedbackTableId)),
+      );
+      const count = Number(snapshot?.data()?.count || 0);
+      this.feedbackTotalCountCache = count;
+      this.feedbackTotalCountExpiry = Date.now() + this.FEEDBACK_CACHE_TTL_MS;
+      return count;
+    });
   }
 
   async getRecentFeedbackEntries(limit_num = 200) {
     const cacheKey = `recentFeedback_${limit_num}`;
-    const cached = this.feedbackCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) {
+      return cached;
     }
 
-    const response = await this.listRows(this.feedbackTableId, [
-      orderBy("updatedAt", "desc"),
-      limit(limit_num),
-    ]);
-    const rows = response.rows || [];
-    this.feedbackCache.set(cacheKey, {
-      value: rows,
-      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    return this.getOrCreateInflight(cacheKey, async () => {
+      const response = await this.listRows(this.feedbackTableId, [
+        orderBy("updatedAt", "desc"),
+        limit(limit_num),
+      ]);
+      const rows = response.rows || [];
+      this.setCachedValue(cacheKey, rows);
+      return rows;
     });
-    return rows;
   }
 
   async getFacultyRows(facultyId, limit_num = this.FACULTY_ROWS_FETCH_LIMIT) {
@@ -289,21 +320,20 @@ class FacultyFeedbackService {
     if (!id) return [];
 
     const cacheKey = `facultyRows_${id}_${limit_num}`;
-    const cached = this.feedbackCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) {
+      return cached;
     }
 
-    const response = await this.listRows(this.feedbackTableId, [
-      where("facultyId", "==", id),
-      limit(limit_num),
-    ]);
-    const rows = this.sortRowsByFieldDesc(response.rows || [], "createdAt");
-    this.feedbackCache.set(cacheKey, {
-      value: rows,
-      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    return this.getOrCreateInflight(cacheKey, async () => {
+      const response = await this.listRows(this.feedbackTableId, [
+        where("facultyId", "==", id),
+        limit(limit_num),
+      ]);
+      const rows = this.sortRowsByFieldDesc(response.rows || [], "createdAt");
+      this.setCachedValue(cacheKey, rows);
+      return rows;
     });
-    return rows;
   }
 
   /**
@@ -753,24 +783,58 @@ class FacultyFeedbackService {
   }
 
   async getUserFacultyFeedback(userId, facultyId) {
-    const response = await this.listRows(this.feedbackTableId, [
-      where("userId", "==", String(userId)),
-      where("facultyId", "==", String(facultyId)),
-      limit(1),
-    ]);
-    return this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
+    const normalizedUserId = String(userId || "").trim();
+    const normalizedFacultyId = String(facultyId || "").trim();
+    if (!normalizedUserId || !normalizedFacultyId) return null;
+
+    const cacheKey = `userFaculty_${normalizedUserId}_${normalizedFacultyId}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    return this.getOrCreateInflight(cacheKey, async () => {
+      const response = await this.listRows(this.feedbackTableId, [
+        where("userId", "==", normalizedUserId),
+        where("facultyId", "==", normalizedFacultyId),
+        limit(1),
+      ]);
+      const value =
+        this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
+      this.setCachedValue(cacheKey, value);
+      return value;
+    });
   }
 
   async getUserFeedbackEntries(userId, limit_num = 200) {
-    if (!String(userId || "").trim()) return [];
-    const response = await this.listRows(this.feedbackTableId, [
-      where("userId", "==", String(userId)),
-      limit(limit_num),
-    ]);
-    return this.sortRowsByFieldDesc(response.rows || [], "updatedAt").slice(
-      0,
-      limit_num,
-    );
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) return [];
+    const cacheKey = `userFeedbackEntries_${normalizedUserId}_${limit_num}`;
+    const cached = this.getCachedValue(cacheKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    return this.getOrCreateInflight(cacheKey, async () => {
+      const response = await this.listRows(this.feedbackTableId, [
+        where("userId", "==", normalizedUserId),
+        limit(limit_num),
+      ]);
+      const rows = this.sortRowsByFieldDesc(response.rows || [], "updatedAt").slice(
+        0,
+        limit_num,
+      );
+
+      const seenFacultyIds = new Set();
+      for (const row of rows) {
+        const fid = String(row?.facultyId || "").trim();
+        if (!fid || seenFacultyIds.has(fid)) continue;
+        seenFacultyIds.add(fid);
+        this.setCachedValue(`userFaculty_${normalizedUserId}_${fid}`, row);
+      }
+      this.setCachedValue(cacheKey, rows);
+      return rows;
+    });
   }
 
   async submitFeedback({
@@ -839,7 +903,16 @@ class FacultyFeedbackService {
     } else {
       result = await this.createRow(this.feedbackTableId, payload);
     }
+    const normalizedUserId = String(userId || "").trim();
+    const normalizedFacultyId = String(facultyId || "").trim();
     this.feedbackCache.clear();
+    this.inflightRequests.clear();
+    if (normalizedUserId && normalizedFacultyId) {
+      this.setCachedValue(
+        `userFaculty_${normalizedUserId}_${normalizedFacultyId}`,
+        result,
+      );
+    }
     this.feedbackTotalCountCache = null;
     this.feedbackTotalCountExpiry = 0;
     this.clearPersistentRatingsSummaryCache();
@@ -902,7 +975,16 @@ class FacultyFeedbackService {
     if (!existing?.$id) return null;
     try {
       await deleteDoc(doc(db, this.feedbackTableId, existing.$id));
+      const normalizedUserId = String(userId || "").trim();
+      const normalizedFacultyId = String(facultyId || "").trim();
       this.feedbackCache.clear();
+      this.inflightRequests.clear();
+      if (normalizedUserId && normalizedFacultyId) {
+        this.setCachedValue(
+          `userFaculty_${normalizedUserId}_${normalizedFacultyId}`,
+          null,
+        );
+      }
       this.feedbackTotalCountCache = null;
       this.feedbackTotalCountExpiry = 0;
       this.clearPersistentRatingsSummaryCache();
@@ -917,6 +999,7 @@ class FacultyFeedbackService {
     try {
       await deleteDoc(doc(db, this.feedbackTableId, rowId));
       this.feedbackCache.clear();
+      this.inflightRequests.clear();
       this.feedbackTotalCountCache = null;
       this.feedbackTotalCountExpiry = 0;
       this.clearPersistentRatingsSummaryCache();

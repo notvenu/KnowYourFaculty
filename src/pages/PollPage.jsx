@@ -23,6 +23,9 @@ import publicFacultyService from "../services/publicFacultyService.js";
 import courseService from "../services/courseService.js";
 import CreatePollOverlay from "../components/overlays/CreatePollOverlay.jsx";
 import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
+import { PAGINATION_LIMITS } from "../config/pagination.js";
+
+const POLLS_PER_PAGE = PAGINATION_LIMITS.pollsPerPage;
 
 const POLL_OPTIONS = {
   3: [
@@ -72,6 +75,8 @@ export default function PollPage() {
   const [myPolls, setMyPolls] = useState([]);
   const [myPollResults, setMyPollResults] = useState({});
   const [myPollFilter, setMyPollFilter] = useState("all"); // all, active, ended
+  const [activePollPage, setActivePollPage] = useState(1);
+  const [myPollPage, setMyPollPage] = useState(1);
 
   // Overlay states
   const [showCreateOverlay, setShowCreateOverlay] = useState(false);
@@ -87,12 +92,61 @@ export default function PollPage() {
   const safeMyPolls = Array.isArray(myPolls)
     ? myPolls.filter((poll) => poll && poll.$id)
     : [];
+  const filteredMyPolls = safeMyPolls.filter((poll) => {
+    if (myPollFilter === "all") return true;
+    const now = new Date();
+    const endTime = new Date(poll?.pollEndTime);
+    const startTime = poll?.pollStartTime ? new Date(poll.pollStartTime) : null;
+    const active =
+      poll?.isActive !== false &&
+      (!startTime || now >= startTime) &&
+      now < endTime;
+    if (myPollFilter === "active") return active;
+    if (myPollFilter === "ended") return !active;
+    return true;
+  });
+  const totalActivePollPages = Math.max(
+    1,
+    Math.ceil(safePolls.length / POLLS_PER_PAGE),
+  );
+  const totalMyPollPages = Math.max(
+    1,
+    Math.ceil(filteredMyPolls.length / POLLS_PER_PAGE),
+  );
+  const paginatedActivePolls = safePolls.slice(
+    (activePollPage - 1) * POLLS_PER_PAGE,
+    activePollPage * POLLS_PER_PAGE,
+  );
+  const paginatedMyPolls = filteredMyPolls.slice(
+    (myPollPage - 1) * POLLS_PER_PAGE,
+    myPollPage * POLLS_PER_PAGE,
+  );
 
   useEffect(() => {
     if (hasUser) {
       loadInitialData();
     }
   }, [hasUser, activeTab]);
+
+  useEffect(() => {
+    setActivePollPage(1);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activePollPage > totalActivePollPages) {
+      setActivePollPage(totalActivePollPages);
+    }
+  }, [activePollPage, totalActivePollPages]);
+
+  useEffect(() => {
+    setMyPollPage(1);
+  }, [myPollFilter, activeTab]);
+
+  useEffect(() => {
+    if (myPollPage > totalMyPollPages) {
+      setMyPollPage(totalMyPollPages);
+    }
+  }, [myPollPage, totalMyPollPages]);
 
   const upsertRowsById = (currentRows = [], nextRows = []) => {
     const map = new Map(
@@ -897,7 +951,67 @@ export default function PollPage() {
                     </button>
                   </div>
                 ) : (
-                  safePolls.map(renderPollCard)
+                  <>
+                    {totalActivePollPages > 1 ? (
+                      <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActivePollPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={activePollPage <= 1}
+                          className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-xs sm:text-sm text-(--muted)">
+                          Page {activePollPage} of {totalActivePollPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActivePollPage((p) =>
+                              Math.min(totalActivePollPages, p + 1),
+                            )
+                          }
+                          disabled={activePollPage >= totalActivePollPages}
+                          className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    ) : null}
+                    {paginatedActivePolls.map(renderPollCard)}
+                    {totalActivePollPages > 1 ? (
+                      <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActivePollPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={activePollPage <= 1}
+                          className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-xs sm:text-sm text-(--muted)">
+                          Page {activePollPage} of {totalActivePollPages}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActivePollPage((p) =>
+                              Math.min(totalActivePollPages, p + 1),
+                            )
+                          }
+                          disabled={activePollPage >= totalActivePollPages}
+                          className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </div>
             )}
@@ -957,31 +1071,75 @@ export default function PollPage() {
                       </button>
                     </div>
 
-                    {(() => {
-                      const filteredPolls = safeMyPolls.filter((poll) => {
-                        if (myPollFilter === "all") return true;
-                        const isActive = isPollActive(poll);
-                        if (myPollFilter === "active") return isActive;
-                        if (myPollFilter === "ended") return !isActive;
-                        return true;
-                      });
-
-                      if (filteredPolls.length === 0) {
-                        return (
-                          <div className="text-center py-12 bg-(--card) rounded-lg border border-(--border)">
-                            <p className="text-(--muted)">
-                              No {myPollFilter} polls found.
-                            </p>
+                    {filteredMyPolls.length === 0 ? (
+                      <div className="text-center py-12 bg-(--card) rounded-lg border border-(--border)">
+                        <p className="text-(--muted)">
+                          No {myPollFilter} polls found.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {totalMyPollPages > 1 ? (
+                          <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMyPollPage((p) => Math.max(1, p - 1))
+                              }
+                              disabled={myPollPage <= 1}
+                              className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                            >
+                              Previous
+                            </button>
+                            <span className="text-xs sm:text-sm text-(--muted)">
+                              Page {myPollPage} of {totalMyPollPages}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMyPollPage((p) =>
+                                  Math.min(totalMyPollPages, p + 1),
+                                )
+                              }
+                              disabled={myPollPage >= totalMyPollPages}
+                              className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                            >
+                              Next
+                            </button>
                           </div>
-                        );
-                      }
-
-                      return (
-                        <div className="space-y-6">
-                          {filteredPolls.map(renderMyPollCard)}
-                        </div>
-                      );
-                    })()}
+                        ) : null}
+                        {paginatedMyPolls.map(renderMyPollCard)}
+                        {totalMyPollPages > 1 ? (
+                          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMyPollPage((p) => Math.max(1, p - 1))
+                              }
+                              disabled={myPollPage <= 1}
+                              className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                            >
+                              Previous
+                            </button>
+                            <span className="text-xs sm:text-sm text-(--muted)">
+                              Page {myPollPage} of {totalMyPollPages}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMyPollPage((p) =>
+                                  Math.min(totalMyPollPages, p + 1),
+                                )
+                              }
+                              disabled={myPollPage >= totalMyPollPages}
+                              className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

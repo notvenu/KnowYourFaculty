@@ -34,6 +34,10 @@ const clientConfig = {
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
+  explicitAllowedEmails: String(getEnv('VITE_EXPLICIT_ALLOWED_EMAILS') || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
 
   // Application settings
   app: {

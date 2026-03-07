@@ -21,6 +21,9 @@ import {
   getTierLabel,
   getTierColor,
 } from "../lib/ratingConfig.js";
+import { PAGINATION_LIMITS } from "../config/pagination.js";
+
+const RANKINGS_PER_PAGE = PAGINATION_LIMITS.rankingsPerPage;
 
 function RankIcon({ rank }) {
   if (rank === 1) {
@@ -73,6 +76,7 @@ export default function RankingPage({ currentUser }) {
   const [selectedType, setSelectedType] = useState("all");
   const [minRatings, setMinRatings] = useState(1); // Minimum number of ratings to be ranked
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const filterDropdownRef = useRef(null);
 
   const hasUser = Boolean(currentUser?.$id);
@@ -271,6 +275,25 @@ export default function RankingPage({ currentUser }) {
     selectedType,
     minRatings,
   ]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    selectedDepartment,
+    selectedDesignation,
+    selectedCourse,
+    selectedType,
+    minRatings,
+  ]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(rankedFaculty.length / RANKINGS_PER_PAGE),
+  );
+  const paginatedRankedFaculty = useMemo(() => {
+    const start = (currentPage - 1) * RANKINGS_PER_PAGE;
+    return rankedFaculty.slice(start, start + RANKINGS_PER_PAGE);
+  }, [rankedFaculty, currentPage]);
 
   // Redirect if not logged in
   if (!hasUser) {
@@ -538,8 +561,32 @@ export default function RankingPage({ currentUser }) {
             {rankedFaculty.length}
           </span>{" "}
           ranked faculty members
+          {rankedFaculty.length > 0 ? ` · Page ${currentPage} of ${totalPages}` : ""}
         </p>
       </div>
+      {rankedFaculty.length > 0 && totalPages > 1 ? (
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
+            className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-xs sm:text-sm text-(--muted)">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
 
       {/* Rankings Display */}
       {rankedFaculty.length === 0 ? (
@@ -553,8 +600,8 @@ export default function RankingPage({ currentUser }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {rankedFaculty.map((faculty, index) => {
-            const rank = index + 1;
+          {paginatedRankedFaculty.map((faculty, index) => {
+            const rank = (currentPage - 1) * RANKINGS_PER_PAGE + index + 1;
             const tier = getTierFromRating(faculty.overallRating);
             const tierLabel = getTierLabel(tier);
             const tierColor = getTierColor(tier);
@@ -616,6 +663,29 @@ export default function RankingPage({ currentUser }) {
           })}
         </div>
       )}
+      {rankedFaculty.length > 0 && totalPages > 1 ? (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
+            className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-xs sm:text-sm text-(--muted)">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs sm:text-sm font-medium text-(--text) disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

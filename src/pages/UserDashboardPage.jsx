@@ -23,6 +23,7 @@ import accountDeletionService, {
 import authService from "../lib/firebase/auth.js";
 import ConfirmOverlay from "../components/overlays/ConfirmOverlay.jsx";
 import CreatePollOverlay from "../components/overlays/CreatePollOverlay.jsx";
+import { PAGINATION_LIMITS } from "../config/pagination.js";
 
 const RATING_EDIT_FIELDS = [
   ["theoryTeaching", "Theory teaching"],
@@ -35,6 +36,9 @@ const RATING_EDIT_FIELDS = [
   ["ecsCapstoneSDPReview", "ECS/Capstone review"],
   ["ecsCapstoneSDPCorrection", "ECS/Capstone correction"],
 ];
+const FEEDBACK_FACULTIES_PER_PAGE =
+  PAGINATION_LIMITS.dashboardFeedbackFacultyPerPage;
+const USER_POLLS_PER_PAGE = PAGINATION_LIMITS.dashboardPollsPerPage;
 
 function formatDate(value) {
   if (!value) return "-";
@@ -97,6 +101,8 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
   const [pollResults, setPollResults] = useState({});
   const [loadingPolls, setLoadingPolls] = useState(false);
   const [pollFilter, setPollFilter] = useState("all"); // all, active, ended
+  const [feedbackPage, setFeedbackPage] = useState(1);
+  const [userPollPage, setUserPollPage] = useState(1);
   const [showCreatePollOverlay, setShowCreatePollOverlay] = useState(false);
   const [showEditPollOverlay, setShowEditPollOverlay] = useState(false);
   const [editingPoll, setEditingPoll] = useState(null);
@@ -389,6 +395,60 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       timeStyle: "short",
     });
   };
+
+  const feedbackFacultyGroups = useMemo(
+    () => Array.from(entriesByFaculty.entries()),
+    [entriesByFaculty],
+  );
+  const totalFeedbackPages = Math.max(
+    1,
+    Math.ceil(feedbackFacultyGroups.length / FEEDBACK_FACULTIES_PER_PAGE),
+  );
+  const paginatedFeedbackFacultyGroups = useMemo(() => {
+    const start = (feedbackPage - 1) * FEEDBACK_FACULTIES_PER_PAGE;
+    return feedbackFacultyGroups.slice(
+      start,
+      start + FEEDBACK_FACULTIES_PER_PAGE,
+    );
+  }, [feedbackFacultyGroups, feedbackPage]);
+
+  const filteredUserPolls = useMemo(() => {
+    return userPolls.filter((poll) => {
+      if (pollFilter === "all") return true;
+      const active = isPollActive(poll);
+      if (pollFilter === "active") return active;
+      if (pollFilter === "ended") return !active;
+      return true;
+    });
+  }, [userPolls, pollFilter]);
+  const totalUserPollPages = Math.max(
+    1,
+    Math.ceil(filteredUserPolls.length / USER_POLLS_PER_PAGE),
+  );
+  const paginatedUserPolls = useMemo(() => {
+    const start = (userPollPage - 1) * USER_POLLS_PER_PAGE;
+    return filteredUserPolls.slice(start, start + USER_POLLS_PER_PAGE);
+  }, [filteredUserPolls, userPollPage]);
+
+  useEffect(() => {
+    setFeedbackPage(1);
+  }, [entries.length]);
+
+  useEffect(() => {
+    if (feedbackPage > totalFeedbackPages) {
+      setFeedbackPage(totalFeedbackPages);
+    }
+  }, [feedbackPage, totalFeedbackPages]);
+
+  useEffect(() => {
+    setUserPollPage(1);
+  }, [pollFilter, userPolls.length]);
+
+  useEffect(() => {
+    if (userPollPage > totalUserPollPages) {
+      setUserPollPage(totalUserPollPages);
+    }
+  }, [userPollPage, totalUserPollPages]);
 
   const handleScheduleDeletion = () => {
     setShowDeleteAccountConfirm(true);
@@ -749,8 +809,32 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
           </p>
         ) : (
           <div className="space-y-3">
-            {Array.from(entriesByFaculty.entries()).map(
-              ([facultyId, facultyEntries]) => {
+            {totalFeedbackPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setFeedbackPage((p) => Math.max(1, p - 1))}
+                  disabled={feedbackPage <= 1}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-(--muted)">
+                  Page {feedbackPage} of {totalFeedbackPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFeedbackPage((p) => Math.min(totalFeedbackPages, p + 1))
+                  }
+                  disabled={feedbackPage >= totalFeedbackPages}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
+            {paginatedFeedbackFacultyGroups.map(([facultyId, facultyEntries]) => {
                 const facultyRecord = facultyLookup[facultyId];
                 const isExpanded = expandedFaculty.has(facultyId);
 
@@ -997,8 +1081,32 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                     )}
                   </div>
                 );
-              },
-            )}
+              })}
+            {totalFeedbackPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setFeedbackPage((p) => Math.max(1, p - 1))}
+                  disabled={feedbackPage <= 1}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-(--muted)">
+                  Page {feedbackPage} of {totalFeedbackPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFeedbackPage((p) => Math.min(totalFeedbackPages, p + 1))
+                  }
+                  disabled={feedbackPage >= totalFeedbackPages}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
       </section>
@@ -1060,27 +1168,38 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
           <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
             You haven't created any polls yet.
           </p>
+        ) : filteredUserPolls.length === 0 ? (
+          <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
+            No {pollFilter} polls found.
+          </p>
         ) : (
-          (() => {
-            const filteredPolls = userPolls.filter((poll) => {
-              if (pollFilter === "all") return true;
-              const isActive = isPollActive(poll);
-              if (pollFilter === "active") return isActive;
-              if (pollFilter === "ended") return !isActive;
-              return true;
-            });
-
-            if (filteredPolls.length === 0) {
-              return (
-                <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
-                  No {pollFilter} polls found.
-                </p>
-              );
-            }
-
-            return (
-              <div className="space-y-3">
-                {filteredPolls.map((poll) => {
+          <div className="space-y-3">
+            {totalUserPollPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setUserPollPage((p) => Math.max(1, p - 1))}
+                  disabled={userPollPage <= 1}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-(--muted)">
+                  Page {userPollPage} of {totalUserPollPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setUserPollPage((p) => Math.min(totalUserPollPages, p + 1))
+                  }
+                  disabled={userPollPage >= totalUserPollPages}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
+            {paginatedUserPolls.map((poll) => {
                   const results = pollResults[poll.$id];
                   const isActive = isPollActive(poll);
 
@@ -1182,9 +1301,32 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                     </div>
                   );
                 })}
+            {totalUserPollPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUserPollPage((p) => Math.max(1, p - 1))}
+                  disabled={userPollPage <= 1}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs text-(--muted)">
+                  Page {userPollPage} of {totalUserPollPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setUserPollPage((p) => Math.min(totalUserPollPages, p + 1))
+                  }
+                  disabled={userPollPage >= totalUserPollPages}
+                  className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                >
+                  Next
+                </button>
               </div>
-            );
-          })()
+            ) : null}
+          </div>
         )}
       </section>
 

@@ -8,8 +8,9 @@ import courseService from "../services/courseService.js";
 import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
 import { fuzzyMatchAny, fuzzyScoreAny } from "../lib/fuzzySearch.js";
+import { PAGINATION_LIMITS } from "../config/pagination.js";
 
-const FACULTY_PER_PAGE = 20;
+const FACULTY_PER_PAGE = PAGINATION_LIMITS.facultyDirectoryPerPage;
 const DIRECTORY_STATE_KEY = "kyf.facultyDirectory.state.v1";
 
 const RATING_FIELDS = [
@@ -522,6 +523,30 @@ function FacultyDirectoryPage({ currentUser }) {
           {totalPages > 1 ? ` · Page ${currentPage} of ${totalPages}` : ""}
         </p>
       )}
+
+      {totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage <= 1}
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
+          >
+            Previous
+          </button>
+          <span className="px-4 py-2 text-sm font-medium text-(--muted)">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages}
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
 
       <section className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {paginatedFaculty.map((item) => {

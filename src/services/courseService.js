@@ -7,6 +7,7 @@ import {
   getDocs,
   getDoc,
   doc,
+  documentId,
   addDoc,
   updateDoc,
   Timestamp,
@@ -31,6 +32,21 @@ function normalizeSearchText(value) {
 
 function normalizeSearchCompact(value) {
   return normalizeSearchText(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function toFriendlyCourseWriteError(error) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "");
+  const lowerMessage = message.toLowerCase();
+  if (
+    code.includes("permission-denied") ||
+    lowerMessage.includes("missing or insufficient permissions")
+  ) {
+    return new Error(
+      "Missing Firestore write permission for courses. Ensure your account is listed in VITE_ADMIN_EMAILS and Firebase rules allow admin writes to the courses collection.",
+    );
+  }
+  return error;
 }
 
 function mergeCoursesByCode(courses = []) {
@@ -60,15 +76,91 @@ class CourseService {
   coursesCollection = clientConfig.firebaseCoursesCollection;
   allCoursesCache = null;
   allCoursesCacheExpiry = 0;
+  allCoursesCacheLimit = 0;
   allCoursesInflight = null;
   courseByIdCache = new Map();
   courseByIdCacheExpiry = new Map();
+  courseByIdInflight = new Map();
   CACHE_TTL_MS = 50 * 60 * 1000;  // Courses rarely change, cache for 50 min
+  PERSISTENT_CACHE_PREFIX = "kyf.courses";
+  PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-  constructor() {}
+  constructor() {
+    this.hydrateAllCoursesFromPersistentCache();
+  }
 
   get coursesTableId() {
     return this.coursesCollection;
+  }
+
+  getStorage() {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage || null;
+    } catch {
+      return null;
+    }
+  }
+
+  getPersistentKey(suffix) {
+    return `${this.PERSISTENT_CACHE_PREFIX}:${suffix}`;
+  }
+
+  readPersistentCache(suffix) {
+    const storage = this.getStorage();
+    if (!storage) return null;
+    try {
+      const raw = storage.getItem(this.getPersistentKey(suffix));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.expiresAt <= Date.now()) {
+        storage.removeItem(this.getPersistentKey(suffix));
+        return null;
+      }
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  }
+
+  writePersistentCache(suffix, value, ttlMs = this.PERSISTENT_CACHE_TTL_MS) {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      storage.setItem(
+        this.getPersistentKey(suffix),
+        JSON.stringify({
+          value,
+          expiresAt: Date.now() + ttlMs,
+        }),
+      );
+    } catch {
+      // ignore storage write issues
+    }
+  }
+
+  removePersistentCache(suffix) {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      storage.removeItem(this.getPersistentKey(suffix));
+    } catch {
+      // ignore storage cleanup issues
+    }
+  }
+
+  hydrateAllCoursesFromPersistentCache() {
+    const persisted = this.readPersistentCache("allCourses:v1");
+    if (!Array.isArray(persisted) || persisted.length === 0) return;
+    this.allCoursesCache = persisted;
+    this.allCoursesCacheLimit = persisted.length;
+    this.allCoursesCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+    for (const row of persisted) {
+      const rowId = normalizeText(row?.$id);
+      if (!rowId) continue;
+      this.courseByIdCache.set(rowId, row);
+      this.courseByIdCacheExpiry.set(rowId, Date.now() + this.CACHE_TTL_MS);
+    }
   }
 
   async listRows(constraints = []) {
@@ -110,7 +202,7 @@ class CourseService {
         ...payload,
       };
     } catch (error) {
-      throw error;
+      throw toFriendlyCourseWriteError(error);
     }
   }
 
@@ -131,20 +223,34 @@ class CourseService {
         ...payload,
       };
     } catch (error) {
-      throw error;
+      throw toFriendlyCourseWriteError(error);
     }
   }
 
   clearCourseCache() {
     this.allCoursesCache = null;
     this.allCoursesCacheExpiry = 0;
+    this.allCoursesCacheLimit = 0;
     this.allCoursesInflight = null;
     this.courseByIdCache.clear();
+    this.courseByIdCacheExpiry.clear();
+    this.courseByIdInflight.clear();
+    this.removePersistentCache("allCourses:v1");
   }
 
   async getCourseById(courseId) {
     const id = normalizeText(courseId);
     if (!id) return null;
+
+    if (this.allCoursesCache && this.allCoursesCacheExpiry > Date.now()) {
+      const row = (this.allCoursesCache || []).find(
+        (course) => String(course?.$id || "") === id,
+      );
+      const value = row || null;
+      this.courseByIdCache.set(id, value);
+      this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+      return value;
+    }
 
     // Check cache with expiry
     if (this.courseByIdCache.has(id)) {
@@ -157,25 +263,35 @@ class CourseService {
       this.courseByIdCacheExpiry.delete(id);
     }
 
-    try {
-      const docRef = doc(db, this.coursesCollection, id);
-      const docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        this.courseByIdCache.set(id, null);
-        this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-        return null;
-      }
+    if (this.courseByIdInflight.has(id)) {
+      return this.courseByIdInflight.get(id);
+    }
 
-      const row = {
-        $id: docSnap.id,
-        ...docSnap.data(),
-      };
-      this.courseByIdCache.set(id, row);
-      this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-      return row;
+    try {
+      const fetchPromise = (async () => {
+        const docRef = doc(db, this.coursesCollection, id);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          this.courseByIdCache.set(id, null);
+          this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+          return null;
+        }
+
+        const row = {
+          $id: docSnap.id,
+          ...docSnap.data(),
+        };
+        this.courseByIdCache.set(id, row);
+        this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+        return row;
+      })();
+      this.courseByIdInflight.set(id, fetchPromise);
+      return await fetchPromise;
     } catch (error) {
       return null;
+    } finally {
+      this.courseByIdInflight.delete(id);
     }
   }
 
@@ -214,6 +330,19 @@ class CourseService {
 
     if (uncached.length === 0) return result;
 
+    if (this.allCoursesCache && this.allCoursesCacheExpiry > Date.now()) {
+      const allById = new Map(
+        (this.allCoursesCache || []).map((row) => [String(row?.$id || ""), row]),
+      );
+      for (const id of uncached) {
+        const row = allById.get(id) || null;
+        result[id] = row;
+        this.courseByIdCache.set(id, row);
+        this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+      }
+      return result;
+    }
+
     // Batch-fetch in 30-item chunks using 'in' operator
     const chunks = [];
     for (let i = 0; i < uncached.length; i += 30) {
@@ -222,30 +351,26 @@ class CourseService {
 
     for (const chunk of chunks) {
       try {
-        // Note: Firestore requires doc IDs to be queried via a query on collection,
-        // not via 'in' operator on __name__. We'll need to read them individually or
-        // store course code as a field and index by that instead. For now, use individual gets.
-        const promises = chunk.map((id) =>
-          getDoc(doc(db, this.coursesCollection, id))
-            .then((snap) => ({ id, snap }))
-            .catch(() => ({ id, snap: null }))
+        const q = query(
+          collection(db, this.coursesCollection),
+          where(documentId(), "in", chunk),
         );
-
-        const results = await Promise.all(promises);
-        for (const { id, snap } of results) {
-          if (snap && snap.exists()) {
-            const row = {
-              $id: snap.id,
-              ...snap.data(),
-            };
-            result[id] = row;
-            this.courseByIdCache.set(id, row);
-            this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-          } else {
-            result[id] = null;
-            this.courseByIdCache.set(id, null);
-            this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-          }
+        const snapshot = await getDocs(q);
+        const foundIds = new Set();
+        snapshot.docs.forEach((docSnapshot) => {
+          const row = { $id: docSnapshot.id, ...docSnapshot.data() };
+          const id = String(row?.$id || "");
+          if (!id) return;
+          foundIds.add(id);
+          result[id] = row;
+          this.courseByIdCache.set(id, row);
+          this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+        });
+        for (const id of chunk) {
+          if (foundIds.has(id)) continue;
+          result[id] = null;
+          this.courseByIdCache.set(id, null);
+          this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
         }
       } catch (error) {
         for (const id of chunk) {
@@ -310,9 +435,13 @@ class CourseService {
       const rows = response.rows || [];
       this.allCoursesCache = rows;
       this.allCoursesCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+      this.writePersistentCache("allCourses:v1", rows);
       for (const row of rows) {
         const rowId = normalizeText(row?.$id);
-        if (rowId) this.courseByIdCache.set(rowId, row);
+        if (rowId) {
+          this.courseByIdCache.set(rowId, row);
+          this.courseByIdCacheExpiry.set(rowId, Date.now() + this.CACHE_TTL_MS);
+        }
       }
       return rows;
     })();
