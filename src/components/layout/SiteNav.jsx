@@ -151,8 +151,9 @@ export default function SiteNav({
                 }
               >
                 <FontAwesomeIcon
+                  key={theme}
                   icon={theme === "dark" ? faSun : faMoon}
-                  className="w-4 h-4"
+                  className="w-4 h-4 animate-theme-icon"
                 />
               </button>
 
