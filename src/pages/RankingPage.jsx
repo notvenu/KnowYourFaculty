@@ -1,5 +1,5 @@
 // eslint-disable tailwindcss/no-custom-classname
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import publicFacultyService from "../services/publicFacultyService.js";
@@ -135,11 +135,38 @@ export default function RankingPage({ currentUser }) {
     }
   };
 
+  const refreshRankings = useCallback(async () => {
+    try {
+      const summary = await facultyFeedbackService.getRatingsSummary(10000);
+      setRatingsSummary(
+        summary || {
+          ratings: {},
+          counts: {},
+          byFacultyType: {},
+          byFacultyCourse: {},
+          byFacultyCourseType: {},
+          courseLookup: {},
+        },
+      );
+    } catch {
+      // Best-effort background refresh; ignore errors
+    }
+  }, []);
+
   useEffect(() => {
     if (hasUser) {
       loadData();
     }
   }, [hasUser]);
+
+  // Refresh rankings independently every 1 hour
+  useEffect(() => {
+    if (!hasUser) return;
+    const interval = setInterval(() => {
+      refreshRankings();
+    }, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [hasUser, refreshRankings]);
 
   const loadData = async () => {
     try {
