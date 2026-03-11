@@ -10,7 +10,6 @@ import { useDispatch, useSelector } from "react-redux";
 import SiteNav from "./components/layout/SiteNav.jsx";
 import SiteFooter from "./components/layout/SiteFooter.jsx";
 import {
-  loadCurrentUser,
   googleSignIn,
   logout,
   setShowLoginOverlay,
@@ -88,8 +87,6 @@ function App() {
   );
 
   useEffect(() => {
-    dispatch(loadCurrentUser());
-
     let timeoutId = null;
     let idleId = null;
 
