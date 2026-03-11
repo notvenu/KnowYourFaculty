@@ -311,7 +311,9 @@ function App() {
   );
 
   const needsAuthCheckForRoute =
-    location.pathname === "/dashboard" || location.pathname === "/admin";
+    location.pathname === "/dashboard" ||
+    location.pathname === "/admin" ||
+    location.pathname === "/rankings";
   if (needsAuthCheckForRoute && !authChecked) {
     return (
       <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">

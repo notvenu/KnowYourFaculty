@@ -1,7 +1,7 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
@@ -58,6 +58,7 @@ function RankIcon({ rank }) {
 
 export default function RankingPage({ currentUser }) {
   const dispatch = useDispatch();
+  const authChecked = useSelector((state) => state.auth.authChecked);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
@@ -324,10 +325,31 @@ export default function RankingPage({ currentUser }) {
     const start = (currentPage - 1) * RANKINGS_PER_PAGE;
     return rankedFaculty.slice(start, start + RANKINGS_PER_PAGE);
   }, [rankedFaculty, currentPage]);
+  if (!authChecked) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">
+        <div className="animate-fadeIn text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)"></div>
+          <p className="text-sm text-(--muted)">Checking login state...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Redirect if not logged in
+  // Match poll page behavior when logged out.
   if (!hasUser) {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="min-h-screen bg-(--background) flex items-center justify-center px-4">
+        <div className="text-center">
+          <h2 className="mb-4 text-2xl font-bold text-(--text)">
+            Login Required
+          </h2>
+          <p className="text-(--muted)">
+            Please log in to view faculty rankings.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -591,7 +613,7 @@ export default function RankingPage({ currentUser }) {
             {rankedFaculty.length}
           </span>{" "}
           ranked faculty members
-          {rankedFaculty.length > 0 ? ` · Page ${currentPage} of ${totalPages}` : ""}
+          {rankedFaculty.length > 0 ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Page ${currentPage} of ${totalPages}` : ""}
         </p>
       </div>
       {rankedFaculty.length > 0 && totalPages > 1 ? (
@@ -661,7 +683,7 @@ export default function RankingPage({ currentUser }) {
                     </h3>
                     <p className="text-xs text-(--muted) truncate">
                       {faculty.designation || "Faculty"}
-                      {faculty.department && <> • {faculty.department}</>}
+                      {faculty.department && <> ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {faculty.department}</>}
                     </p>
                   </div>
 

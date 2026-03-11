@@ -14,6 +14,7 @@ import {
   faStar,
   faChevronDown,
   faFilter,
+  faShareAlt,
 } from "@fortawesome/free-solid-svg-icons";
 
 // Helper component to render stars with percentage-based fill
@@ -191,9 +192,12 @@ export default function FacultyRatingsCard({
             <button
               type="button"
               onClick={onShareFeedback}
-              className="rounded-xl bg-(--primary) px-4 py-2 text-xs font-bold text-white shadow-(--shadow) hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-xl bg-(--primary) px-4 py-2 text-xs font-bold text-white shadow-(--shadow) hover:opacity-90"
+              aria-label="Share feedback"
+              title="Share feedback"
             >
-              Share feedback
+              <FontAwesomeIcon icon={faShareAlt} className="h-3.5 w-3.5" />
+              <span>Share feedback</span>
             </button>
           )}
           {hasUser && alreadySubmitted && onEditRating && (
@@ -201,6 +205,8 @@ export default function FacultyRatingsCard({
               type="button"
               onClick={onEditRating}
               className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+              aria-label="Edit ratings"
+              title="Edit ratings"
             >
               Edit ratings
             </button>
@@ -210,6 +216,8 @@ export default function FacultyRatingsCard({
               type="button"
               onClick={onAddReview}
               className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+              aria-label="Add review"
+              title="Add review"
             >
               Add review
             </button>
@@ -220,8 +228,10 @@ export default function FacultyRatingsCard({
               onClick={onDeleteRating}
               disabled={deleting}
               className="rounded-xl border border-red-400 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-500/20 disabled:opacity-60"
+              aria-label={deleting ? "Removing feedback" : "Delete feedback"}
+              title={deleting ? "Removing feedback" : "Delete feedback"}
             >
-              {deleting ? "Removing…" : "Delete feedback"}
+              {deleting ? "Removing..." : "Delete feedback"}
             </button>
           )}
         </div>
@@ -699,3 +709,5 @@ export default function FacultyRatingsCard({
     </div>
   );
 }
+
+

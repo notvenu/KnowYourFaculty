@@ -520,7 +520,6 @@ function FacultyDirectoryPage({ currentUser }) {
       ) : (
         <p className="text-sm text-(--muted)">
           {filteredFaculty.length} faculty found
-          {totalPages > 1 ? ` · Page ${currentPage} of ${totalPages}` : ""}
         </p>
       )}
 

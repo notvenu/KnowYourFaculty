@@ -57,7 +57,7 @@ class FacultyFeedbackService {
   feedbackTotalCountExpiry = 0;
   PERSISTENT_CACHE_PREFIX = "kyf.feedback";
   PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-  RATINGS_SUMMARY_BG_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+  RATINGS_SUMMARY_BG_REFRESH_MS = 30 * 60 * 1000;
   ratingsSummaryRefreshInflight = new Map();
 
   constructor() {}
@@ -572,6 +572,21 @@ class FacultyFeedbackService {
       }
     })();
     this.ratingsSummaryRefreshInflight.set(cacheKey, refreshPromise);
+  }
+
+  async refreshRatingsSummary(limit_num = 10000) {
+    const actualLimit = Math.min(limit_num, 5000);
+    const cacheKey = `ratingsSummary_${actualLimit}`;
+    const summary = await this.buildRatingsSummarySnapshot(actualLimit);
+    this.feedbackCache.set(cacheKey, {
+      value: summary,
+      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
+    });
+    this.writePersistentCache(cacheKey, {
+      summary,
+      refreshedAt: Date.now(),
+    });
+    return summary;
   }
 
   async getRatingsSummary(limit_num = 10000) {

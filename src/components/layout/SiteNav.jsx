@@ -33,8 +33,12 @@ export default function SiteNav({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [themeRotation, setThemeRotation] = useState(
+    theme === "dark" ? 180 : 0,
+  );
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
+  const hasMountedThemeRef = useRef(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -57,6 +61,16 @@ export default function SiteNav({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDropdown, isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!hasMountedThemeRef.current) {
+      hasMountedThemeRef.current = true;
+      setThemeRotation(theme === "dark" ? 180 : 0);
+      return;
+    }
+
+    setThemeRotation((prev) => prev + 360);
+  }, [theme]);
 
   const getInitial = () => {
     if (currentUser?.name) {
@@ -150,10 +164,28 @@ export default function SiteNav({
                     : "Switch to dark mode"
                 }
               >
-                <FontAwesomeIcon
-                  icon={theme === "dark" ? faSun : faMoon}
-                  className="w-4 h-4"
-                />
+                <span
+                  className="relative inline-grid h-4 w-4 place-items-center transition-transform duration-500 ease-out"
+                  style={{ transform: `rotate(${themeRotation}deg)` }}
+                  aria-hidden="true"
+                >
+                  <FontAwesomeIcon
+                    icon={faSun}
+                    className={`absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                      theme === "dark"
+                        ? "scale-100 opacity-100"
+                        : "scale-0 opacity-0"
+                    }`}
+                  />
+                  <FontAwesomeIcon
+                    icon={faMoon}
+                    className={`absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                      theme === "dark"
+                        ? "scale-0 opacity-0"
+                        : "scale-100 opacity-100"
+                    }`}
+                  />
+                </span>
               </button>
 
               {currentUser ? (
@@ -457,3 +489,4 @@ export default function SiteNav({
     </>
   );
 }
+

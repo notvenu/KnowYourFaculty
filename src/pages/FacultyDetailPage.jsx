@@ -1,4 +1,4 @@
-﻿﻿﻿// eslint-disable tailwindcss/no-custom-classname
+// eslint-disable tailwindcss/no-custom-classname
 // eslint-disable no-irregular-whitespace
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -912,10 +912,12 @@ function FacultyDetailPage({ currentUser }) {
         <button
           type="button"
           onClick={handleShareFacultyPage}
-          className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev)"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-(--line) bg-(--panel) p-0 text-xs font-semibold text-(--text) hover:bg-(--bg-elev) sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-2"
+          aria-label="Share page"
+          title="Share page"
         >
-          <FontAwesomeIcon icon={faShareAlt} />
-          Share Page
+          <FontAwesomeIcon icon={faShareAlt} className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Share Page</span>
         </button>
       </div>
 
@@ -1380,7 +1382,7 @@ function FacultyDetailPage({ currentUser }) {
                       className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
-                      ×
+                      �
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (
@@ -1715,7 +1717,7 @@ function FacultyDetailPage({ currentUser }) {
                       className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
-                      ×
+                      �
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (
@@ -1830,3 +1832,6 @@ function FacultyDetailPage({ currentUser }) {
 }
 
 export default FacultyDetailPage;
+
+
+
