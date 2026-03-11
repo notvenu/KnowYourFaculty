@@ -399,7 +399,7 @@ function App() {
               />
               <Route
                 path="/rankings"
-                element={<RankingPage currentUser={currentUser} />}
+                element={<RankingPage currentUser={currentUser} authChecked={authChecked} />}
               />
               <Route path="/polls" element={<PollPage />} />
               <Route path="/contact" element={<ContactPage />} />

@@ -262,8 +262,10 @@ export class AuthService {
       setAuthCheckFlag(true);
       return normalizeUser(user);
     } catch (error) {
+      const errorType = String(error?.type || "").toLowerCase();
       if (
-        String(error?.type || "").toLowerCase() === "disallowed_email_domain"
+        errorType === "disallowed_email_domain" ||
+        errorType === "session_expired"
       ) {
         throw error;
       }

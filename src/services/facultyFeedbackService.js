@@ -57,7 +57,7 @@ class FacultyFeedbackService {
   feedbackTotalCountExpiry = 0;
   PERSISTENT_CACHE_PREFIX = "kyf.feedback";
   PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-  RATINGS_SUMMARY_BG_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+  RATINGS_SUMMARY_BG_REFRESH_MS = 2 * 60 * 60 * 1000; // 2 hours
   ratingsSummaryRefreshInflight = new Map();
 
   constructor() {}

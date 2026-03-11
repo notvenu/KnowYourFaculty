@@ -58,6 +58,13 @@ export const loadCurrentUser = createAsyncThunk(
           );
         }
 
+        if (errorType === "session_expired") {
+          clearPendingAuthCheck();
+          return rejectWithValue(
+            error?.message || "Session expired. Please sign in again.",
+          );
+        }
+
         if (retries >= maxRetries) {
           return rejectWithValue("Unable to verify login state.");
         }

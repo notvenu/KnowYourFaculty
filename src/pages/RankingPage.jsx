@@ -6,6 +6,7 @@ import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
 import { addToast } from "../store/uiSlice.js";
+import { setShowLoginOverlay } from "../store/authSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTrophy,
@@ -56,7 +57,7 @@ function RankIcon({ rank }) {
   return <span className="text-2xl font-bold text-(--muted)">#{rank}</span>;
 }
 
-export default function RankingPage({ currentUser }) {
+export default function RankingPage({ currentUser, authChecked }) {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -257,12 +258,15 @@ export default function RankingPage({ currentUser }) {
       })
       .filter((f) => f.totalRatings >= minRatings && f.overallRating !== null);
 
-    // Sort by rating (descending), then by total ratings (descending)
+    // Sort by rating (descending), then by total ratings (descending), then alphabetically
     withRatings.sort((a, b) => {
       if (b.overallRating !== a.overallRating) {
         return b.overallRating - a.overallRating;
       }
-      return b.totalRatings - a.totalRatings;
+      if (b.totalRatings !== a.totalRatings) {
+        return b.totalRatings - a.totalRatings;
+      }
+      return (a.name || "").localeCompare(b.name || "");
     });
 
     return withRatings;
@@ -294,6 +298,27 @@ export default function RankingPage({ currentUser }) {
     const start = (currentPage - 1) * RANKINGS_PER_PAGE;
     return rankedFaculty.slice(start, start + RANKINGS_PER_PAGE);
   }, [rankedFaculty, currentPage]);
+
+  // Open login overlay and redirect if not logged in (after auth check completes)
+  useEffect(() => {
+    if (authChecked && !hasUser) {
+      dispatch(setShowLoginOverlay(true));
+    }
+  }, [authChecked, hasUser, dispatch]);
+
+  // Show loading while auth check is in progress
+  if (!authChecked) {
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-12">
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-(--primary) border-r-transparent"></div>
+            <p className="text-lg text-(--muted)">Loading rankings...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Redirect if not logged in
   if (!hasUser) {
