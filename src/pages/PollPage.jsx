@@ -657,7 +657,7 @@ export default function PollPage() {
                 icon={faShareAlt}
                 className="text-xs sm:text-sm"
               />
-              <span className="hidden sm:inline">Share</span>
+              <span className="sr-only">Share</span>
             </button>
 
             {/* Poll Management Buttons (only for poll creator) */}
@@ -675,7 +675,7 @@ export default function PollPage() {
                     poll.isActive ? "text-(--success)" : "text-(--muted)"
                   }`}
                 />
-                <span className="hidden sm:inline">
+                <span className="sr-only">
                   {poll.isActive ? "Active" : "Inactive"}
                 </span>
               </button>
@@ -808,7 +808,7 @@ export default function PollPage() {
                 icon={faShareAlt}
                 className="text-xs sm:text-sm"
               />
-              <span className="hidden sm:inline">Share</span>
+              <span className="sr-only">Share</span>
             </button>
 
             {/* Toggle Active Status */}
@@ -827,7 +827,7 @@ export default function PollPage() {
                 icon={poll.isActive ? faToggleOn : faToggleOff}
                 className="text-xs sm:text-sm"
               />
-              <span className="hidden sm:inline">
+              <span className="sr-only">
                 {poll.isActive ? "Active" : "Inactive"}
               </span>
             </button>
@@ -840,7 +840,7 @@ export default function PollPage() {
               title="Edit poll"
             >
               <FontAwesomeIcon icon={faEdit} className="text-xs sm:text-sm" />
-              <span className="hidden sm:inline">Edit</span>
+              <span className="sr-only">Edit</span>
             </button>
 
             {/* Delete Button */}
@@ -851,7 +851,7 @@ export default function PollPage() {
               title="Delete poll"
             >
               <FontAwesomeIcon icon={faTrash} className="text-xs sm:text-sm" />
-              <span className="hidden sm:inline">Delete</span>
+              <span className="sr-only">Delete</span>
             </button>
           </div>
         </div>
