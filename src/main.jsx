@@ -3,9 +3,13 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { store } from "./store/store.js";
+import { loadCurrentUser } from "./store/authSlice.js";
 import "./index.css";
 import App from "./App.jsx";
 
+// Start auth check immediately before React renders to minimize the delay
+// where the app shows the user as logged out.
+store.dispatch(loadCurrentUser());
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

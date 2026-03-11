@@ -257,12 +257,15 @@ export default function RankingPage({ currentUser }) {
       })
       .filter((f) => f.totalRatings >= minRatings && f.overallRating !== null);
 
-    // Sort by rating (descending), then by total ratings (descending)
+    // Sort by rating (descending), then by total ratings (descending), then alphabetically
     withRatings.sort((a, b) => {
       if (b.overallRating !== a.overallRating) {
         return b.overallRating - a.overallRating;
       }
-      return b.totalRatings - a.totalRatings;
+      if (b.totalRatings !== a.totalRatings) {
+        return b.totalRatings - a.totalRatings;
+      }
+      return String(a.name || "").localeCompare(String(b.name || ""));
     });
 
     return withRatings;
