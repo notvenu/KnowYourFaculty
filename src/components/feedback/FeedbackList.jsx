@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFilter } from "@fortawesome/free-solid-svg-icons";
+import { faFilter, faPencil, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { RATING_LABELS } from "../../lib/ratingConfig.js";
 import { censorReviewText } from "../../lib/reviewFilter.js";
 
@@ -343,9 +343,10 @@ export default function FeedbackList({
                       <button
                         type="button"
                         onClick={() => onEditReview(row.$id)}
-                        className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
                       >
-                        Edit
+                        <FontAwesomeIcon icon={faPencil} className="w-3 h-3" />
+                        <span className="hidden sm:inline">Edit</span>
                       </button>
                     )}
                     {onDeleteReview && (
@@ -353,9 +354,10 @@ export default function FeedbackList({
                         type="button"
                         onClick={() => onDeleteReview(row.$id)}
                         disabled={deleting}
-                        className="rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-60"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-60"
                       >
-                        {deleting ? "Removing…" : "Delete"}
+                        <FontAwesomeIcon icon={faTrash} className="w-3 h-3" />
+                        <span className="hidden sm:inline">{deleting ? "Removing…" : "Delete"}</span>
                       </button>
                     )}
                   </div>

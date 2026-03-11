@@ -104,6 +104,22 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Theme icon spin-in animation (clockwise) */
+@keyframes spin-in-clockwise {
+  from {
+    transform: rotate(-135deg) scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-theme-icon {
+  animation: spin-in-clockwise 0.4s ease-out;
+}
+
 /* Toast animations */
 @keyframes slide-in-right {
   from {
