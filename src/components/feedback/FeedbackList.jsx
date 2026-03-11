@@ -346,7 +346,7 @@ export default function FeedbackList({
                         className="inline-flex items-center gap-1.5 rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
                       >
                         <FontAwesomeIcon icon={faPencil} className="w-3 h-3" />
-                        <span className="hidden sm:inline">Edit</span>
+                        <span className="sr-only">Edit</span>
                       </button>
                     )}
                     {onDeleteReview && (
@@ -357,7 +357,7 @@ export default function FeedbackList({
                         className="inline-flex items-center gap-1.5 rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-60"
                       >
                         <FontAwesomeIcon icon={faTrash} className="w-3 h-3" />
-                        <span className="hidden sm:inline">{deleting ? "Removing…" : "Delete"}</span>
+                        <span className="sr-only">{deleting ? "Removing…" : "Delete"}</span>
                       </button>
                     )}
                   </div>
