@@ -613,7 +613,7 @@ export default function RankingPage({ currentUser }) {
             {rankedFaculty.length}
           </span>{" "}
           ranked faculty members
-          {rankedFaculty.length > 0 ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Page ${currentPage} of ${totalPages}` : ""}
+          {rankedFaculty.length > 0 ? ` Page ${currentPage} of ${totalPages}` : ""}
         </p>
       </div>
       {rankedFaculty.length > 0 && totalPages > 1 ? (
