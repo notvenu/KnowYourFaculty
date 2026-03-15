@@ -138,7 +138,7 @@ export default function RankingPage({ currentUser }) {
 
   const refreshRankings = useCallback(async () => {
     try {
-      const summary = await facultyFeedbackService.getRatingsSummary(10000);
+      const summary = await facultyFeedbackService.getRatingsSummary(5000);
       setRatingsSummary(
         summary || {
           ratings: {},
@@ -163,9 +163,12 @@ export default function RankingPage({ currentUser }) {
   // Refresh rankings independently every 1 hour
   useEffect(() => {
     if (!hasUser) return;
-    const interval = setInterval(() => {
-      refreshRankings();
-    }, 60 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        refreshRankings();
+      },
+      60 * 60 * 1000,
+    );
     return () => clearInterval(interval);
   }, [hasUser, refreshRankings]);
 
@@ -174,26 +177,15 @@ export default function RankingPage({ currentUser }) {
       setLoading(true);
       setError(null);
 
-      // Load all faculty and courses
-      const [facultyResponse, courses] = await Promise.all([
+      const [facultyResponse, summary] = await Promise.all([
         publicFacultyService.getFacultyList({ limit: 5000, page: 1 }),
-        courseService.getAllCourses(5000),
+        facultyFeedbackService.getRatingsSummary(5000),
       ]);
 
       const faculty = facultyResponse.faculty || [];
       setFacultyList(faculty);
 
-      // Build course lookup
-      const lookup = {};
-      for (const course of courses) {
-        if (course?.$id) {
-          lookup[course.$id] = course;
-        }
-      }
-      setCourseLookup(lookup);
-
-      const summary = await facultyFeedbackService.getRatingsSummary(10000);
-      setRatingsSummary(
+      const safeSummary =
         summary || {
           ratings: {},
           counts: {},
@@ -201,8 +193,23 @@ export default function RankingPage({ currentUser }) {
           byFacultyCourse: {},
           byFacultyCourseType: {},
           courseLookup: {},
-        },
-      );
+        };
+      setRatingsSummary(safeSummary);
+
+      const courseIds = Object.keys(safeSummary.courseLookup || {});
+      if (courseIds.length === 0) {
+        setCourseLookup({});
+        return;
+      }
+
+      const courseMap = await courseService.getCourseByIdBatch(courseIds);
+      const lookup = {};
+      for (const [courseId, course] of Object.entries(courseMap || {})) {
+        if (course?.$id) {
+          lookup[courseId] = course;
+        }
+      }
+      setCourseLookup(lookup);
     } catch (err) {
       setError(err?.message || "Failed to load ranking data.");
     } finally {
@@ -546,7 +553,10 @@ export default function RankingPage({ currentUser }) {
                   <option value="all" className="bg-(--bg-elev) text-(--text)">
                     All Types
                   </option>
-                  <option value="theory" className="bg-(--bg-elev) text-(--text)">
+                  <option
+                    value="theory"
+                    className="bg-(--bg-elev) text-(--text)"
+                  >
                     Theory
                   </option>
                   <option value="lab" className="bg-(--bg-elev) text-(--text)">
@@ -613,7 +623,9 @@ export default function RankingPage({ currentUser }) {
             {rankedFaculty.length}
           </span>{" "}
           ranked faculty members
-          {rankedFaculty.length > 0 ? ` ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Page ${currentPage} of ${totalPages}` : ""}
+          {rankedFaculty.length > 0
+            ? ` · Page ${currentPage} of ${totalPages}`
+            : ""}
         </p>
       </div>
       {rankedFaculty.length > 0 && totalPages > 1 ? (
@@ -683,7 +695,7 @@ export default function RankingPage({ currentUser }) {
                     </h3>
                     <p className="text-xs text-(--muted) truncate">
                       {faculty.designation || "Faculty"}
-                      {faculty.department && <> ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ {faculty.department}</>}
+                      {faculty.department && <> {faculty.department}</>}
                     </p>
                   </div>
 

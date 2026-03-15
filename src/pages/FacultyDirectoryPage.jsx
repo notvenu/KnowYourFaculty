@@ -40,7 +40,9 @@ function getRowOverall(row) {
 }
 
 function normalizeSearchText(value) {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function getSearchRank(name, query) {
@@ -91,7 +93,8 @@ function FacultyDirectoryPage({ currentUser }) {
   );
   const [courseSuggestions, setCourseSuggestions] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(
-    persistedState?.selectedCourse && typeof persistedState.selectedCourse === "object"
+    persistedState?.selectedCourse &&
+      typeof persistedState.selectedCourse === "object"
       ? persistedState.selectedCourse
       : null,
   );
@@ -99,6 +102,7 @@ function FacultyDirectoryPage({ currentUser }) {
     search: String(persistedState?.filters?.search || ""),
     department: String(persistedState?.filters?.department || "all"),
     topRated: Boolean(persistedState?.filters?.topRated || false),
+    notRated: Boolean(persistedState?.filters?.notRated || false),
     tier: String(persistedState?.filters?.tier || "all"),
     sortBy: String(persistedState?.filters?.sortBy || "none"), // none, rating-high, rating-low
   });
@@ -121,7 +125,10 @@ function FacultyDirectoryPage({ currentUser }) {
         selectedCourse,
         currentPage,
       };
-      window.sessionStorage.setItem(DIRECTORY_STATE_KEY, JSON.stringify(payload));
+      window.sessionStorage.setItem(
+        DIRECTORY_STATE_KEY,
+        JSON.stringify(payload),
+      );
     } catch {
       // ignore storage failures
     }
@@ -158,27 +165,32 @@ function FacultyDirectoryPage({ currentUser }) {
     try {
       setLoading(true);
       setError(null);
-      const [facultyResponse, departmentRows, feedbackRows] = await Promise.all(
-        [
-          publicFacultyService.getFacultyList({
-            page: 1,
-            limit: 5000,
-            sortBy: "name",
-            sortOrder: "asc",
-          }),
-          publicFacultyService.getDepartments(),
-          // use the new summary helper to avoid pulling every review row
-          facultyFeedbackService.getRatingsSummary(5000),
-        ],
-      );
+      const [facultyResponse, feedbackRows] = await Promise.all([
+        publicFacultyService.getFacultyList({
+          page: 1,
+          limit: 5000,
+          sortBy: "name",
+          sortOrder: "asc",
+        }),
+        facultyFeedbackService.getRatingsSummary(5000),
+      ]);
 
       const allFaculty = facultyResponse.faculty || [];
-      // the third element is now an object with ratings/counts/courseLookup
-      const { ratings: mappedRatings = {}, counts: mappedRatingCounts = {}, courseLookup = {} } =
-        feedbackRows || {};
+      const {
+        ratings: mappedRatings = {},
+        counts: mappedRatingCounts = {},
+        courseLookup = {},
+      } = feedbackRows || {};
+      const derivedDepartments = [
+        ...new Set(
+          allFaculty
+            .map((row) => String(row?.department || "").trim())
+            .filter(Boolean),
+        ),
+      ].sort((a, b) => a.localeCompare(b));
 
       setFaculty(allFaculty);
-      setDepartments(departmentRows || []);
+      setDepartments(derivedDepartments);
       setRatingLookup(mappedRatings);
       setRatingCountLookup(mappedRatingCounts);
       setCourseFacultyLookup(courseLookup);
@@ -198,11 +210,11 @@ function FacultyDirectoryPage({ currentUser }) {
       const tier = getTierFromRating(rating);
 
       const matchesText =
-        !deferredKeyword ||
-        fuzzyMatchAny([item.name], deferredKeyword);
+        !deferredKeyword || fuzzyMatchAny([item.name], deferredKeyword);
       const matchesDepartment =
         filters.department === "all" || item.department === filters.department;
       const matchesTopRated = !filters.topRated || rating >= 4;
+      const matchesNotRated = !filters.notRated || !ratingLookup[facultyId];
       const matchesTier =
         !hasUser || filters.tier === "all" || tier === filters.tier;
       const matchesCourse =
@@ -216,6 +228,7 @@ function FacultyDirectoryPage({ currentUser }) {
         matchesText &&
         matchesDepartment &&
         matchesTopRated &&
+        matchesNotRated &&
         matchesTier &&
         matchesCourse
       );
@@ -228,9 +241,12 @@ function FacultyDirectoryPage({ currentUser }) {
         return ratingB - ratingA;
       }
       if (filters.sortBy === "rating-low") {
-        const ratingA = ratingLookup[String(a.employeeId || "")] || 0;
-        const ratingB = ratingLookup[String(b.employeeId || "")] || 0;
-        return ratingA - ratingB;
+        const ratingA = ratingLookup[String(a.employeeId || "")] || null;
+        const ratingB = ratingLookup[String(b.employeeId || "")] || null;
+        if (ratingA && ratingB) return ratingA - ratingB;
+        if (ratingA && !ratingB) return -1;
+        if (!ratingA && ratingB) return 1;
+        return String(a.name || "").localeCompare(String(b.name || ""));
       }
       if (filters.sortBy === "za") {
         return String(b.name || "").localeCompare(String(a.name || ""));
@@ -273,6 +289,7 @@ function FacultyDirectoryPage({ currentUser }) {
     filters.search,
     filters.department,
     filters.topRated,
+    filters.notRated,
     filters.tier,
     filters.sortBy,
     selectedCourse,
@@ -291,6 +308,7 @@ function FacultyDirectoryPage({ currentUser }) {
     let n = 0;
     if (filters.department !== "all") n += 1;
     if (filters.topRated) n += 1;
+    if (filters.notRated) n += 1;
     if (hasUser && filters.tier !== "all") n += 1;
     if (filters.sortBy !== "none") n += 1;
     if (selectedCourse) n += 1;
@@ -426,6 +444,7 @@ function FacultyDirectoryPage({ currentUser }) {
                       setFilters((prev) => ({
                         ...prev,
                         topRated: e.target.checked,
+                        notRated: e.target.checked ? false : prev.notRated,
                       }))
                     }
                     className="cursor-pointer"
@@ -433,6 +452,22 @@ function FacultyDirectoryPage({ currentUser }) {
                   <span className="text-xs sm:text-sm">
                     Top Rated Only (4+/5)
                   </span>
+                </label>
+
+                <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={filters.notRated}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        notRated: e.target.checked,
+                        topRated: e.target.checked ? false : prev.topRated,
+                      }))
+                    }
+                    className="cursor-pointer"
+                  />
+                  <span className="text-xs sm:text-sm">Not Rated Only</span>
                 </label>
 
                 <div className="relative">

@@ -1,7 +1,7 @@
 /**
  * 🚀 Global Cache Helper
  * Provides localStorage-based caching for static/rarely-changing data
- * to reduce Firestore reads by ~90%
+ * to reduce repeated backend reads by ~90%
  */
 
 class CacheHelper {

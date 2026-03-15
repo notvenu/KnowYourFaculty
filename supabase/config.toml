@@ -1,0 +1,2 @@
+[functions.weekly-scrape]
+verify_jwt = false

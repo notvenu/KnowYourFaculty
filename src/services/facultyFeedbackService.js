@@ -1,21 +1,11 @@
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getCountFromServer,
-  getDocs,
-  getDoc,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
 import { validateReviewText } from "../lib/reviewFilter.js";
+import { supabase } from "../lib/supabase/client.js";
+import {
+  normalizeRow,
+  normalizeRows,
+  throwIfSupabaseError,
+} from "../lib/supabase/helpers.js";
 
 const RATING_FIELDS = [
   "theoryTeaching",
@@ -40,6 +30,27 @@ const SECTION_FIELDS = {
   ecs: ["ecsCapstoneSDPReview", "ecsCapstoneSDPCorrection"],
 };
 
+const REVIEW_BASE_COLUMNS = [
+  "id",
+  "userId",
+  "facultyId",
+  "courseId",
+  "review",
+  "theoryNotes",
+  "labNotes",
+  "theoryTeaching",
+  "theoryAttendance",
+  "theoryClass",
+  "theoryCorrection",
+  "labClass",
+  "labCorrection",
+  "labAttendance",
+  "ecsCapstoneSDPReview",
+  "ecsCapstoneSDPCorrection",
+  "createdAt",
+  "updatedAt",
+].join(", ");
+
 function clampRating(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
@@ -48,19 +59,17 @@ function clampRating(value) {
 }
 
 class FacultyFeedbackService {
-  reviewCollection = clientConfig.firebaseReviewCollection;
+  reviewCollection = clientConfig.supabaseReviewTable;
   feedbackCache = new Map();
   inflightRequests = new Map();
-  FEEDBACK_CACHE_TTL_MS = 10 * 60 * 1000;  // Reviews change more often, 10 min cache
+  FEEDBACK_CACHE_TTL_MS = 10 * 60 * 1000;
   FACULTY_ROWS_FETCH_LIMIT = 300;
   feedbackTotalCountCache = null;
   feedbackTotalCountExpiry = 0;
-  PERSISTENT_CACHE_PREFIX = "kyf.feedback";
+  PERSISTENT_CACHE_PREFIX = "kyf.feedback.v2";
   PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   RATINGS_SUMMARY_BG_REFRESH_MS = 30 * 60 * 1000;
   ratingsSummaryRefreshInflight = new Map();
-
-  constructor() {}
 
   getStorage() {
     if (typeof window === "undefined") return null;
@@ -104,7 +113,6 @@ class FacultyFeedbackService {
         }),
       );
     } catch {
-      // ignore storage write issues
     }
   }
 
@@ -122,20 +130,11 @@ class FacultyFeedbackService {
       }
       keysToRemove.forEach((key) => storage.removeItem(key));
     } catch {
-      // ignore storage cleanup issues
     }
-  }
-
-  get feedbackTableId() {
-    return this.reviewCollection;
   }
 
   toTimeMs(value) {
     if (!value) return 0;
-    if (typeof value?.toDate === "function") {
-      const date = value.toDate();
-      return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
-    }
     const date = new Date(value);
     const time = date.getTime();
     return Number.isFinite(time) ? time : 0;
@@ -177,101 +176,98 @@ class FacultyFeedbackService {
     return promise;
   }
 
-  /**
-   * Helper method for backward compatibility with Query-based calls
-   * Converts constraint array to Firestore query
-   */
-  async listRows(collectionName, constraints = []) {
-    try {
-      // Add any constraints
-      // OPTIMIZATION: Default to 1000 instead of 5000 for efficiency
-      let constraints_copy = [...(constraints || [])];
-      if (!constraints_copy.some((c) => c.type === "limit")) {
-        constraints_copy.push(limit(1000));
+  async listRows({
+    filters = [],
+    limitNum = 1000,
+    orderBy = null,
+    ascending = false,
+    count = false,
+    columns = REVIEW_BASE_COLUMNS,
+  } = {}) {
+    let query = supabase
+      .from(this.reviewCollection)
+      .select(columns, count ? { count: "exact" } : undefined);
+
+    for (const filter of filters) {
+      if (!filter?.field) continue;
+      if (filter.operator === "in") {
+        query = query.in(filter.field, filter.value || []);
+      } else {
+        query = query.eq(filter.field, filter.value);
       }
-
-      const q = query(collection(db, collectionName), ...constraints_copy);
-      const snapshot = await getDocs(q);
-
-      return {
-        rows: snapshot.docs.map((doc) => ({
-          $id: doc.id,
-          ...doc.data(),
-        })),
-        total: snapshot.docs.length,
-      };
-    } catch (error) {
-      throw error;
     }
+
+    if (orderBy) {
+      query = query.order(orderBy, { ascending });
+    }
+    if (Number.isFinite(limitNum) && limitNum > 0) {
+      query = query.limit(limitNum);
+    }
+
+    const { data, error, count: totalCount } = await query;
+    throwIfSupabaseError(error, "Failed to load feedback.");
+    return {
+      rows: normalizeRows(data || []),
+      total: Number.isFinite(totalCount) ? totalCount : (data || []).length,
+    };
   }
 
-  async createRow(collectionName, data, permissions = undefined) {
-    try {
-      const payload = {
-        ...data,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
+  async createRow(data) {
+    const timestamp = new Date().toISOString();
+    const payload = {
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
 
-      const docRef = await addDoc(collection(db, collectionName), payload);
-      return {
-        $id: docRef.id,
-        ...payload,
-      };
-    } catch (error) {
-      throw error;
-    }
+    const { data: created, error } = await supabase
+      .from(this.reviewCollection)
+      .insert(payload)
+      .select("*")
+      .single();
+    throwIfSupabaseError(error, "Failed to create feedback.");
+    return normalizeRow(created);
   }
 
-  async updateRow(collectionName, docId, data, permissions = undefined) {
-    try {
-      const docRef = doc(db, collectionName, docId);
-      const payload = {
-        ...data,
-        updatedAt: Timestamp.now(),
-      };
+  async updateRow(docId, data) {
+    const payload = {
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
 
-      await updateDoc(docRef, payload);
-      
-      // OPTIMIZATION: Return optimistic update instead of extra getDoc()
-      // This saves a read operation and is acceptable since we just wrote it
-      return {
-        $id: docId,
-        ...payload,
-      };
-    } catch (error) {
-      throw error;
-    }
+    const { data: updated, error } = await supabase
+      .from(this.reviewCollection)
+      .update(payload)
+      .eq("id", docId)
+      .select("*")
+      .single();
+    throwIfSupabaseError(error, "Failed to update feedback.");
+    return normalizeRow(updated);
   }
 
-  async getFacultyReviews(facultyId, limit_num = 20) {
+  async getFacultyReviews(facultyId, limitNum = 20) {
     const rows = await this.getFacultyRows(facultyId);
-    return rows
-      .filter((row) => String(row?.review || "").trim().length > 0)
-      .slice(0, limit_num);
+    return rows.filter((row) => String(row?.review || "").trim().length > 0).slice(0, limitNum);
   }
 
-  async getFacultyRatings(facultyId, limit_num = 200) {
+  async getFacultyRatings(facultyId, limitNum = 200) {
     const rows = await this.getFacultyRows(facultyId);
-    return rows.slice(0, limit_num);
+    return rows.slice(0, limitNum);
   }
 
-  async getAllRatings(limit_num = 10000) {
-    const cacheKey = `allRatings_${limit_num}`;
+  async getAllRatings(limitNum = 10000) {
+    const cacheKey = `allRatings_${limitNum}`;
     const cached = this.getCachedValue(cacheKey);
-    if (cached !== undefined) {
-      return cached;
-    }
+    if (cached !== undefined) return cached;
 
     return this.getOrCreateInflight(cacheKey, async () => {
-      // OPTIMIZATION: Cap the fetch limit to reduce read size
-      const actualLimit = Math.min(limit_num, 5000);
-      const response = await this.listRows(this.feedbackTableId, [
-        limit(actualLimit),
-      ]);
+      const actualLimit = Math.min(limitNum, 5000);
+      const response = await this.listRows({
+        limitNum: actualLimit,
+      });
       const result = this.sortRowsByFieldDesc(response.rows || [], "createdAt").slice(
         0,
-        limit_num,
+        limitNum,
       );
       this.setCachedValue(cacheKey, result);
       return result;
@@ -287,70 +283,57 @@ class FacultyFeedbackService {
     }
 
     return this.getOrCreateInflight("feedbackTotalCount", async () => {
-      const snapshot = await getCountFromServer(
-        query(collection(db, this.feedbackTableId)),
-      );
-      const count = Number(snapshot?.data()?.count || 0);
-      this.feedbackTotalCountCache = count;
+      const { count, error } = await supabase
+        .from(this.reviewCollection)
+        .select("id", { count: "exact", head: true });
+      throwIfSupabaseError(error, "Failed to count feedback.");
+      const total = Number(count || 0);
+      this.feedbackTotalCountCache = total;
       this.feedbackTotalCountExpiry = Date.now() + this.FEEDBACK_CACHE_TTL_MS;
-      return count;
+      return total;
     });
   }
 
-  async getRecentFeedbackEntries(limit_num = 200) {
-    const cacheKey = `recentFeedback_${limit_num}`;
+  async getRecentFeedbackEntries(limitNum = 200) {
+    const cacheKey = `recentFeedback_${limitNum}`;
     const cached = this.getCachedValue(cacheKey);
-    if (cached !== undefined) {
-      return cached;
-    }
+    if (cached !== undefined) return cached;
 
     return this.getOrCreateInflight(cacheKey, async () => {
-      const response = await this.listRows(this.feedbackTableId, [
-        orderBy("updatedAt", "desc"),
-        limit(limit_num),
-      ]);
+      const response = await this.listRows({
+        orderBy: "updatedAt",
+        ascending: false,
+        limitNum,
+      });
       const rows = response.rows || [];
       this.setCachedValue(cacheKey, rows);
       return rows;
     });
   }
 
-  async getFacultyRows(facultyId, limit_num = this.FACULTY_ROWS_FETCH_LIMIT) {
+  async getFacultyRows(facultyId, limitNum = this.FACULTY_ROWS_FETCH_LIMIT) {
     const id = String(facultyId || "").trim();
     if (!id) return [];
 
-    const cacheKey = `facultyRows_${id}_${limit_num}`;
+    const cacheKey = `facultyRows_${id}_${limitNum}`;
     const cached = this.getCachedValue(cacheKey);
-    if (cached !== undefined) {
-      return cached;
-    }
+    if (cached !== undefined) return cached;
 
     return this.getOrCreateInflight(cacheKey, async () => {
-      const response = await this.listRows(this.feedbackTableId, [
-        where("facultyId", "==", id),
-        limit(limit_num),
-      ]);
+      const response = await this.listRows({
+        filters: [{ field: "facultyId", value: id }],
+        limitNum,
+      });
       const rows = this.sortRowsByFieldDesc(response.rows || [], "createdAt");
       this.setCachedValue(cacheKey, rows);
       return rows;
     });
   }
 
-  /**
-   * 📈 Aggregate ratings by faculty and build lightweight lookup objects.
-   *
-   * This method is intended for pages such as the directory where the full
-   * review rows are not needed.  Instead of returning every document we only
-   * compute an overall score and count for each faculty and build a course
-   *→ faculty map.  The result is cached for a short duration to avoid
-   * repeated scans of the reviews collection, which was the primary cause of
-   * slow page loads when the database grew.
-   *
-   * @param {number} limit_num maximum number of review rows to examine
-   * @returns {{ratings:Object,counts:Object,courseLookup:Map<string,Set<string>>}}
-   */
   async buildRatingsSummarySnapshot(actualLimit = 5000) {
-    const response = await this.listRows(this.feedbackTableId, [limit(actualLimit)]);
+    const response = await this.listRows({
+      limitNum: actualLimit,
+    });
     const ratingAgg = {};
     const byFacultyTypeAgg = {};
     const byFacultyCourseAgg = {};
@@ -371,6 +354,7 @@ class FacultyFeedbackService {
       }
       return { scoreSum, scoreCount };
     };
+
     const extractSectionStats = (row) => {
       const stats = {};
       for (const [sectionKey, fields] of Object.entries(SECTION_FIELDS)) {
@@ -406,6 +390,7 @@ class FacultyFeedbackService {
         ratingAgg[facultyId].scoreCount += scoreCount;
         ratingAgg[facultyId].rowCount += 1;
       }
+
       for (const [sectionKey, stats] of Object.entries(sectionStats)) {
         if (stats.scoreCount <= 0) continue;
         if (!byFacultyTypeAgg[facultyId]) byFacultyTypeAgg[facultyId] = {};
@@ -534,13 +519,68 @@ class FacultyFeedbackService {
   normalizeRatingsSummaryPayload(payload) {
     if (!payload) return null;
     if (payload.summary && typeof payload.summary === "object") {
-      return payload;
+      return {
+        ...payload,
+        summary: this.normalizeRatingsSummary(payload.summary),
+      };
     }
-    // Backward compatibility with older cache shape.
     return {
-      summary: payload,
+      summary: this.normalizeRatingsSummary(payload),
       refreshedAt: 0,
     };
+  }
+
+  normalizeRatingsSummary(summary) {
+    if (!summary || typeof summary !== "object") return null;
+
+    const normalizedCourseLookup = {};
+    for (const [courseId, facultyIds] of Object.entries(summary.courseLookup || {})) {
+      if (facultyIds instanceof Set) {
+        normalizedCourseLookup[courseId] = facultyIds;
+        continue;
+      }
+
+      if (Array.isArray(facultyIds)) {
+        normalizedCourseLookup[courseId] = new Set(
+          facultyIds.map((value) => String(value || "").trim()).filter(Boolean),
+        );
+        continue;
+      }
+
+      if (facultyIds && typeof facultyIds === "object") {
+        normalizedCourseLookup[courseId] = new Set(
+          Object.keys(facultyIds)
+            .map((value) => String(value || "").trim())
+            .filter(Boolean),
+        );
+        continue;
+      }
+
+      normalizedCourseLookup[courseId] = new Set();
+    }
+
+    return {
+      ratings: summary.ratings || {},
+      counts: summary.counts || {},
+      byFacultyType: summary.byFacultyType || {},
+      byFacultyCourse: summary.byFacultyCourse || {},
+      byFacultyCourseType: summary.byFacultyCourseType || {},
+      courseLookup: normalizedCourseLookup,
+      facultyCounts: summary.facultyCounts || {},
+      totalReviews: Number(summary.totalReviews || 0),
+      uniqueUserCount: Number(summary.uniqueUserCount || 0),
+    };
+  }
+
+  isEmptyRatingsSummary(summary) {
+    if (!summary || typeof summary !== "object") return true;
+    if (Number(summary.totalReviews || 0) > 0) return false;
+    if (Object.keys(summary.ratings || {}).length > 0) return false;
+    if (Object.keys(summary.counts || {}).length > 0) return false;
+    if (Object.keys(summary.byFacultyType || {}).length > 0) return false;
+    if (Object.keys(summary.byFacultyCourse || {}).length > 0) return false;
+    if (Object.keys(summary.byFacultyCourseType || {}).length > 0) return false;
+    return true;
   }
 
   hasTypeBreakdown(summary) {
@@ -566,7 +606,6 @@ class FacultyFeedbackService {
           refreshedAt: Date.now(),
         });
       } catch {
-        // Best-effort refresh only.
       } finally {
         this.ratingsSummaryRefreshInflight.delete(cacheKey);
       }
@@ -574,8 +613,8 @@ class FacultyFeedbackService {
     this.ratingsSummaryRefreshInflight.set(cacheKey, refreshPromise);
   }
 
-  async refreshRatingsSummary(limit_num = 10000) {
-    const actualLimit = Math.min(limit_num, 5000);
+  async refreshRatingsSummary(limitNum = 10000) {
+    const actualLimit = Math.min(limitNum, 5000);
     const cacheKey = `ratingsSummary_${actualLimit}`;
     const summary = await this.buildRatingsSummarySnapshot(actualLimit);
     this.feedbackCache.set(cacheKey, {
@@ -589,23 +628,16 @@ class FacultyFeedbackService {
     return summary;
   }
 
-  async getRatingsSummary(limit_num = 10000) {
-    // 5000 rows is already enough for stable aggregate ranking; keep one cache key.
-    const actualLimit = Math.min(limit_num, 5000);
+  async getRatingsSummary(limitNum = 10000) {
+    const actualLimit = Math.min(limitNum, 5000);
     const cacheKey = `ratingsSummary_${actualLimit}`;
     const cached = this.feedbackCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-      if (!this.hasTypeBreakdown(cached.value)) {
-        const freshSummary = await this.buildRatingsSummarySnapshot(actualLimit);
-        this.feedbackCache.set(cacheKey, {
-          value: freshSummary,
-          expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
-        });
-        this.writePersistentCache(cacheKey, {
-          summary: freshSummary,
-          refreshedAt: Date.now(),
-        });
-        return freshSummary;
+      if (
+        !this.hasTypeBreakdown(cached.value) ||
+        this.isEmptyRatingsSummary(cached.value)
+      ) {
+        return this.refreshRatingsSummary(actualLimit);
       }
       return cached.value;
     }
@@ -615,17 +647,11 @@ class FacultyFeedbackService {
     );
     if (persistedPayload?.summary) {
       const summary = persistedPayload.summary;
-      if (!this.hasTypeBreakdown(summary)) {
-        const freshSummary = await this.buildRatingsSummarySnapshot(actualLimit);
-        this.feedbackCache.set(cacheKey, {
-          value: freshSummary,
-          expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
-        });
-        this.writePersistentCache(cacheKey, {
-          summary: freshSummary,
-          refreshedAt: Date.now(),
-        });
-        return freshSummary;
+      if (
+        !this.hasTypeBreakdown(summary) ||
+        this.isEmptyRatingsSummary(summary)
+      ) {
+        return this.refreshRatingsSummary(actualLimit);
       }
       this.feedbackCache.set(cacheKey, {
         value: summary,
@@ -633,23 +659,13 @@ class FacultyFeedbackService {
       });
 
       const refreshedAt = Number(persistedPayload.refreshedAt || 0);
-      const ageMs = Date.now() - refreshedAt;
-      if (ageMs > this.RATINGS_SUMMARY_BG_REFRESH_MS) {
+      if (Date.now() - refreshedAt > this.RATINGS_SUMMARY_BG_REFRESH_MS) {
         this.refreshRatingsSummaryInBackground(cacheKey, actualLimit);
       }
       return summary;
     }
 
-    const freshSummary = await this.buildRatingsSummarySnapshot(actualLimit);
-    this.feedbackCache.set(cacheKey, {
-      value: freshSummary,
-      expiresAt: Date.now() + this.FEEDBACK_CACHE_TTL_MS,
-    });
-    this.writePersistentCache(cacheKey, {
-      summary: freshSummary,
-      refreshedAt: Date.now(),
-    });
-    return freshSummary;
+    return this.refreshRatingsSummary(actualLimit);
   }
 
   buildRatingSummary(ratings) {
@@ -661,7 +677,6 @@ class FacultyFeedbackService {
       counts[field] = 0;
     }
 
-    // For notes calculation
     let theoryNotesCount = 0;
     let totalTheoryNotes = 0;
     const labNotesCounts = {
@@ -680,19 +695,17 @@ class FacultyFeedbackService {
         counts[field] += 1;
       }
 
-      // Count theory notes (majority-based: >= 50%)
       if (row.theoryNotes === true || row.theoryNotes === 1) {
-        theoryNotesCount++;
+        theoryNotesCount += 1;
       }
-      totalTheoryNotes++;
+      totalTheoryNotes += 1;
 
-      // Count lab notes
       if (row.labNotes && typeof row.labNotes === "string") {
         const noteType = row.labNotes.trim();
-        if (labNotesCounts.hasOwnProperty(noteType)) {
-          labNotesCounts[noteType]++;
+        if (Object.hasOwn(labNotesCounts, noteType)) {
+          labNotesCounts[noteType] += 1;
         }
-        totalLabNotes++;
+        totalLabNotes += 1;
       }
     }
 
@@ -724,14 +737,9 @@ class FacultyFeedbackService {
           : null;
     }
 
-    // Calculate notes summary with majority-based logic (>=50%)
     const notesSummary = {};
-
-    // Theory notes: show if >= 50% voted yes
     if (totalTheoryNotes > 0) {
-      const percentage = Math.round(
-        (theoryNotesCount / totalTheoryNotes) * 100,
-      );
+      const percentage = Math.round((theoryNotesCount / totalTheoryNotes) * 100);
       if (percentage >= 50) {
         notesSummary.theoryNotes = {
           count: theoryNotesCount,
@@ -741,19 +749,17 @@ class FacultyFeedbackService {
       }
     }
 
-    // Lab notes: show each type that has >= 50% (excluding "None")
     if (totalLabNotes > 0) {
       const labNotesData = {};
       for (const [noteType, count] of Object.entries(labNotesCounts)) {
-        if (noteType !== "None" && count > 0) {
-          const percentage = Math.round((count / totalLabNotes) * 100);
-          if (percentage >= 50) {
-            labNotesData[noteType] = {
-              count,
-              total: totalLabNotes,
-              percentage,
-            };
-          }
+        if (noteType === "None" || count <= 0) continue;
+        const percentage = Math.round((count / totalLabNotes) * 100);
+        if (percentage >= 50) {
+          labNotesData[noteType] = {
+            count,
+            total: totalLabNotes,
+            percentage,
+          };
         }
       }
       if (Object.keys(labNotesData).length > 0) {
@@ -781,10 +787,7 @@ class FacultyFeedbackService {
     }
 
     const ratings = await this.getFacultyRows(facultyId);
-    const reviews = ratings
-      .filter((row) => String(row?.review || "").trim().length > 0)
-      .slice(0, 20);
-
+    const reviews = ratings.filter((row) => String(row?.review || "").trim().length > 0).slice(0, 20);
     const result = {
       reviews,
       ratings,
@@ -804,42 +807,38 @@ class FacultyFeedbackService {
 
     const cacheKey = `userFaculty_${normalizedUserId}_${normalizedFacultyId}`;
     const cached = this.getCachedValue(cacheKey);
-    if (cached !== undefined) {
-      return cached;
-    }
+    if (cached !== undefined) return cached;
 
     return this.getOrCreateInflight(cacheKey, async () => {
-      const response = await this.listRows(this.feedbackTableId, [
-        where("userId", "==", normalizedUserId),
-        where("facultyId", "==", normalizedFacultyId),
-        limit(1),
-      ]);
-      const value =
-        this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
+      const response = await this.listRows({
+        filters: [
+          { field: "userId", value: normalizedUserId },
+          { field: "facultyId", value: normalizedFacultyId },
+        ],
+        limitNum: 1,
+      });
+      const value = this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
       this.setCachedValue(cacheKey, value);
       return value;
     });
   }
 
-  async getUserFeedbackEntries(userId, limit_num = 200) {
+  async getUserFeedbackEntries(userId, limitNum = 200) {
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId) return [];
-    const cacheKey = `userFeedbackEntries_${normalizedUserId}_${limit_num}`;
+    const cacheKey = `userFeedbackEntries_${normalizedUserId}_${limitNum}`;
     const cached = this.getCachedValue(cacheKey);
-    if (cached !== undefined) {
-      return cached;
-    }
+    if (cached !== undefined) return cached;
 
     return this.getOrCreateInflight(cacheKey, async () => {
-      const response = await this.listRows(this.feedbackTableId, [
-        where("userId", "==", normalizedUserId),
-        limit(limit_num),
-      ]);
+      const response = await this.listRows({
+        filters: [{ field: "userId", value: normalizedUserId }],
+        limitNum,
+      });
       const rows = this.sortRowsByFieldDesc(response.rows || [], "updatedAt").slice(
         0,
-        limit_num,
+        limitNum,
       );
-
       const seenFacultyIds = new Set();
       for (const row of rows) {
         const fid = String(row?.facultyId || "").trim();
@@ -889,10 +888,7 @@ class FacultyFeedbackService {
       payload.review = reviewValidation.text;
     }
     if (Boolean(theoryNotes)) payload.theoryNotes = true;
-    if (
-      allowedLabNotes.has(normalizedLabNotes) &&
-      normalizedLabNotes !== "None"
-    ) {
+    if (allowedLabNotes.has(normalizedLabNotes) && normalizedLabNotes !== "None") {
       payload.labNotes = normalizedLabNotes;
     }
 
@@ -912,12 +908,10 @@ class FacultyFeedbackService {
     }
 
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
-    let result;
-    if (existing?.$id) {
-      result = await this.updateRow(this.feedbackTableId, existing.$id, payload);
-    } else {
-      result = await this.createRow(this.feedbackTableId, payload);
-    }
+    const result = existing?.$id
+      ? await this.updateRow(existing.$id, payload)
+      : await this.createRow(payload);
+
     const normalizedUserId = String(userId || "").trim();
     const normalizedFacultyId = String(facultyId || "").trim();
     this.feedbackCache.clear();
@@ -934,52 +928,12 @@ class FacultyFeedbackService {
     return result;
   }
 
-  async submitRating({
-    userId,
-    facultyId,
-    courseId,
-    theoryTeaching,
-    theoryAttendance,
-    theoryClass,
-    theoryCorrection,
-    labClass,
-    labCorrection,
-    labAttendance,
-    ecsCapstoneSDPReview,
-    ecsCapstoneSDPCorrection,
-    labNotes = "None",
-  }) {
-    return this.submitFeedback({
-      userId,
-      facultyId,
-      courseId,
-      theoryTeaching,
-      theoryAttendance,
-      theoryClass,
-      theoryCorrection,
-      labClass,
-      labCorrection,
-      labAttendance,
-      ecsCapstoneSDPReview,
-      ecsCapstoneSDPCorrection,
-      labNotes,
-    });
+  async submitRating(args) {
+    return this.submitFeedback(args);
   }
 
-  async submitReview({
-    userId,
-    facultyId,
-    courseId,
-    review,
-    theoryNotes = false,
-  }) {
-    return this.submitFeedback({
-      userId,
-      facultyId,
-      courseId,
-      review,
-      theoryNotes,
-    });
+  async submitReview(args) {
+    return this.submitFeedback(args);
   }
 
   async deleteUserFacultyFeedback(userId, facultyId) {
@@ -988,46 +942,54 @@ class FacultyFeedbackService {
     }
     const existing = await this.getUserFacultyFeedback(userId, facultyId);
     if (!existing?.$id) return null;
-    try {
-      await deleteDoc(doc(db, this.feedbackTableId, existing.$id));
-      const normalizedUserId = String(userId || "").trim();
-      const normalizedFacultyId = String(facultyId || "").trim();
-      this.feedbackCache.clear();
-      this.inflightRequests.clear();
-      if (normalizedUserId && normalizedFacultyId) {
-        this.setCachedValue(
-          `userFaculty_${normalizedUserId}_${normalizedFacultyId}`,
-          null,
-        );
-      }
-      this.feedbackTotalCountCache = null;
-      this.feedbackTotalCountExpiry = 0;
-      this.clearPersistentRatingsSummaryCache();
-      return existing;
-    } catch (error) {
-      throw error;
+
+    const { error } = await supabase
+      .from(this.reviewCollection)
+      .delete()
+      .eq("id", existing.$id);
+    throwIfSupabaseError(error, "Failed to delete feedback.");
+
+    const normalizedUserId = String(userId || "").trim();
+    const normalizedFacultyId = String(facultyId || "").trim();
+    this.feedbackCache.clear();
+    this.inflightRequests.clear();
+    if (normalizedUserId && normalizedFacultyId) {
+      this.setCachedValue(
+        `userFaculty_${normalizedUserId}_${normalizedFacultyId}`,
+        null,
+      );
     }
+    this.feedbackTotalCountCache = null;
+    this.feedbackTotalCountExpiry = 0;
+    this.clearPersistentRatingsSummaryCache();
+    return existing;
   }
 
   async deleteFeedbackById(rowId) {
     if (!String(rowId || "").trim()) return null;
-    try {
-      await deleteDoc(doc(db, this.feedbackTableId, rowId));
-      this.feedbackCache.clear();
-      this.inflightRequests.clear();
-      this.feedbackTotalCountCache = null;
-      this.feedbackTotalCountExpiry = 0;
-      this.clearPersistentRatingsSummaryCache();
-      return { $id: rowId };
-    } catch (error) {
-      throw error;
-    }
+    const { error } = await supabase.from(this.reviewCollection).delete().eq("id", rowId);
+    throwIfSupabaseError(error, "Failed to delete feedback.");
+    this.feedbackCache.clear();
+    this.inflightRequests.clear();
+    this.feedbackTotalCountCache = null;
+    this.feedbackTotalCountExpiry = 0;
+    this.clearPersistentRatingsSummaryCache();
+    return { $id: rowId };
   }
 
   async deleteAllUserFeedback(userId) {
     const rows = await this.getUserFeedbackEntries(userId, 5000);
     if (!rows.length) return 0;
-    await Promise.all(rows.map((row) => this.deleteFeedbackById(row.$id)));
+    const { error } = await supabase
+      .from(this.reviewCollection)
+      .delete()
+      .eq("userId", String(userId || "").trim());
+    throwIfSupabaseError(error, "Failed to delete user feedback.");
+    this.feedbackCache.clear();
+    this.inflightRequests.clear();
+    this.feedbackTotalCountCache = null;
+    this.feedbackTotalCountExpiry = 0;
+    this.clearPersistentRatingsSummaryCache();
     return rows.length;
   }
 }

@@ -224,8 +224,8 @@ function AdminPanel() {
         const adminsConfigured = (clientConfig.adminEmails || []).length > 0;
         setUploadMessage(
           adminsConfigured
-            ? `${msg} If this account should be admin, add it to VITE_ADMIN_EMAILS and redeploy, then deploy Firestore rules.`
-            : `${msg} Configure VITE_ADMIN_EMAILS with your admin email and deploy Firestore rules.`,
+            ? `${msg} If this account should be admin, add it to VITE_ADMIN_EMAILS and redeploy.`
+            : `${msg} Configure VITE_ADMIN_EMAILS with your admin email and redeploy.`,
         );
       } else {
         setUploadMessage(msg || "Unable to save course.");

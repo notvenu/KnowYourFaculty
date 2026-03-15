@@ -106,6 +106,56 @@ export default function CreatePollOverlay({
     }
   }, [editMode, existingPoll, open, facultyList, courseList]);
 
+  useEffect(() => {
+    if (!open || editMode) return;
+    const query = String(facultySearch || "").trim();
+    if (!query || selectedFaculty) {
+      setFacultyList([]);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const rows = await publicFacultyService.searchFacultySuggestions(query, 20);
+        if (!active) return;
+        setFacultyList(rows || []);
+      } catch {
+        if (active) setFacultyList([]);
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, editMode, facultySearch, selectedFaculty]);
+
+  useEffect(() => {
+    if (!open) return;
+    const query = String(courseSearch || "").trim();
+    if (!query || selectedCourse) {
+      setCourseList([]);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const rows = await courseService.searchCourses(query, 20);
+        if (!active) return;
+        setCourseList(rows || []);
+      } catch {
+        if (active) setCourseList([]);
+      }
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, courseSearch, selectedCourse]);
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -125,13 +175,21 @@ export default function CreatePollOverlay({
     try {
       setLoading(true);
       setError(null);
-
-      const [faculty, courses] = await Promise.all([
-        publicFacultyService.getFacultyList({ limit: 1000, page: 1 }),
-        courseService.getAllCourses(1000),
-      ]);
-      setFacultyList(faculty.faculty || []);
-      setCourseList(courses || []);
+      if (editMode && existingPoll) {
+        const [facultyMap, courseMap] = await Promise.all([
+          existingPoll.facultyId
+            ? publicFacultyService.getFacultyByDocIdBatch([existingPoll.facultyId])
+            : Promise.resolve({}),
+          existingPoll.courseId
+            ? courseService.getCourseByIdBatch([existingPoll.courseId])
+            : Promise.resolve({}),
+        ]);
+        setFacultyList(Object.values(facultyMap || {}).filter(Boolean));
+        setCourseList(Object.values(courseMap || {}).filter(Boolean));
+      } else {
+        setFacultyList([]);
+        setCourseList([]);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -315,8 +373,7 @@ export default function CreatePollOverlay({
               )}
               {showFacultyDropdown &&
                 !selectedFaculty &&
-                !editMode &&
-                facultyList.length > 0 && (
+                !editMode && (
                   <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
                     {filteredFaculty.length > 0 ? (
                       filteredFaculty.map((faculty) => (
@@ -346,7 +403,9 @@ export default function CreatePollOverlay({
                         ))
                     ) : (
                       <div className="px-4 py-3 text-center text-(--muted)">
-                        No faculty found
+                        {String(facultySearch || "").trim()
+                          ? "No faculty found"
+                          : "Type to search faculty"}
                       </div>
                     )}
                   </div>
@@ -407,8 +466,7 @@ export default function CreatePollOverlay({
                 </div>
               )}
               {showCourseDropdown &&
-                !selectedCourse &&
-                courseList.length > 0 && (
+                !selectedCourse && (
                   <div className="absolute z-40 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
                     {filteredCourses.length > 0 ? (
                       filteredCourses.map((course) => (
@@ -441,7 +499,9 @@ export default function CreatePollOverlay({
                         ))
                     ) : (
                       <div className="px-4 py-3 text-center text-(--muted)">
-                        No courses found
+                        {String(courseSearch || "").trim()
+                          ? "No courses found"
+                          : "Type to search courses"}
                       </div>
                     )}
                   </div>

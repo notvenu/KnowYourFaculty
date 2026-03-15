@@ -282,7 +282,7 @@ function App() {
       ]);
       dispatch(setIsSetupMode(false));
     } catch (error) {
-      // Skip setup mode - app will use sample data if Firestore unavailable
+      // Skip setup mode - app will use sample data if Supabase is unavailable
       dispatch(setIsSetupMode(false));
     } finally {
       dispatch(setSetupChecked(true));

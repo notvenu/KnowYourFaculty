@@ -1,39 +1,35 @@
-import { db } from "./client.js";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  getDoc,
-  doc,
-  setDoc,
-  updateDoc,
-  Query as FirestoreQuery,
-  QueryConstraint,
-} from "firebase/firestore";
 import serverConfig from "../../config/server.js";
+import getSupabaseServiceClient from "../supabase/server.js";
+import {
+  normalizeRow,
+  normalizeRows,
+  throwIfSupabaseError,
+} from "../supabase/helpers.js";
 
-const FACULTY_COLLECTION = serverConfig.firebaseFacultyCollection || "faculty";
+const FACULTY_COLLECTION = serverConfig.supabaseFacultyTable || "faculty";
 const PAGE_LIMIT = 5000;
 const DEFAULT_MIN_STRING_LENGTH = 2;
 const DEFAULT_MAX_STRING_LENGTH = 255;
 
 function normalizeEmployeeId(employeeId) {
-  if (employeeId === null || employeeId === undefined) return null;
-  const normalized = Number(employeeId);
-  return Number.isFinite(normalized) ? normalized : null;
+  const normalized = String(employeeId ?? "").trim();
+  if (!normalized) return null;
+  const digitsOnly = normalized.replace(/\D/g, "");
+  if (digitsOnly) return digitsOnly;
+
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric)) return null;
+  return String(numeric).replace(/\D/g, "") || null;
 }
 
 function getMinStringLength() {
-  const raw = Number(process.env.FIREBASE_MIN_STRING_LENGTH);
+  const raw = Number(process.env.SUPABASE_MIN_STRING_LENGTH);
   if (!Number.isFinite(raw) || raw < 1) return DEFAULT_MIN_STRING_LENGTH;
   return Math.floor(raw);
 }
 
 function getMaxStringLength() {
-  const raw = Number(process.env.FIREBASE_MAX_STRING_LENGTH);
+  const raw = Number(process.env.SUPABASE_MAX_STRING_LENGTH);
   if (!Number.isFinite(raw) || raw < 1) return DEFAULT_MAX_STRING_LENGTH;
   return Math.floor(raw);
 }
@@ -61,226 +57,177 @@ function sanitizeRowData(data) {
   return sanitized;
 }
 
+function getClient() {
+  return getSupabaseServiceClient();
+}
+
 export async function getAllEmployeeIds() {
-  const ids = new Set();
-
-  try {
-    const q = query(
-      collection(db, FACULTY_COLLECTION),
-      limit(PAGE_LIMIT)
-    );
-    // Only fetch employeeId field to reduce read size
-    const snapshot = await getDocs(q);
-
-    for (const docSnapshot of snapshot.docs) {
-      const normalized = normalizeEmployeeId(docSnapshot.data().employeeId);
-      if (normalized !== null) ids.add(normalized);
-    }
-  } catch (error) {
-    throw error;
-  }
-
-  return ids;
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("employeeId")
+    .limit(PAGE_LIMIT);
+  throwIfSupabaseError(error, "Failed to load faculty ids.");
+  return new Set(
+    (data || [])
+      .map((row) => normalizeEmployeeId(row.employeeId))
+      .filter((value) => value !== null),
+  );
 }
 
 export async function getFacultyIndexByEmployeeId() {
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("id, employeeId, photoFileId")
+    .limit(PAGE_LIMIT);
+  throwIfSupabaseError(error, "Failed to load faculty index.");
+
   const index = new Map();
-
-  try {
-    const q = query(
-      collection(db, FACULTY_COLLECTION),
-      limit(PAGE_LIMIT)
-    );
-    const snapshot = await getDocs(q);
-
-    for (const docSnapshot of snapshot.docs) {
-      const data = docSnapshot.data();
-      const normalized = normalizeEmployeeId(data.employeeId);
-      if (normalized === null) continue;
-      index.set(normalized, {
-        docId: docSnapshot.id,
-        photoFileId: data.photoFileId || null,
-      });
-    }
-  } catch (error) {
-    throw error;
-  }
-
+  normalizeRows(data || []).forEach((row) => {
+    const normalized = normalizeEmployeeId(row.employeeId);
+    if (normalized === null) return;
+    index.set(normalized, {
+      docId: row.$id,
+      photoFileId: row.photoFileId || null,
+    });
+  });
   return index;
 }
 
 export async function addFaculty(data) {
-  try {
-    const sanitizedData = sanitizeRowData(data || {});
-    const docId = String(sanitizedData?.employeeId || "");
-
-    if (!docId) {
-      throw new Error("Employee ID is required");
-    }
-
-    await setDoc(doc(db, FACULTY_COLLECTION, docId), {
+  const supabase = getClient();
+  const sanitizedData = sanitizeRowData(data || {});
+  const timestamp = new Date().toISOString();
+  const { data: created, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .insert({
       ...sanitizedData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    return { $id: docId, ...sanitizedData };
-  } catch (error) {
-    throw error;
-  }
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .select("*")
+    .single();
+  throwIfSupabaseError(error, "Failed to add faculty.");
+  return normalizeRow(created);
 }
 
 export async function updateFacultyPhotoByDocId(docId, photoFileId) {
-  try {
-    await updateDoc(doc(db, FACULTY_COLLECTION, docId), {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .update({
       photoFileId,
-      updatedAt: new Date(),
-    });
-  } catch (error) {
-    throw error;
-  }
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", docId);
+  throwIfSupabaseError(error, "Failed to update faculty photo.");
 }
 
 export async function getAllFaculty(
-  limit_val = 100,
-  offset_val = 0,
+  limitVal = 100,
+  offsetVal = 0,
   searchQuery = null,
-  department = null
+  department = null,
 ) {
-  try {
-    const constraints = [];
+  const supabase = getClient();
+  let query = supabase
+    .from(FACULTY_COLLECTION)
+    .select("*", { count: "exact" })
+    .order("updatedAt", { ascending: false })
+    .range(offsetVal, offsetVal + limitVal - 1);
 
-    if (department && department !== "all") {
-      constraints.push(where("department", "==", department));
-    }
-
-    constraints.push(orderBy("updatedAt", "desc"));
-    // Only fetch needed docs, not limit_val + offset_val (wasteful pagination)
-    constraints.push(limit(limit_val * 2)); // Conservative multiplier
-
-    const q = query(
-      collection(db, FACULTY_COLLECTION),
-      ...constraints
-    );
-
-    const snapshot = await getDocs(q);
-    let faculty = snapshot.docs.map((docSnapshot) => ({
-      $id: docSnapshot.id,
-      ...docSnapshot.data(),
-    }));
-
-    // Client-side search if needed
-    if (searchQuery) {
-      const lowerSearch = searchQuery.toLowerCase();
-      faculty = faculty.filter(
-        (item) =>
-          (item.name && item.name.toLowerCase().includes(lowerSearch)) ||
-          (item.email && item.email.toLowerCase().includes(lowerSearch))
-      );
-    }
-
-    // Apply offset
-    faculty = faculty.slice(offset_val, offset_val + limit_val);
-
-    return {
-      faculty,
-      total: snapshot.size,
-      hasMore: offset_val + limit_val < snapshot.size,
-    };
-  } catch (error) {
-    throw error;
+  if (department && department !== "all") {
+    query = query.eq("department", department);
   }
+  if (searchQuery) {
+    query = query.ilike("name", `%${searchQuery}%`);
+  }
+
+  const { data, error, count } = await query;
+  throwIfSupabaseError(error, "Failed to load faculty.");
+
+  return {
+    faculty: normalizeRows(data || []),
+    total: Number(count || 0),
+    hasMore: offsetVal + limitVal < Number(count || 0),
+  };
 }
 
 export async function getFacultyById(employeeId) {
-  try {
-    const q = query(
-      collection(db, FACULTY_COLLECTION),
-      where("employeeId", "==", employeeId)
-    );
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) return null;
-
-    const docSnapshot = snapshot.docs[0];
-    return {
-      $id: docSnapshot.id,
-      ...docSnapshot.data(),
-    };
-  } catch (error) {
-    throw error;
-  }
+  const supabase = getClient();
+  const normalizedEmployeeId = Number(normalizeEmployeeId(employeeId));
+  if (!Number.isFinite(normalizedEmployeeId)) return null;
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("*")
+    .eq("employeeId", normalizedEmployeeId)
+    .limit(1)
+    .maybeSingle();
+  throwIfSupabaseError(error, "Failed to load faculty.");
+  return data ? normalizeRow(data) : null;
 }
 
 export async function getDepartments() {
-  try {
-    // Reduce read size by only fetching department field
-    const q = query(
-      collection(db, FACULTY_COLLECTION),
-      limit(PAGE_LIMIT)
-    );
-    const snapshot = await getDocs(q);
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("department")
+    .limit(PAGE_LIMIT);
+  throwIfSupabaseError(error, "Failed to load departments.");
 
-    const departments = new Set();
-    for (const docSnapshot of snapshot.docs) {
-      const dept = docSnapshot.data().department;
-      if (dept) departments.add(dept);
-    }
-
-    return Array.from(departments).sort();
-  } catch (error) {
-    throw error;
-  }
+  const departments = new Set();
+  (data || []).forEach((row) => {
+    if (row.department) departments.add(row.department);
+  });
+  return Array.from(departments).sort();
 }
 
 export async function getFacultyStats() {
-  try {
-    // Reduce read size by only fetching department & designation fields
-    const q = query(
-      collection(db, FACULTY_COLLECTION),
-      limit(PAGE_LIMIT)
-    );
-    const snapshot = await getDocs(q);
+  const supabase = getClient();
+  const { data, error, count } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("department, designation", { count: "exact" })
+    .limit(PAGE_LIMIT);
+  throwIfSupabaseError(error, "Failed to load faculty stats.");
 
-    const stats = {
-      total: snapshot.size,
-      byDepartment: {},
-      byDesignation: {},
-      lastUpdated: new Date().toISOString(),
-    };
+  const stats = {
+    total: Number(count || 0),
+    byDepartment: {},
+    byDesignation: {},
+    lastUpdated: new Date().toISOString(),
+  };
 
-    for (const docSnapshot of snapshot.docs) {
-      const data = docSnapshot.data();
-      if (data.department) {
-        stats.byDepartment[data.department] =
-          (stats.byDepartment[data.department] || 0) + 1;
-      }
-      if (data.designation) {
-        stats.byDesignation[data.designation] =
-          (stats.byDesignation[data.designation] || 0) + 1;
-      }
+  (data || []).forEach((row) => {
+    if (row.department) {
+      stats.byDepartment[row.department] =
+        (stats.byDepartment[row.department] || 0) + 1;
     }
+    if (row.designation) {
+      stats.byDesignation[row.designation] =
+        (stats.byDesignation[row.designation] || 0) + 1;
+    }
+  });
 
-    return stats;
-  } catch (error) {
-    throw error;
-  }
+  return stats;
 }
 
 export async function updateFaculty(employeeId, updateData) {
-  try {
-    const existing = await getFacultyById(employeeId);
-    if (!existing) {
-      throw new Error(`Faculty with ID ${employeeId} not found`);
-    }
-
-    await updateDoc(doc(db, FACULTY_COLLECTION, existing.$id), {
-      ...sanitizeRowData(updateData || {}),
-      updatedAt: new Date(),
-    });
-
-    return { $id: existing.$id, ...updateData };
-  } catch (error) {
-    throw error;
+  const existing = await getFacultyById(employeeId);
+  if (!existing) {
+    throw new Error(`Faculty with ID ${employeeId} not found`);
   }
+
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .update({
+      ...sanitizeRowData(updateData || {}),
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", existing.$id)
+    .select("*")
+    .single();
+  throwIfSupabaseError(error, "Failed to update faculty.");
+  return normalizeRow(data);
 }

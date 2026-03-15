@@ -1,137 +1,109 @@
-/**
- * Firebase Admin Repository
- * Server-side operations using Firebase Admin SDK
- * Bypasses security rules
- */
+import serverConfig from "../../config/server.js";
+import getSupabaseServiceClient from "../supabase/server.js";
+import { photoFileExists, uploadPhotoFromUrl } from "./storageRepo.js";
+import {
+  normalizeRow,
+  normalizeRows,
+  throwIfSupabaseError,
+} from "../supabase/helpers.js";
 
-import admin from 'firebase-admin';
-import serverConfig from '../../config/server.js';
+const FACULTY_COLLECTION = serverConfig.supabaseFacultyTable || "faculty";
 
-// Initialize Admin SDK if not already done
-if (!admin.apps.length) {
-  const serviceAccount = {
-    projectId: serverConfig.firebaseProjectId,
-    privateKey: serverConfig.firebasePrivateKey?.replace(/\\n/g, '\n'),
-    clientEmail: serverConfig.firebaseClientEmail,
-  };
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: serverConfig.firebaseStorageBucket,
-  });
+function getAdminClient() {
+  return getSupabaseServiceClient();
 }
 
-const db = admin.firestore();
-const storage = admin.storage();
+function getEmployeeIdKey(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return null;
+  const digitsOnly = normalized.replace(/\D/g, "");
+  if (digitsOnly) return digitsOnly;
 
-const FACULTY_COLLECTION = serverConfig.firebaseFacultyCollection || 'faculty';
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric)) return null;
+  return String(numeric).replace(/\D/g, "") || null;
+}
 
 export async function addFacultyAdmin(facultyData) {
-  try {
-    const docRef = await db.collection(FACULTY_COLLECTION).add({
+  const supabase = getAdminClient();
+  const timestamp = new Date().toISOString();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .insert({
       ...facultyData,
-      createdAt: admin.firestore.Timestamp.now(),
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
-    return {
-      $id: docRef.id,
-      ...facultyData,
-    };
-  } catch (error) {
-    throw error;
-  }
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .select("*")
+    .single();
+  throwIfSupabaseError(error, "Failed to add faculty.");
+  return normalizeRow(data);
 }
 
 export async function getAllEmployeeIdsAdmin() {
-  try {
-    const snapshot = await db
-      .collection(FACULTY_COLLECTION)
-      .select('employeeId')
-      .get();
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("employeeId")
+    .limit(5000);
+  throwIfSupabaseError(error, "Failed to load faculty ids.");
 
-    return new Set(
-      snapshot.docs
-        .map((doc) => doc.data().employeeId)
-        .filter((id) => id !== null && id !== undefined)
-    );
-  } catch (error) {
-    return new Set();
-  }
+  return new Set(
+    (data || []).map((row) => getEmployeeIdKey(row.employeeId)).filter(Boolean),
+  );
 }
 
 export async function getFacultyIndexByEmployeeIdAdmin() {
-  try {
-    const snapshot = await db
-      .collection(FACULTY_COLLECTION)
-      .select('employeeId', 'photoFileId')
-      .get();
+  const supabase = getAdminClient();
+  const { data, error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("id, employeeId, photoFileId")
+    .limit(5000);
+  throwIfSupabaseError(error, "Failed to load faculty index.");
 
-    const index = new Map();
-    snapshot.docs.forEach((doc) => {
-      const data = doc.data();
-      if (data.employeeId) {
-        index.set(data.employeeId, {
-          $id: doc.id,
-          photoFileId: data.photoFileId,
-        });
-      }
+  const index = new Map();
+  normalizeRows(data || []).forEach((row) => {
+    const employeeId = getEmployeeIdKey(row.employeeId);
+    if (!employeeId) return;
+    index.set(employeeId, {
+      $id: row.$id,
+      photoFileId: row.photoFileId || null,
     });
-    return index;
-  } catch (error) {
-    return new Map();
-  }
+  });
+  return index;
 }
 
 export async function updateFacultyPhotoByDocIdAdmin(docId, photoFileId) {
-  try {
-    await db.collection(FACULTY_COLLECTION).doc(docId).update({
-      photoFileId: photoFileId,
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
-    return { success: true };
-  } catch (error) {
-    throw error;
-  }
+  const supabase = getAdminClient();
+  const { error } = await supabase
+    .from(FACULTY_COLLECTION)
+    .update({
+      photoFileId,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", docId);
+  throwIfSupabaseError(error, "Failed to update faculty photo.");
+  return { success: true };
 }
 
 export async function uploadPhotoFromUrlAdmin(
   employeeId,
   photoUrl,
-  options = {}
+  options = {},
 ) {
   try {
-    const response = await fetch(photoUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch photo: ${response.statusText}`);
-    }
-
-    const buffer = await response.arrayBuffer();
-    const filename = `${employeeId}.jpg`;
-    const bucket = storage.bucket();
-    const file = bucket.file(`faculty_photos/${filename}`);
-
-    const metadata = {
-      contentType: 'image/jpeg',
-      cacheControl: 'public, max-age=86400',
-    };
-
-    await file.save(Buffer.from(buffer), { metadata });
-    return filename;
+    return await uploadPhotoFromUrl(employeeId, photoUrl, options);
   } catch (uploadError) {
-    console.error(`Failed to upload photo for employee ${employeeId}:`, uploadError?.message);
+    console.error(
+      `Failed to upload photo for employee ${employeeId}:`,
+      uploadError?.message,
+    );
     return null;
   }
 }
 
 export async function photoFileExistsAdmin(photoFileId) {
-  try {
-    const bucket = storage.bucket();
-    const file = bucket.file(`faculty_photos/${photoFileId}`);
-    const [exists] = await file.exists();
-    return exists;
-  } catch (error) {
-    return false;
-  }
+  return photoFileExists(photoFileId);
 }
 
 export default {

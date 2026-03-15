@@ -157,7 +157,7 @@ export default function SiteNav({
               <button
                 type="button"
                 onClick={onToggleTheme}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-(--line) bg-(--panel) text-xs font-medium text-(--text) transition-all duration-200 hover:border-(--primary) hover:bg-(--primary-soft) hover:shadow-md active:scale-95"
+                className="flex h-10 w-10 items-center justify-center overflow-visible rounded-xl border border-(--line) bg-(--panel) text-xs font-medium text-(--text) transition-all duration-200 hover:border-(--primary) hover:bg-(--primary-soft) hover:shadow-md active:scale-95"
                 title={
                   theme === "dark"
                     ? "Switch to light mode"
@@ -165,13 +165,13 @@ export default function SiteNav({
                 }
               >
                 <span
-                  className="relative inline-grid h-4 w-4 place-items-center transition-transform duration-500 ease-out"
+                  className="relative flex h-5 w-5 items-center justify-center transition-transform duration-500 ease-out"
                   style={{ transform: `rotate(${themeRotation}deg)` }}
                   aria-hidden="true"
                 >
                   <FontAwesomeIcon
                     icon={faSun}
-                    className={`absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                    className={`absolute h-[18px] w-[18px] transition-all duration-300 ${
                       theme === "dark"
                         ? "scale-100 opacity-100"
                         : "scale-0 opacity-0"
@@ -179,7 +179,7 @@ export default function SiteNav({
                   />
                   <FontAwesomeIcon
                     icon={faMoon}
-                    className={`absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
+                    className={`absolute h-[18px] w-[18px] transition-all duration-300 ${
                       theme === "dark"
                         ? "scale-0 opacity-0"
                         : "scale-100 opacity-100"
@@ -489,4 +489,3 @@ export default function SiteNav({
     </>
   );
 }
-

@@ -9,9 +9,14 @@ import {
 } from "../firebase/adminRepo.js";
 
 function normalizeEmployeeId(employeeId) {
-  if (employeeId === null || employeeId === undefined) return null;
-  const normalized = Number(employeeId);
-  return Number.isFinite(normalized) ? normalized : null;
+  const normalized = String(employeeId ?? "").trim();
+  if (!normalized) return null;
+  const digitsOnly = normalized.replace(/\D/g, "");
+  if (digitsOnly) return digitsOnly;
+
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric)) return null;
+  return String(numeric).replace(/\D/g, "") || null;
 }
 
 async function syncExistingFacultyPhoto(faculty, employeeId, facultyIndex) {
@@ -19,14 +24,20 @@ async function syncExistingFacultyPhoto(faculty, employeeId, facultyIndex) {
   if (!existing || !faculty.photoUrl) return false;
 
   const hasPhotoId = Boolean(existing.photoFileId);
-  const hasStorageFile = hasPhotoId ? await photoFileExistsAdmin(existing.photoFileId) : false;
+  const hasStorageFile = hasPhotoId
+    ? await photoFileExistsAdmin(existing.photoFileId)
+    : false;
   const needsPhotoSync = !hasPhotoId || !hasStorageFile;
 
   if (!needsPhotoSync) return false;
 
-  const uploadedPhotoId = await uploadPhotoFromUrlAdmin(employeeId.toString(), faculty.photoUrl, {
-    forceReplace: hasPhotoId
-  });
+  const uploadedPhotoId = await uploadPhotoFromUrlAdmin(
+    employeeId,
+    faculty.photoUrl,
+    {
+      forceReplace: hasPhotoId,
+    },
+  );
   if (!uploadedPhotoId) return false;
 
   await updateFacultyPhotoByDocIdAdmin(existing.$id, uploadedPhotoId);
@@ -35,9 +46,10 @@ async function syncExistingFacultyPhoto(faculty, employeeId, facultyIndex) {
 }
 
 export async function weeklyScrape() {
-
   try {
-    const shouldSyncExistingPhotos = String(process.env.SCRAPER_SYNC_EXISTING_PHOTOS || "").toLowerCase() === "true";
+    const shouldSyncExistingPhotos =
+      String(process.env.SCRAPER_SYNC_EXISTING_PHOTOS || "").toLowerCase() ===
+      "true";
     const scraped = await fetchFacultyProfiles();
     const existingIds = await getAllEmployeeIdsAdmin();
     const facultyIndex = await getFacultyIndexByEmployeeIdAdmin();
@@ -51,7 +63,11 @@ export async function weeklyScrape() {
 
       if (existingIds.has(employeeId)) {
         if (!shouldSyncExistingPhotos) continue;
-        const synced = await syncExistingFacultyPhoto(faculty, employeeId, facultyIndex);
+        const synced = await syncExistingFacultyPhoto(
+          faculty,
+          employeeId,
+          facultyIndex,
+        );
         if (synced) {
           photosUploaded++;
         }
@@ -61,12 +77,15 @@ export async function weeklyScrape() {
       try {
         let photoFileId = null;
         if (faculty.photoUrl) {
-          photoFileId = await uploadPhotoFromUrlAdmin(employeeId.toString(), faculty.photoUrl);
+          photoFileId = await uploadPhotoFromUrlAdmin(
+            employeeId,
+            faculty.photoUrl,
+          );
           if (photoFileId) photosUploaded++;
         }
 
         const created = await addFacultyAdmin({
-          employeeId,
+          employeeId: Number(employeeId),
           name: faculty.name || "Unknown",
           designation: faculty.designation || "Unknown",
           department: faculty.department || "Unknown",
@@ -76,7 +95,7 @@ export async function weeklyScrape() {
           educationPhD: faculty.educationPhD || null,
           educationOther: faculty.educationOther || null,
           researchArea: faculty.researchArea || null,
-          photoFileId
+          photoFileId,
         });
 
         added++;
@@ -86,6 +105,10 @@ export async function weeklyScrape() {
         }
       } catch (error) {
         if (error?.code !== 409) {
+          console.error(
+            `Failed to add faculty ${employeeId}:`,
+            error?.message ?? error,
+          );
         }
       }
     }

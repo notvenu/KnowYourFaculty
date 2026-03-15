@@ -1,33 +1,119 @@
-import {
-  collection,
-  query,
-  where,
-  limit,
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  addDoc,
-  writeBatch,
-} from "firebase/firestore";
-import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
+import { supabase } from "../lib/supabase/client.js";
+import {
+  applyInChunks,
+  normalizeRow,
+  normalizeRows,
+  throwIfSupabaseError,
+} from "../lib/supabase/helpers.js";
+
+const POLL_COLUMNS = [
+  "id",
+  "userId",
+  "facultyId",
+  "courseId",
+  "courseType",
+  "pollType",
+  "pollStartTime",
+  "pollEndTime",
+  "isActive",
+  "createdAt",
+  "updatedAt",
+].join(", ");
+
+const POLL_VOTE_COLUMNS = [
+  "id",
+  "userId",
+  "pollId",
+  "vote",
+  "createdAt",
+  "updatedAt",
+].join(", ");
 
 class PollService {
   constructor() {
-    this.pollCollection = clientConfig.firebasePollCollection || "polls";
+    this.pollCollection = clientConfig.supabasePollTable || "polls";
     this.pollVotesCollection =
-      clientConfig.firebasePollVotesCollection || "poll_votes";
-
-    this.POLL_CACHE_TTL_MS = 5 * 60 * 1000;  // Increased from 30s to 5 min
+      clientConfig.supabasePollVotesTable || "poll_votes";
+    this.POLL_CACHE_TTL_MS = 5 * 60 * 1000;
     this.pollResultsCache = new Map();
     this.pollQueryCache = new Map();
     this.inflightRequests = new Map();
     this.activePollsCache = null;
     this.activePollsCacheExpiry = 0;
-    this.hasLoggedActivePollFallback = false;
-    this.hasLoggedUserPollFallback = false;
+    this.PERSISTENT_CACHE_PREFIX = "kyf.polls.v1";
+    this.PERSISTENT_CACHE_TTL_MS = 30 * 60 * 1000;
+    this.hydratePersistentCaches();
+  }
+
+  getStorage() {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage || null;
+    } catch {
+      return null;
+    }
+  }
+
+  getPersistentKey(suffix) {
+    return `${this.PERSISTENT_CACHE_PREFIX}:${suffix}`;
+  }
+
+  readPersistentCache(suffix) {
+    const storage = this.getStorage();
+    if (!storage) return null;
+    try {
+      const raw = storage.getItem(this.getPersistentKey(suffix));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.expiresAt <= Date.now()) {
+        storage.removeItem(this.getPersistentKey(suffix));
+        return null;
+      }
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  }
+
+  writePersistentCache(suffix, value, ttlMs = this.PERSISTENT_CACHE_TTL_MS) {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      storage.setItem(
+        this.getPersistentKey(suffix),
+        JSON.stringify({
+          value,
+          expiresAt: Date.now() + ttlMs,
+        }),
+      );
+    } catch {
+    }
+  }
+
+  clearPersistentCache(prefixes = []) {
+    const storage = this.getStorage();
+    if (!storage) return;
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < storage.length; i += 1) {
+        const key = storage.key(i);
+        if (!key) continue;
+        if (prefixes.some((prefix) => key === this.getPersistentKey(prefix) || key.startsWith(this.getPersistentKey(prefix)))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => storage.removeItem(key));
+    } catch {
+    }
+  }
+
+  hydratePersistentCaches() {
+    const activePolls = this.readPersistentCache("activePolls");
+    if (Array.isArray(activePolls)) {
+      this.activePollsCache = activePolls;
+      this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
+    }
   }
 
   getCachedValue(cacheKey) {
@@ -65,14 +151,11 @@ class PollService {
     this.inflightRequests.clear();
     this.activePollsCache = null;
     this.activePollsCacheExpiry = 0;
+    this.clearPersistentCache(["activePolls", "pollResults_"]);
   }
 
   toTimeMs(value) {
     if (!value) return 0;
-    if (typeof value?.toDate === "function") {
-      const date = value.toDate();
-      return Number.isFinite(date?.getTime?.()) ? date.getTime() : 0;
-    }
     const date = new Date(value);
     const time = date.getTime();
     return Number.isFinite(time) ? time : 0;
@@ -84,18 +167,6 @@ class PollService {
     );
   }
 
-  chunkArray(items, chunkSize = 30) {
-    const safeChunkSize = Math.max(1, Number(chunkSize) || 30);
-    const chunks = [];
-    for (let i = 0; i < items.length; i += safeChunkSize) {
-      chunks.push(items.slice(i, i + safeChunkSize));
-    }
-    return chunks;
-  }
-
-  /**
-   * Create a new poll
-   */
   async createPoll({
     userId,
     facultyId,
@@ -108,7 +179,6 @@ class PollService {
     if (!String(userId || "").trim()) {
       throw new Error("You must be logged in to create a poll.");
     }
-
     if (!facultyId) {
       throw new Error("Faculty ID is required for creating a poll.");
     }
@@ -118,84 +188,52 @@ class PollService {
       throw new Error("Poll type must be either 3 or 5.");
     }
 
+    const timestamp = new Date().toISOString();
     const payload = {
       userId: String(userId),
       pollType: String(pollTypeNum),
-      pollEndTime: pollEndTime,
+      pollEndTime,
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      facultyId: String(facultyId),
     };
 
-    if (facultyId) payload.facultyId = String(facultyId);
     if (courseId) payload.courseId = String(courseId);
     if (courseType) payload.courseType = String(courseType);
     if (pollStartTime) payload.pollStartTime = pollStartTime;
 
-    try {
-      const docRef = await addDoc(collection(db, this.pollCollection), payload);
-      this.invalidatePollQueryCache();
-      return { $id: docRef.id, ...payload };
-    } catch (error) {
-      throw error;
-    }
+    const { data, error } = await supabase
+      .from(this.pollCollection)
+      .insert(payload)
+      .select("*")
+      .single();
+    throwIfSupabaseError(error, "Failed to create poll.");
+    this.invalidatePollQueryCache();
+    return normalizeRow(data);
   }
 
-  /**
-   * Get all active polls
-   */
   async getActivePolls() {
     if (this.activePollsCache && this.activePollsCacheExpiry > Date.now()) {
       return this.activePollsCache;
     }
 
     return this.getOrCreateInflight("activePolls", async () => {
-      try {
-        const q = query(
-          collection(db, this.pollCollection),
-          where("isActive", "==", true),
-          limit(100),
-        );
-        const snapshot = await getDocs(q);
-        const documents = this.sortByCreatedAtDesc(
-          snapshot.docs.map((docSnapshot) => ({
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          })),
-        );
-        this.activePollsCache = documents;
-        this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
-        return documents;
-      } catch (error) {
-        if (!this.hasLoggedActivePollFallback) {
-          this.hasLoggedActivePollFallback = true;
-        }
-        try {
-          const fallbackQuery = query(
-            collection(db, this.pollCollection),
-            limit(200),
-          );
-          const snapshot = await getDocs(fallbackQuery);
-          const documents = snapshot.docs.map((docSnapshot) => ({
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          }));
-          const activeDocuments = this.sortByCreatedAtDesc(
-            documents.filter((row) => row?.isActive !== false),
-          ).slice(0, 100);
-          this.activePollsCache = activeDocuments;
-          this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
-          return activeDocuments;
-        } catch (fallbackError) {
-          return [];
-        }
-      }
+      const { data, error } = await supabase
+        .from(this.pollCollection)
+        .select(POLL_COLUMNS)
+        .eq("isActive", true)
+        .order("createdAt", { ascending: false })
+        .limit(100);
+      throwIfSupabaseError(error, "Failed to load active polls.");
+      const rows = normalizeRows(data || []);
+      this.activePollsCache = rows;
+      this.activePollsCacheExpiry = Date.now() + this.POLL_CACHE_TTL_MS;
+      this.writePersistentCache("activePolls", rows, this.PERSISTENT_CACHE_TTL_MS);
+      return rows;
     });
   }
 
-  /**
-   * Get polls by faculty
-   */
   async getPollsByFaculty(facultyId) {
     const normalizedFacultyId = String(facultyId || "").trim();
     if (!normalizedFacultyId) return [];
@@ -203,30 +241,19 @@ class PollService {
     const cached = this.getCachedValue(cacheKey);
     if (cached !== undefined) return cached;
     return this.getOrCreateInflight(cacheKey, async () => {
-      try {
-        const q = query(
-          collection(db, this.pollCollection),
-          where("facultyId", "==", normalizedFacultyId),
-          limit(50),
-        );
-        const snapshot = await getDocs(q);
-        const rows = this.sortByCreatedAtDesc(
-          snapshot.docs.map((docSnapshot) => ({
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          })),
-        );
-        this.setCachedValue(cacheKey, rows);
-        return rows;
-      } catch (error) {
-        return [];
-      }
+      const { data, error } = await supabase
+        .from(this.pollCollection)
+        .select(POLL_COLUMNS)
+        .eq("facultyId", normalizedFacultyId)
+        .order("createdAt", { ascending: false })
+        .limit(50);
+      throwIfSupabaseError(error, "Failed to load polls.");
+      const rows = normalizeRows(data || []);
+      this.setCachedValue(cacheKey, rows);
+      return rows;
     });
   }
 
-  /**
-   * Get polls created by a specific user
-   */
   async getUserPolls(userId) {
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId) return [];
@@ -234,49 +261,19 @@ class PollService {
     const cached = this.getCachedValue(cacheKey);
     if (cached !== undefined) return cached;
     return this.getOrCreateInflight(cacheKey, async () => {
-      try {
-        const q = query(
-          collection(db, this.pollCollection),
-          where("userId", "==", normalizedUserId),
-          limit(100),
-        );
-        const snapshot = await getDocs(q);
-        const rows = this.sortByCreatedAtDesc(
-          snapshot.docs.map((docSnapshot) => ({
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          })),
-        );
-        this.setCachedValue(cacheKey, rows);
-        return rows;
-      } catch (error) {
-        if (!this.hasLoggedUserPollFallback) {
-          this.hasLoggedUserPollFallback = true;
-        }
-        try {
-          const fallbackQuery = query(
-            collection(db, this.pollCollection),
-            where("userId", "==", normalizedUserId),
-            limit(200),
-          );
-          const snapshot = await getDocs(fallbackQuery);
-          const documents = snapshot.docs.map((docSnapshot) => ({
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          }));
-          const rows = this.sortByCreatedAtDesc(documents).slice(0, 100);
-          this.setCachedValue(cacheKey, rows);
-          return rows;
-        } catch (fallbackError) {
-          return [];
-        }
-      }
+      const { data, error } = await supabase
+        .from(this.pollCollection)
+        .select(POLL_COLUMNS)
+        .eq("userId", normalizedUserId)
+        .order("createdAt", { ascending: false })
+        .limit(100);
+      throwIfSupabaseError(error, "Failed to load user polls.");
+      const rows = normalizeRows(data || []);
+      this.setCachedValue(cacheKey, rows);
+      return rows;
     });
   }
 
-  /**
-   * Get polls by course
-   */
   async getPollsByCourse(courseId) {
     const normalizedCourseId = String(courseId || "").trim();
     if (!normalizedCourseId) return [];
@@ -284,30 +281,19 @@ class PollService {
     const cached = this.getCachedValue(cacheKey);
     if (cached !== undefined) return cached;
     return this.getOrCreateInflight(cacheKey, async () => {
-      try {
-        const q = query(
-          collection(db, this.pollCollection),
-          where("courseId", "==", normalizedCourseId),
-          limit(50),
-        );
-        const snapshot = await getDocs(q);
-        const rows = this.sortByCreatedAtDesc(
-          snapshot.docs.map((docSnapshot) => ({
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          })),
-        );
-        this.setCachedValue(cacheKey, rows);
-        return rows;
-      } catch (error) {
-        return [];
-      }
+      const { data, error } = await supabase
+        .from(this.pollCollection)
+        .select(POLL_COLUMNS)
+        .eq("courseId", normalizedCourseId)
+        .order("createdAt", { ascending: false })
+        .limit(50);
+      throwIfSupabaseError(error, "Failed to load course polls.");
+      const rows = normalizeRows(data || []);
+      this.setCachedValue(cacheKey, rows);
+      return rows;
     });
   }
 
-  /**
-   * Get a single poll by ID
-   */
   async getPollById(pollId) {
     const normalizedPollId = String(pollId || "").trim();
     if (!normalizedPollId) return null;
@@ -315,34 +301,22 @@ class PollService {
     const cached = this.getCachedValue(cacheKey);
     if (cached !== undefined) return cached;
     return this.getOrCreateInflight(cacheKey, async () => {
-      try {
-        const docSnapshot = await getDoc(
-          doc(db, this.pollCollection, normalizedPollId)
-        );
-        if (!docSnapshot.exists()) {
-          this.setCachedValue(cacheKey, null);
-          return null;
-        }
-        const row = {
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        };
-        this.setCachedValue(cacheKey, row);
-        return row;
-      } catch (error) {
-        return null;
-      }
+      const { data, error } = await supabase
+        .from(this.pollCollection)
+        .select(POLL_COLUMNS)
+        .eq("id", normalizedPollId)
+        .maybeSingle();
+      throwIfSupabaseError(error, "Failed to load poll.");
+      const row = data ? normalizeRow(data) : null;
+      this.setCachedValue(cacheKey, row);
+      return row;
     });
   }
 
-  /**
-   * Submit a vote for a poll
-   */
   async submitVote({ userId, pollId, vote }) {
     if (!String(userId || "").trim()) {
       throw new Error("You must be logged in to vote.");
     }
-
     if (!String(pollId || "").trim()) {
       throw new Error("Poll ID is required.");
     }
@@ -352,51 +326,41 @@ class PollService {
       throw new Error("Vote must be between 1 and 5.");
     }
 
-    // Check if user has already voted
     const existingVote = await this.getUserVote(userId, pollId);
-
     const payload = {
       userId: String(userId),
       pollId: String(pollId),
       vote: voteValue,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    try {
-      if (existingVote?.$id) {
-        // Update existing vote
-        await updateDoc(
-          doc(db, this.pollVotesCollection, existingVote.$id),
-          payload
-        );
-        this.pollResultsCache.delete(String(pollId));
-        this.setCachedValue(
-          `userVote_${String(userId)}_${String(pollId)}`,
-          { $id: existingVote.$id, ...payload },
-        );
-        return { $id: existingVote.$id, ...payload };
-      }
-
-      // Create new vote
-      const docRef = await addDoc(
-        collection(db, this.pollVotesCollection),
-        payload
-      );
+    if (existingVote?.$id) {
+      const { data, error } = await supabase
+        .from(this.pollVotesCollection)
+        .update(payload)
+        .eq("id", existingVote.$id)
+        .select("*")
+        .single();
+      throwIfSupabaseError(error, "Failed to update vote.");
+      const row = normalizeRow(data);
       this.pollResultsCache.delete(String(pollId));
-      this.setCachedValue(
-        `userVote_${String(userId)}_${String(pollId)}`,
-        { $id: docRef.id, ...payload },
-      );
-      return { $id: docRef.id, ...payload };
-    } catch (error) {
-      throw error;
+      this.setCachedValue(`userVote_${String(userId)}_${String(pollId)}`, row);
+      return row;
     }
+
+    const { data, error } = await supabase
+      .from(this.pollVotesCollection)
+      .insert(payload)
+      .select("*")
+      .single();
+    throwIfSupabaseError(error, "Failed to submit vote.");
+    const row = normalizeRow(data);
+    this.pollResultsCache.delete(String(pollId));
+    this.setCachedValue(`userVote_${String(userId)}_${String(pollId)}`, row);
+    return row;
   }
 
-  /**
-   * Get user's vote for a specific poll
-   */
   async getUserVote(userId, pollId) {
     const normalizedUserId = String(userId || "").trim();
     const normalizedPollId = String(pollId || "").trim();
@@ -405,92 +369,65 @@ class PollService {
     const cached = this.getCachedValue(cacheKey);
     if (cached !== undefined) return cached;
     return this.getOrCreateInflight(cacheKey, async () => {
-      try {
-        const q = query(
-          collection(db, this.pollVotesCollection),
-          where("userId", "==", normalizedUserId),
-          where("pollId", "==", normalizedPollId),
-          limit(1)
-        );
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-          this.setCachedValue(cacheKey, null);
-          return null;
-        }
-        const docSnapshot = snapshot.docs[0];
-        const row = {
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        };
-        this.setCachedValue(cacheKey, row);
-        return row;
-      } catch (error) {
-        return null;
-      }
+      const { data, error } = await supabase
+        .from(this.pollVotesCollection)
+        .select(POLL_VOTE_COLUMNS)
+        .eq("userId", normalizedUserId)
+        .eq("pollId", normalizedPollId)
+        .limit(1)
+        .maybeSingle();
+      throwIfSupabaseError(error, "Failed to load vote.");
+      const row = data ? normalizeRow(data) : null;
+      this.setCachedValue(cacheKey, row);
+      return row;
     });
   }
 
-  /**
-   * Get all votes for a poll with aggregated results
-   */
   async getPollResults(pollId) {
     const id = String(pollId);
     const cached = this.pollResultsCache.get(id);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value;
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const persisted = this.readPersistentCache(`pollResults_${id}`);
+    if (persisted) {
+      this.pollResultsCache.set(id, {
+        value: persisted,
+        expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
+      });
+      return persisted;
     }
 
     return this.getOrCreateInflight(`pollResults_${id}`, async () => {
-      try {
-        // OPTIMIZATION: Cap fetch to 1000 max instead of 5000 for vote aggregation
-        const q = query(
-          collection(db, this.pollVotesCollection),
-          where("pollId", "==", id),
-          limit(1000)
-        );
-        const snapshot = await getDocs(q);
-
-        const votes = snapshot.docs.map((docSnapshot) => ({
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        }));
-
-        const voteCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
-        votes.forEach((vote) => {
-          if (vote.vote >= 1 && vote.vote <= 5) {
-            voteCounts[vote.vote]++;
-          }
-        });
-
-        const result = {
-          votes,
-          voteCounts,
-          totalVotes: votes.length,
-        };
-
-        this.pollResultsCache.set(id, {
-          value: result,
-          expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
-        });
-        return result;
-      } catch (error) {
-        return {
-          votes: [],
-          voteCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-          totalVotes: 0,
-        };
-      }
+      const { data, error } = await supabase
+        .from(this.pollVotesCollection)
+        .select(POLL_VOTE_COLUMNS)
+        .eq("pollId", id)
+        .limit(1000);
+      throwIfSupabaseError(error, "Failed to load poll results.");
+      const votes = normalizeRows(data || []);
+      const voteCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      votes.forEach((item) => {
+        const voteValue = Number(item.vote);
+        if (voteValue >= 1 && voteValue <= 5) {
+          voteCounts[voteValue] += 1;
+        }
+      });
+      const result = {
+        votes,
+        voteCounts,
+        totalVotes: votes.length,
+      };
+      this.pollResultsCache.set(id, {
+        value: result,
+        expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
+      });
+      this.writePersistentCache(`pollResults_${id}`, result);
+      return result;
     });
   }
 
   async getPollResultsBulk(pollIds = []) {
     const ids = Array.from(
-      new Set(
-        (pollIds || [])
-          .map((id) => String(id || "").trim())
-          .filter(Boolean),
-      ),
+      new Set((pollIds || []).map((id) => String(id || "").trim()).filter(Boolean)),
     );
     const resultMap = {};
     if (ids.length === 0) return resultMap;
@@ -504,7 +441,6 @@ class PollService {
         uncachedIds.push(id);
       }
     }
-
     if (uncachedIds.length === 0) return resultMap;
 
     for (const id of uncachedIds) {
@@ -515,23 +451,17 @@ class PollService {
       };
     }
 
-    const chunks = this.chunkArray(uncachedIds, 30);
-    for (const chunk of chunks) {
-      // OPTIMIZATION: Cap fetch to 1000 instead of 5000 per batch
-      const q = query(
-        collection(db, this.pollVotesCollection),
-        where("pollId", "in", chunk),
-        limit(1000),
-      );
-      const snapshot = await getDocs(q);
-      snapshot.docs.forEach((docSnapshot) => {
-        const voteRow = {
-          $id: docSnapshot.id,
-          ...docSnapshot.data(),
-        };
+    for (const chunk of applyInChunks(uncachedIds, 100)) {
+      const { data, error } = await supabase
+        .from(this.pollVotesCollection)
+        .select(POLL_VOTE_COLUMNS)
+        .in("pollId", chunk)
+        .limit(1000);
+      throwIfSupabaseError(error, "Failed to load poll results.");
+      const rows = normalizeRows(data || []);
+      rows.forEach((voteRow) => {
         const pollId = String(voteRow?.pollId || "").trim();
         if (!pollId || !resultMap[pollId]) return;
-
         resultMap[pollId].votes.push(voteRow);
         const voteValue = Number(voteRow?.vote);
         if (voteValue >= 1 && voteValue <= 5) {
@@ -548,25 +478,19 @@ class PollService {
         expiresAt: Date.now() + this.POLL_CACHE_TTL_MS,
       });
     }
-
     return resultMap;
   }
 
   async getUserVotesBulk(userId, pollIds = []) {
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId) return {};
-
     const ids = Array.from(
-      new Set(
-        (pollIds || [])
-          .map((id) => String(id || "").trim())
-          .filter(Boolean),
-      ),
+      new Set((pollIds || []).map((id) => String(id || "").trim()).filter(Boolean)),
     );
     const resultMap = {};
-    for (const id of ids) {
+    ids.forEach((id) => {
       resultMap[id] = null;
-    }
+    });
     if (ids.length === 0) return resultMap;
 
     const cacheKey = `userVotesBulk_${normalizedUserId}_${ids.join(",")}`;
@@ -574,36 +498,30 @@ class PollService {
     if (cached !== undefined) return cached;
 
     return this.getOrCreateInflight(cacheKey, async () => {
-      const chunks = this.chunkArray(ids, 30);
-      for (const chunk of chunks) {
-        const q = query(
-          collection(db, this.pollVotesCollection),
-          where("userId", "==", normalizedUserId),
-          where("pollId", "in", chunk),
-          limit(5000),
-        );
-        const snapshot = await getDocs(q);
-        snapshot.docs.forEach((docSnapshot) => {
-          const voteRow = {
-            $id: docSnapshot.id,
-            ...docSnapshot.data(),
-          };
+      for (const chunk of applyInChunks(ids, 100)) {
+        const { data, error } = await supabase
+        .from(this.pollVotesCollection)
+        .select(POLL_VOTE_COLUMNS)
+        .eq("userId", normalizedUserId)
+          .in("pollId", chunk);
+        throwIfSupabaseError(error, "Failed to load user votes.");
+        const rows = normalizeRows(data || []);
+        rows.forEach((voteRow) => {
           const pollId = String(voteRow?.pollId || "").trim();
-          if (!pollId || !resultMap[pollId]) {
+          if (!pollId) return;
+          const existing = resultMap[pollId];
+          if (!existing) {
             resultMap[pollId] = voteRow;
             return;
           }
-
-          const existing = resultMap[pollId];
-          const existingTime = this.toTimeMs(
-            existing?.updatedAt || existing?.createdAt,
-          );
+          const existingTime = this.toTimeMs(existing?.updatedAt || existing?.createdAt);
           const nextTime = this.toTimeMs(voteRow?.updatedAt || voteRow?.createdAt);
           if (nextTime >= existingTime) {
             resultMap[pollId] = voteRow;
           }
         });
       }
+
       for (const [pid, vote] of Object.entries(resultMap)) {
         this.setCachedValue(`userVote_${normalizedUserId}_${pid}`, vote);
       }
@@ -612,104 +530,78 @@ class PollService {
     });
   }
 
-  /**
-   * Update poll status (activate/deactivate)
-   */
   async updatePollStatus(pollId, isActive) {
-    try {
-      await updateDoc(doc(db, this.pollCollection, String(pollId)), {
+    const { error } = await supabase
+      .from(this.pollCollection)
+      .update({
         isActive: Boolean(isActive),
-        updatedAt: new Date(),
-      });
-      this.invalidatePollQueryCache();
-      return true;
-    } catch (error) {
-      throw error;
-    }
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("id", String(pollId));
+    throwIfSupabaseError(error, "Failed to update poll.");
+    this.invalidatePollQueryCache();
+    return true;
   }
 
-  /**
-   * Update the active flag for a batch of polls in a single write.
-   * This is significantly faster than issuing a separate network call for
-   * each poll when many polls need to be toggled at once (such as during the
-   * automatic deactivation process on the poll page).
-   *
-   * @param {string[]} pollIds array of poll document ids to update
-   * @param {boolean} isActive new active state
-   */
   async batchUpdatePollStatus(pollIds, isActive) {
     if (!Array.isArray(pollIds) || pollIds.length === 0) return;
-    const batch = writeBatch(db);
-    const timestamp = new Date();
-    pollIds.forEach((id) => {
-      const ref = doc(db, this.pollCollection, String(id));
-      batch.update(ref, { isActive: Boolean(isActive), updatedAt: timestamp });
-    });
-    try {
-      await batch.commit();
-      this.invalidatePollQueryCache();
-      return true;
-    } catch (err) {
-      throw err;
-    }
+    const { error } = await supabase
+      .from(this.pollCollection)
+      .update({
+        isActive: Boolean(isActive),
+        updatedAt: new Date().toISOString(),
+      })
+      .in("id", pollIds.map((id) => String(id)));
+    throwIfSupabaseError(error, "Failed to update polls.");
+    this.invalidatePollQueryCache();
+    return true;
   }
 
-  /**
-   * Update poll details
-   */
   async updatePoll(pollId, updates) {
-    try {
-      const allowedUpdates = { updatedAt: new Date() };
-
-      // Only allow updating specific fields
-      if (updates.pollEndTime !== undefined) {
-        allowedUpdates.pollEndTime = updates.pollEndTime;
-      }
-      if (updates.pollStartTime !== undefined) {
-        allowedUpdates.pollStartTime = updates.pollStartTime;
-      }
-      if (updates.isActive !== undefined) {
-        allowedUpdates.isActive = Boolean(updates.isActive);
-      }
-      if (updates.courseType !== undefined) {
-        allowedUpdates.courseType = String(updates.courseType);
-      }
-
-      await updateDoc(doc(db, this.pollCollection, String(pollId)), allowedUpdates);
-      this.invalidatePollQueryCache();
-      return true;
-    } catch (error) {
-      throw error;
+    const allowedUpdates = { updatedAt: new Date().toISOString() };
+    if (updates.pollEndTime !== undefined) {
+      allowedUpdates.pollEndTime = updates.pollEndTime;
     }
+    if (updates.pollStartTime !== undefined) {
+      allowedUpdates.pollStartTime = updates.pollStartTime;
+    }
+    if (updates.isActive !== undefined) {
+      allowedUpdates.isActive = Boolean(updates.isActive);
+    }
+    if (updates.courseType !== undefined) {
+      allowedUpdates.courseType = String(updates.courseType);
+    }
+
+    const { error } = await supabase
+      .from(this.pollCollection)
+      .update(allowedUpdates)
+      .eq("id", String(pollId));
+    throwIfSupabaseError(error, "Failed to update poll.");
+    this.invalidatePollQueryCache();
+    return true;
   }
 
-  /**
-   * Delete a poll (only by creator)
-   */
   async deletePoll(pollId) {
-    try {
-      await deleteDoc(doc(db, this.pollCollection, String(pollId)));
-      this.invalidatePollQueryCache();
-      this.pollResultsCache.delete(String(pollId));
-      return true;
-    } catch (error) {
-      throw error;
-    }
+    const { error } = await supabase
+      .from(this.pollCollection)
+      .delete()
+      .eq("id", String(pollId));
+    throwIfSupabaseError(error, "Failed to delete poll.");
+    this.invalidatePollQueryCache();
+    this.pollResultsCache.delete(String(pollId));
+    return true;
   }
 
-  /**
-   * Delete a vote
-   */
   async deleteVote(voteId) {
-    try {
-      await deleteDoc(doc(db, this.pollVotesCollection, String(voteId)));
-      this.pollResultsCache.clear();
-      this.pollQueryCache.clear();
-      this.inflightRequests.clear();
-      return true;
-    } catch (error) {
-      throw error;
-    }
+    const { error } = await supabase
+      .from(this.pollVotesCollection)
+      .delete()
+      .eq("id", String(voteId));
+    throwIfSupabaseError(error, "Failed to delete vote.");
+    this.pollResultsCache.clear();
+    this.pollQueryCache.clear();
+    this.inflightRequests.clear();
+    return true;
   }
 }
 

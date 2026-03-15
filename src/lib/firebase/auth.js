@@ -1,11 +1,5 @@
-import {
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut,
-  deleteUser,
-  onAuthStateChanged,
-} from "firebase/auth";
-import { auth } from "./client.js";
+import clientConfig from "../../config/client.js";
+import { supabase, isSupabaseConfigured } from "../supabase/client.js";
 
 export const ALLOWED_EMAIL_DOMAIN = "vitapstudent.ac.in";
 
@@ -29,14 +23,7 @@ function parseLegacyUserIdMap() {
 }
 
 function parseExplicitlyAllowedEmails() {
-  const raw = String(import.meta.env.VITE_EXPLICIT_ALLOWED_EMAILS || "").trim();
-  if (!raw) return new Set();
-  return new Set(
-    raw
-      .split(",")
-      .map((row) => String(row || "").trim().toLowerCase())
-      .filter(Boolean),
-  );
+  return new Set(clientConfig.explicitAllowedEmails || []);
 }
 
 const LEGACY_USER_ID_BY_EMAIL = parseLegacyUserIdMap();
@@ -49,29 +36,29 @@ function getAssignedUserId(user) {
   if (email && Object.hasOwn(LEGACY_USER_ID_BY_EMAIL, email)) {
     return LEGACY_USER_ID_BY_EMAIL[email];
   }
-  return String(user?.uid || "").trim();
+  return String(user?.id || "").trim();
 }
 
 function normalizeUser(user) {
   if (!user) return null;
 
-  const createdAt =
-    user?.metadata?.creationTime
-      ? new Date(user.metadata.creationTime).toISOString()
-      : null;
-  const updatedAt =
-    user?.metadata?.lastSignInTime
-      ? new Date(user.metadata.lastSignInTime).toISOString()
-      : createdAt;
+  const createdAt = user?.created_at || null;
+  const updatedAt = user?.last_sign_in_at || createdAt;
+  const metadata = user.user_metadata || {};
 
   return {
     $id: getAssignedUserId(user),
-    uid: String(user.uid || "").trim(),
+    uid: String(user.id || "").trim(),
     email: user.email || "",
-    name: user.displayName || user.email || "User",
-    displayName: user.displayName || "",
-    photoURL: user.photoURL || "",
-    emailVerified: Boolean(user.emailVerified),
+    name:
+      metadata.full_name ||
+      metadata.name ||
+      metadata.user_name ||
+      user.email ||
+      "User",
+    displayName: metadata.full_name || metadata.name || "",
+    photoURL: metadata.avatar_url || metadata.picture || "",
+    emailVerified: Boolean(user.email_confirmed_at),
     $createdAt: createdAt,
     $updatedAt: updatedAt,
   };
@@ -88,11 +75,7 @@ function isAllowedEmailInternal(email) {
   const localPart = normalized.slice(0, atIndex);
   const domain = normalized.slice(atIndex + 1);
   if (domain !== ALLOWED_EMAIL_DOMAIN) return false;
-
-  // Explicitly disallow PhD-format student emails such as:
-  // name.23phd123@vitapstudent.ac.in
   if (/\.\d{2}phd/i.test(localPart)) return false;
-
   return true;
 }
 
@@ -151,7 +134,7 @@ export function clearPendingAuthCheck() {
 }
 
 export class AuthService {
-  authInitialized = false;
+  authInitialized = isSupabaseConfigured;
   initError = null;
   currentUser = null;
   hasResolvedInitialAuthState = false;
@@ -159,15 +142,31 @@ export class AuthService {
   initialAuthStatePromise = null;
 
   constructor() {
-    // Firebase auth is already initialized from client.js
-    this.authInitialized = true;
+    if (!this.authInitialized || !supabase) {
+      this.initError = "Supabase auth is not configured";
+      this.hasResolvedInitialAuthState = true;
+      this.initialAuthStatePromise = Promise.resolve();
+      return;
+    }
+
     this.initialAuthStatePromise = new Promise((resolve) => {
       this.resolveInitialAuthState = resolve;
     });
 
-    // Set up auth state listener
-    onAuthStateChanged(auth, (user) => {
-      this.currentUser = normalizeUser(user);
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        this.currentUser = normalizeUser(data?.user || null);
+      })
+      .finally(() => {
+        if (!this.hasResolvedInitialAuthState) {
+          this.hasResolvedInitialAuthState = true;
+          this.resolveInitialAuthState?.();
+        }
+      });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      this.currentUser = normalizeUser(session?.user || null);
       if (!this.hasResolvedInitialAuthState) {
         this.hasResolvedInitialAuthState = true;
         this.resolveInitialAuthState?.();
@@ -177,145 +176,133 @@ export class AuthService {
 
   async waitForInitialAuthState(timeoutMs = 3000) {
     if (this.hasResolvedInitialAuthState) return;
-
     await Promise.race([
       this.initialAuthStatePromise,
       new Promise((resolve) => setTimeout(resolve, timeoutMs)),
     ]);
   }
 
-  // Google OAuth sign in
   async googleSignIn() {
-    if (!this.authInitialized) {
-      throw new Error(this.initError || "Firebase service not initialized");
+    if (!this.authInitialized || !supabase) {
+      throw new Error(this.initError || "Supabase auth not initialized");
     }
 
-    try {
-      setAuthCheckFlag(true);
-      const googleProvider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+    setAuthCheckFlag(true);
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname}${window.location.search}`
+        : clientConfig.siteUrl;
 
-      // Check email domain
-      if (!isAllowedEmailInternal(user.email)) {
-        await signOut(auth);
-        setAuthCheckFlag(false);
-        clearSessionStartedAt();
-        const error = new Error(
-          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
-        );
-        error.type = "disallowed_email_domain";
-        throw error;
-      }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          hd: ALLOWED_EMAIL_DOMAIN,
+        },
+      },
+    });
 
-      setSessionStartedAt(Date.now());
-
-      return normalizeUser(user);
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Get current user
-  async getCurrentUser() {
-    if (!this.authInitialized) {
-      return null;
-    }
-
-    try {
-      // On reload Firebase may restore the persisted session asynchronously.
-      await this.waitForInitialAuthState();
-      const user = auth.currentUser;
-
-      if (!user) {
-        setAuthCheckFlag(false);
-        clearSessionStartedAt();
-        return null;
-      }
-
-      if (isSessionExpired()) {
-        await signOut(auth);
-        setAuthCheckFlag(false);
-        clearSessionStartedAt();
-        const error = new Error("Session expired. Please sign in again.");
-        error.type = "session_expired";
-        throw error;
-      }
-
-      if (!getSessionStartedAt()) {
-        // Backfill timestamp for older persisted sessions.
-        setSessionStartedAt(Date.now());
-      }
-
-      if (!isAllowedEmailInternal(user.email)) {
-        await signOut(auth);
-        setAuthCheckFlag(false);
-        clearSessionStartedAt();
-        const error = new Error(
-          `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
-        );
-        error.type = "disallowed_email_domain";
-        throw error;
-      }
-
-      // User is valid, make sure flag is set
-      setAuthCheckFlag(true);
-      return normalizeUser(user);
-    } catch (error) {
-      if (
-        String(error?.type || "").toLowerCase() === "disallowed_email_domain"
-      ) {
-        throw error;
-      }
-      return null;
-    }
-  }
-
-  // Logout
-  async logout() {
-    if (!this.authInitialized) {
-      setAuthCheckFlag(false);
-      return true;
-    }
-
-    try {
-      await signOut(auth);
+    if (error) {
       setAuthCheckFlag(false);
       clearSessionStartedAt();
-      this.currentUser = null;
-      return true;
-    } catch (error) {
       throw error;
     }
+
+    return true;
+  }
+
+  async getCurrentUser() {
+    if (!this.authInitialized || !supabase) {
+      return null;
+    }
+
+    await this.waitForInitialAuthState();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    const user = data?.user || null;
+
+    if (!user) {
+      setAuthCheckFlag(false);
+      clearSessionStartedAt();
+      return null;
+    }
+
+    if (isSessionExpired()) {
+      await supabase.auth.signOut();
+      setAuthCheckFlag(false);
+      clearSessionStartedAt();
+      const sessionError = new Error("Session expired. Please sign in again.");
+      sessionError.type = "session_expired";
+      throw sessionError;
+    }
+
+    if (!getSessionStartedAt()) {
+      setSessionStartedAt(Date.now());
+    }
+
+    if (!isAllowedEmailInternal(user.email)) {
+      await supabase.auth.signOut();
+      setAuthCheckFlag(false);
+      clearSessionStartedAt();
+      const domainError = new Error(
+        `Only @${ALLOWED_EMAIL_DOMAIN} email accounts are allowed.`,
+      );
+      domainError.type = "disallowed_email_domain";
+      throw domainError;
+    }
+
+    setAuthCheckFlag(true);
+    this.currentUser = normalizeUser(user);
+    return this.currentUser;
+  }
+
+  async logout() {
+    if (!supabase) {
+      setAuthCheckFlag(false);
+      return true;
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    setAuthCheckFlag(false);
+    clearSessionStartedAt();
+    this.currentUser = null;
+    return true;
   }
 
   async deleteCurrentAccount() {
-    if (!this.authInitialized) {
-      throw new Error(this.initError || "Firebase service not initialized");
+    if (!supabase) {
+      throw new Error(this.initError || "Supabase auth not initialized");
     }
 
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error("No user is currently logged in");
+    const rpcName = String(clientConfig.supabaseDeleteAccountRpc || "").trim();
+    if (!rpcName) {
+      throw new Error(
+        "Account deletion RPC is not configured. Set VITE_SUPABASE_DELETE_ACCOUNT_RPC.",
+      );
     }
 
-    try {
-      await deleteUser(user);
-      setAuthCheckFlag(false);
-      clearSessionStartedAt();
-      this.currentUser = null;
-      return true;
-    } catch (error) {
-      throw error;
+    const { error } = await supabase.rpc(rpcName);
+    if (error) {
+      throw new Error(
+        error.message ||
+          "Failed to delete the current account. Check your Supabase RPC setup.",
+      );
     }
+
+    await supabase.auth.signOut();
+    setAuthCheckFlag(false);
+    clearSessionStartedAt();
+    this.currentUser = null;
+    return true;
   }
 
-  // Check if user is logged in
   async isLoggedIn() {
     try {
       const user = await this.getCurrentUser();
       return !!user;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

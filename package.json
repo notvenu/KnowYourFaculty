@@ -1,7 +1,7 @@
 {
   "name": "knowyourfaculty",
   "private": true,
-  "version": "2.0.1",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "scraper:run": "node scripts/scrapeOnce.js",
+    "supabase:functions:serve:weekly": "npx supabase functions serve weekly-scrape --no-verify-jwt --env-file .env",
+    "supabase:functions:deploy:weekly": "npx supabase functions deploy weekly-scrape --no-verify-jwt",
     "faculty:stats": "node -e \"import('./src/lib/firebase/facultyRepo.js').then(m => m.getFacultyStats()).then(console.log)\"",
     "faculty:count": "node -e \"import('./src/lib/firebase/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\""
   },
@@ -19,6 +21,7 @@
     "@fortawesome/react-fontawesome": "^3.2.0",
     "@grpc/grpc-js": "^1.14.3",
     "@reduxjs/toolkit": "^2.11.2",
+    "@supabase/supabase-js": "^2.99.1",
     "@tailwindcss/vite": "^4.1.18",
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",

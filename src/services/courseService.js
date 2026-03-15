@@ -1,20 +1,14 @@
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  getDoc,
-  doc,
-  documentId,
-  addDoc,
-  updateDoc,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "../lib/firebase/client.js";
 import clientConfig from "../config/client.js";
 import { fuzzyScoreAny } from "../lib/fuzzySearch.js";
+import { supabase } from "../lib/supabase/client.js";
+import {
+  applyInChunks,
+  normalizeRow,
+  normalizeRows,
+  throwIfSupabaseError,
+} from "../lib/supabase/helpers.js";
+
+const COURSE_COLUMNS = ["id", "courseCode", "courseName", "createdAt", "updatedAt"].join(", ");
 
 function normalizeText(value) {
   return String(value || "").trim();
@@ -34,21 +28,6 @@ function normalizeSearchCompact(value) {
   return normalizeSearchText(value).replace(/[^a-z0-9]+/g, "");
 }
 
-function toFriendlyCourseWriteError(error) {
-  const code = String(error?.code || "").toLowerCase();
-  const message = String(error?.message || "");
-  const lowerMessage = message.toLowerCase();
-  if (
-    code.includes("permission-denied") ||
-    lowerMessage.includes("missing or insufficient permissions")
-  ) {
-    return new Error(
-      "Missing Firestore write permission for courses. Ensure your account is listed in VITE_ADMIN_EMAILS and Firebase rules allow admin writes to the courses collection.",
-    );
-  }
-  return error;
-}
-
 function mergeCoursesByCode(courses = []) {
   const merged = new Map();
 
@@ -58,13 +37,7 @@ function mergeCoursesByCode(courses = []) {
     if (!courseCode || !courseName) continue;
 
     const existing = merged.get(courseCode);
-    if (!existing) {
-      merged.set(courseCode, { courseCode, courseName });
-      continue;
-    }
-
-    // Keep the richer name when duplicates exist.
-    if (courseName.length > existing.courseName.length) {
+    if (!existing || courseName.length > existing.courseName.length) {
       merged.set(courseCode, { courseCode, courseName });
     }
   }
@@ -73,7 +46,7 @@ function mergeCoursesByCode(courses = []) {
 }
 
 class CourseService {
-  coursesCollection = clientConfig.firebaseCoursesCollection;
+  coursesCollection = clientConfig.supabaseCoursesTable;
   allCoursesCache = null;
   allCoursesCacheExpiry = 0;
   allCoursesCacheLimit = 0;
@@ -81,16 +54,12 @@ class CourseService {
   courseByIdCache = new Map();
   courseByIdCacheExpiry = new Map();
   courseByIdInflight = new Map();
-  CACHE_TTL_MS = 50 * 60 * 1000;  // Courses rarely change, cache for 50 min
-  PERSISTENT_CACHE_PREFIX = "kyf.courses";
+  CACHE_TTL_MS = 50 * 60 * 1000;
+  PERSISTENT_CACHE_PREFIX = "kyf.courses.v2";
   PERSISTENT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
   constructor() {
     this.hydrateAllCoursesFromPersistentCache();
-  }
-
-  get coursesTableId() {
-    return this.coursesCollection;
   }
 
   getStorage() {
@@ -135,7 +104,6 @@ class CourseService {
         }),
       );
     } catch {
-      // ignore storage write issues
     }
   }
 
@@ -145,12 +113,11 @@ class CourseService {
     try {
       storage.removeItem(this.getPersistentKey(suffix));
     } catch {
-      // ignore storage cleanup issues
     }
   }
 
   hydrateAllCoursesFromPersistentCache() {
-    const persisted = this.readPersistentCache("allCourses:v1");
+    const persisted = this.readPersistentCache("allCourses:v2");
     if (!Array.isArray(persisted) || persisted.length === 0) return;
     this.allCoursesCache = persisted;
     this.allCoursesCacheLimit = persisted.length;
@@ -163,68 +130,37 @@ class CourseService {
     }
   }
 
-  async listRows(constraints = []) {
-    try {
-      // Add default limit if not specified
-      // OPTIMIZATION: Default to 1000 instead of 5000 for efficiency
-      let constraints_copy = [...(constraints || [])];
-      if (!constraints_copy.some((c) => c.type === "limit")) {
-        constraints_copy.push(limit(1000));
-      }
-
-      const q = query(collection(db, this.coursesCollection), ...constraints_copy);
-      const snapshot = await getDocs(q);
-
-      return {
-        rows: snapshot.docs.map((doc) => ({
-          $id: doc.id,
-          ...doc.data(),
-        })),
-        total: snapshot.docs.length,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
   async createRow(data) {
-    try {
-      const payload = {
-        ...data,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-
-      const docRef = await addDoc(collection(db, this.coursesCollection), payload);
-      this.clearCourseCache();
-      return {
-        $id: docRef.id,
-        ...payload,
-      };
-    } catch (error) {
-      throw toFriendlyCourseWriteError(error);
-    }
+    const timestamp = new Date().toISOString();
+    const payload = {
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const { data: created, error } = await supabase
+      .from(this.coursesCollection)
+      .insert(payload)
+      .select("*")
+      .single();
+    throwIfSupabaseError(error, "Failed to create course.");
+    this.clearCourseCache();
+    return normalizeRow(created);
   }
 
   async updateRow(docId, data) {
-    try {
-      const docRef = doc(db, this.coursesCollection, docId);
-      const payload = {
-        ...data,
-        updatedAt: Timestamp.now(),
-      };
-
-      await updateDoc(docRef, payload);
-      this.clearCourseCache();
-
-      // OPTIMIZATION: Return optimistic update instead of extra getDoc()
-      return {
-        $id: docId,
-        ...payload,
-      };
-    } catch (error) {
-      throw toFriendlyCourseWriteError(error);
-    }
+    const payload = {
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+    const { data: updated, error } = await supabase
+      .from(this.coursesCollection)
+      .update(payload)
+      .eq("id", docId)
+      .select("*")
+      .single();
+    throwIfSupabaseError(error, "Failed to update course.");
+    this.clearCourseCache();
+    return normalizeRow(updated);
   }
 
   clearCourseCache() {
@@ -235,7 +171,7 @@ class CourseService {
     this.courseByIdCache.clear();
     this.courseByIdCacheExpiry.clear();
     this.courseByIdInflight.clear();
-    this.removePersistentCache("allCourses:v1");
+    this.removePersistentCache("allCourses:v2");
   }
 
   async getCourseById(courseId) {
@@ -243,22 +179,19 @@ class CourseService {
     if (!id) return null;
 
     if (this.allCoursesCache && this.allCoursesCacheExpiry > Date.now()) {
-      const row = (this.allCoursesCache || []).find(
-        (course) => String(course?.$id || "") === id,
-      );
-      const value = row || null;
-      this.courseByIdCache.set(id, value);
+      const row =
+        (this.allCoursesCache || []).find((course) => String(course?.$id || "") === id) ||
+        null;
+      this.courseByIdCache.set(id, row);
       this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-      return value;
+      return row;
     }
 
-    // Check cache with expiry
     if (this.courseByIdCache.has(id)) {
       const expiry = this.courseByIdCacheExpiry.get(id);
       if (expiry && expiry > Date.now()) {
         return this.courseByIdCache.get(id);
       }
-      // Expired, remove it
       this.courseByIdCache.delete(id);
       this.courseByIdCacheExpiry.delete(id);
     }
@@ -267,65 +200,46 @@ class CourseService {
       return this.courseByIdInflight.get(id);
     }
 
+    const fetchPromise = (async () => {
+      const { data, error } = await supabase
+        .from(this.coursesCollection)
+        .select(COURSE_COLUMNS)
+        .eq("id", id)
+        .maybeSingle();
+      throwIfSupabaseError(error, "Failed to load course.");
+      const row = data ? normalizeRow(data) : null;
+      this.courseByIdCache.set(id, row);
+      this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
+      return row;
+    })();
+
+    this.courseByIdInflight.set(id, fetchPromise);
     try {
-      const fetchPromise = (async () => {
-        const docRef = doc(db, this.coursesCollection, id);
-        const docSnap = await getDoc(docRef);
-
-        if (!docSnap.exists()) {
-          this.courseByIdCache.set(id, null);
-          this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-          return null;
-        }
-
-        const row = {
-          $id: docSnap.id,
-          ...docSnap.data(),
-        };
-        this.courseByIdCache.set(id, row);
-        this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-        return row;
-      })();
-      this.courseByIdInflight.set(id, fetchPromise);
       return await fetchPromise;
-    } catch (error) {
-      return null;
     } finally {
       this.courseByIdInflight.delete(id);
     }
   }
 
-  /**
-   * Batch-fetch courses by multiple IDs to avoid N+1 queries
-   * Returns { [courseId]: course_object or null }
-   */
   async getCourseByIdBatch(courseIds = []) {
     const sanitized = Array.from(
-      new Set(
-        (courseIds || [])
-          .map((id) => normalizeText(id))
-          .filter(Boolean)
-      )
+      new Set((courseIds || []).map((id) => normalizeText(id)).filter(Boolean)),
     );
     if (sanitized.length === 0) return {};
 
     const result = {};
     const uncached = [];
-
-    // Check what's already cached
     for (const id of sanitized) {
       if (this.courseByIdCache.has(id)) {
         const expiry = this.courseByIdCacheExpiry.get(id);
         if (expiry && expiry > Date.now()) {
           result[id] = this.courseByIdCache.get(id);
-        } else {
-          this.courseByIdCache.delete(id);
-          this.courseByIdCacheExpiry.delete(id);
-          uncached.push(id);
+          continue;
         }
-      } else {
-        uncached.push(id);
+        this.courseByIdCache.delete(id);
+        this.courseByIdCacheExpiry.delete(id);
       }
+      uncached.push(id);
     }
 
     if (uncached.length === 0) return result;
@@ -343,39 +257,19 @@ class CourseService {
       return result;
     }
 
-    // Batch-fetch in 30-item chunks using 'in' operator
-    const chunks = [];
-    for (let i = 0; i < uncached.length; i += 30) {
-      chunks.push(uncached.slice(i, i + 30));
-    }
-
-    for (const chunk of chunks) {
-      try {
-        const q = query(
-          collection(db, this.coursesCollection),
-          where(documentId(), "in", chunk),
-        );
-        const snapshot = await getDocs(q);
-        const foundIds = new Set();
-        snapshot.docs.forEach((docSnapshot) => {
-          const row = { $id: docSnapshot.id, ...docSnapshot.data() };
-          const id = String(row?.$id || "");
-          if (!id) return;
-          foundIds.add(id);
-          result[id] = row;
-          this.courseByIdCache.set(id, row);
-          this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-        });
-        for (const id of chunk) {
-          if (foundIds.has(id)) continue;
-          result[id] = null;
-          this.courseByIdCache.set(id, null);
-          this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
-        }
-      } catch (error) {
-        for (const id of chunk) {
-          result[id] = null;
-        }
+    for (const chunk of applyInChunks(uncached, 100)) {
+      const { data, error } = await supabase
+        .from(this.coursesCollection)
+        .select(COURSE_COLUMNS)
+        .in("id", chunk);
+      throwIfSupabaseError(error, "Failed to load courses.");
+      const rows = normalizeRows(data || []);
+      const rowMap = new Map(rows.map((row) => [String(row.$id), row]));
+      for (const id of chunk) {
+        const row = rowMap.get(id) || null;
+        result[id] = row;
+        this.courseByIdCache.set(id, row);
+        this.courseByIdCacheExpiry.set(id, Date.now() + this.CACHE_TTL_MS);
       }
     }
 
@@ -386,11 +280,14 @@ class CourseService {
     const normalizedCode = normalizeCourseCode(courseCode);
     if (!normalizedCode) return null;
 
-    const response = await this.listRows([
-      where("courseCode", "==", normalizedCode),
-      limit(1),
-    ]);
-    return response.rows?.[0] || null;
+    const { data, error } = await supabase
+      .from(this.coursesCollection)
+      .select(COURSE_COLUMNS)
+      .eq("courseCode", normalizedCode)
+      .limit(1)
+      .maybeSingle();
+    throwIfSupabaseError(error, "Failed to load course by code.");
+    return data ? normalizeRow(data) : null;
   }
 
   async createOrUpdateCourse({ courseCode, courseName }) {
@@ -413,35 +310,36 @@ class CourseService {
     return this.createRow(payload);
   }
 
-  async getAllCourses(limit_num = 5000) {
+  async getAllCourses(limitNum = 5000) {
     if (
       this.allCoursesCache &&
       this.allCoursesCacheExpiry > Date.now() &&
-      this.allCoursesCacheLimit === limit_num
+      this.allCoursesCacheLimit === limitNum
     ) {
       return this.allCoursesCache;
     }
 
-    if (this.allCoursesInflight && this.allCoursesCacheLimit === limit_num) {
+    if (this.allCoursesInflight && this.allCoursesCacheLimit === limitNum) {
       return this.allCoursesInflight;
     }
 
-    this.allCoursesCacheLimit = limit_num;
+    this.allCoursesCacheLimit = limitNum;
     this.allCoursesInflight = (async () => {
-      const response = await this.listRows([
-        orderBy("courseCode", "asc"),
-        limit(limit_num),
-      ]);
-      const rows = response.rows || [];
+      const { data, error } = await supabase
+        .from(this.coursesCollection)
+        .select(COURSE_COLUMNS)
+        .order("courseCode", { ascending: true })
+        .limit(limitNum);
+      throwIfSupabaseError(error, "Failed to load courses.");
+      const rows = normalizeRows(data || []);
       this.allCoursesCache = rows;
       this.allCoursesCacheExpiry = Date.now() + this.CACHE_TTL_MS;
-      this.writePersistentCache("allCourses:v1", rows);
+      this.writePersistentCache("allCourses:v2", rows);
       for (const row of rows) {
         const rowId = normalizeText(row?.$id);
-        if (rowId) {
-          this.courseByIdCache.set(rowId, row);
-          this.courseByIdCacheExpiry.set(rowId, Date.now() + this.CACHE_TTL_MS);
-        }
+        if (!rowId) continue;
+        this.courseByIdCache.set(rowId, row);
+        this.courseByIdCacheExpiry.set(rowId, Date.now() + this.CACHE_TTL_MS);
       }
       return rows;
     })();
@@ -469,7 +367,6 @@ class CourseService {
             const nameCompact = normalizeSearchCompact(name);
             let score = 0;
 
-            // Deterministic contains/prefix matching first.
             if (normalizedLower && codeLower === normalizedLower) score += 1200;
             if (normalizedLower && nameLower === normalizedLower) score += 1100;
             if (normalizedLower && codeLower.startsWith(normalizedLower)) score += 1000;
@@ -479,7 +376,6 @@ class CourseService {
             if (normalizedCompact && codeCompact.includes(normalizedCompact)) score += 400;
             if (normalizedCompact && nameCompact.includes(normalizedCompact)) score += 350;
 
-            // Fuzzy only as fallback signal.
             if (score <= 0) {
               score = fuzzyScoreAny([code, name], normalized);
             }

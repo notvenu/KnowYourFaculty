@@ -90,7 +90,7 @@ export const googleSignIn = createAsyncThunk(
       }
 
       return rejectWithValue(
-        error?.message || "Google login failed. Check Firebase OAuth settings.",
+        error?.message || "Google login failed. Check Supabase Google OAuth settings.",
       );
     }
   },
