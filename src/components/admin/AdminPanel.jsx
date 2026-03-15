@@ -34,7 +34,8 @@ function toTimeMs(value) {
 
 function formatDateTime(value) {
   if (!value) return "N/A";
-  const date = typeof value?.toDate === "function" ? value.toDate() : new Date(value);
+  const date =
+    typeof value?.toDate === "function" ? value.toDate() : new Date(value);
   if (!Number.isFinite(date?.getTime?.())) return "N/A";
   return date.toLocaleString(undefined, {
     dateStyle: "medium",
@@ -160,12 +161,13 @@ function AdminPanel() {
       setLoading(true);
       setError(null);
 
-      const [recentRows, totalEntries, wfRows, facultySnapshot] = await Promise.all([
-        facultyFeedbackService.getRecentFeedbackEntries(200),
-        facultyFeedbackService.getFeedbackTotalCount(),
-        websiteFeedbackService.getAllFeedback(),
-        publicFacultyService.getFullFacultySnapshot(),
-      ]);
+      const [recentRows, totalEntries, wfRows, facultySnapshot] =
+        await Promise.all([
+          facultyFeedbackService.getRecentFeedbackEntries(200),
+          facultyFeedbackService.getFeedbackTotalCount(),
+          websiteFeedbackService.getAllFeedback(),
+          publicFacultyService.getFullFacultySnapshot(),
+        ]);
       const rows = recentRows || [];
 
       const nameMap = {};
@@ -220,7 +222,8 @@ function AdminPanel() {
       setUploading(true);
       setUploadMessage(null);
 
-      const { extractCoursesFromPdf } = await import("../../lib/parsers/coursePdfParser.js");
+      const { extractCoursesFromPdf } =
+        await import("../../lib/parsers/coursePdfParser.js");
       const parsed = await extractCoursesFromPdf(courseForm.file);
       const result = await courseService.upsertCoursesFromPdf({
         courses: parsed.courses,
@@ -236,7 +239,9 @@ function AdminPanel() {
       const isPermissionError =
         msg.toLowerCase().includes("insufficient permissions") ||
         msg.toLowerCase().includes("permission") ||
-        String(submitError?.code || "").toLowerCase().includes("permission-denied");
+        String(submitError?.code || "")
+          .toLowerCase()
+          .includes("permission-denied");
       if (isPermissionError) {
         const adminsConfigured = (clientConfig.adminEmails || []).length > 0;
         setUploadMessage(
@@ -279,7 +284,8 @@ function AdminPanel() {
           Admin Dashboard
         </h1>
         <p className="mt-1 text-sm text-(--muted)">
-          Manage course uploads, monitor user joins, and moderate reviews and ratings.
+          Manage course uploads, monitor user joins, and moderate reviews and
+          ratings.
         </p>
       </div>
 
@@ -312,7 +318,9 @@ function AdminPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-          <h2 className="mb-4 text-lg font-bold text-(--text)">Upload course PDF</h2>
+          <h2 className="mb-4 text-lg font-bold text-(--text)">
+            Upload course PDF
+          </h2>
           <form onSubmit={handleSubmitCourse} className="space-y-4">
             <input
               type="file"
@@ -333,27 +341,47 @@ function AdminPanel() {
             >
               {uploading ? "Parsing..." : "Parse PDF and save courses"}
             </button>
-            {uploadMessage ? <p className="text-sm text-(--muted)">{uploadMessage}</p> : null}
+            {uploadMessage ? (
+              <p className="text-sm text-(--muted)">{uploadMessage}</p>
+            ) : null}
           </form>
         </div>
 
         <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-          <h2 className="mb-4 text-lg font-bold text-(--text)">Users Joined (Activity Based)</h2>
+          <h2 className="mb-4 text-lg font-bold text-(--text)">
+            Users Joined (Activity Based)
+          </h2>
           {userJoinedSeries.length === 0 ? (
             <p className="text-sm text-(--muted)">No user activity data yet.</p>
           ) : (
             <div className="space-y-3">
               {userJoinedSeries.map((item) => {
-                const maxCount = Math.max(...userJoinedSeries.map((x) => x.count), 1);
-                const width = Math.max(8, Math.round((item.count / maxCount) * 100));
+                const maxCount = Math.max(
+                  ...userJoinedSeries.map((x) => x.count),
+                  1,
+                );
+                const width = Math.max(
+                  8,
+                  Math.round((item.count / maxCount) * 100),
+                );
                 return (
-                  <div key={item.date} className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3">
+                  <div
+                    key={item.date}
+                    className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3"
+                  >
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-(--muted)">{item.date}</span>
-                      <span className="text-sm font-bold text-(--primary)">{item.count}</span>
+                      <span className="text-xs font-semibold text-(--muted)">
+                        {item.date}
+                      </span>
+                      <span className="text-sm font-bold text-(--primary)">
+                        {item.count}
+                      </span>
                     </div>
                     <div className="h-2 rounded-full bg-(--bg)">
-                      <div className="h-2 rounded-full bg-(--primary)" style={{ width: `${width}%` }} />
+                      <div
+                        className="h-2 rounded-full bg-(--primary)"
+                        style={{ width: `${width}%` }}
+                      />
                     </div>
                   </div>
                 );
@@ -364,23 +392,38 @@ function AdminPanel() {
       </div>
 
       <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-        <h2 className="mb-4 text-lg font-bold text-(--text)">Ratings Distribution</h2>
+        <h2 className="mb-4 text-lg font-bold text-(--text)">
+          Ratings Distribution
+        </h2>
         {feedbackEntries.length === 0 ? (
           <p className="text-sm text-(--muted)">No ratings yet.</p>
         ) : (
           <div className="space-y-2">
             {[5, 4, 3, 2, 1].map((rating) => {
-              const maxCount = Math.max(...Object.values(ratingDistribution), 1);
+              const maxCount = Math.max(
+                ...Object.values(ratingDistribution),
+                1,
+              );
               const count = ratingDistribution[rating] || 0;
               const width = Math.max(4, Math.round((count / maxCount) * 100));
               return (
-                <div key={rating} className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3">
+                <div
+                  key={rating}
+                  className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3"
+                >
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-(--text)">{rating} Star</span>
-                    <span className="text-sm font-bold text-(--primary)">{count}</span>
+                    <span className="text-sm font-medium text-(--text)">
+                      {rating} Star
+                    </span>
+                    <span className="text-sm font-bold text-(--primary)">
+                      {count}
+                    </span>
                   </div>
                   <div className="h-2 rounded-full bg-(--bg)">
-                    <div className="h-2 rounded-full bg-(--primary)" style={{ width: `${width}%` }} />
+                    <div
+                      className="h-2 rounded-full bg-(--primary)"
+                      style={{ width: `${width}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -391,7 +434,9 @@ function AdminPanel() {
 
       <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-(--text)">Reviews and Ratings</h2>
+          <h2 className="text-lg font-bold text-(--text)">
+            Reviews and Ratings
+          </h2>
           <div className="flex items-center gap-2">
             {["all", "reviews", "ratings"].map((filter) => (
               <button
@@ -441,7 +486,8 @@ function AdminPanel() {
             ) : null}
             {paginatedEntries.map((entry) => {
               const facultyId = String(entry?.facultyId || "").trim();
-              const facultyName = facultyNameMap[facultyId] || `Faculty ${facultyId || "N/A"}`;
+              const facultyName =
+                facultyNameMap[facultyId] || `Faculty ${facultyId || "N/A"}`;
               const userId = String(entry?.userId || "").trim();
               const userLabel = userId || "N/A";
               const hasReview = String(entry?.review || "").trim().length > 0;
@@ -453,7 +499,9 @@ function AdminPanel() {
                   className="flex flex-col gap-2 rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-(--text)">{facultyName}</span>
+                    <span className="font-semibold text-(--text)">
+                      {facultyName}
+                    </span>
                     <span className="text-xs text-(--muted)">
                       {formatDateTime(entry?.updatedAt || entry?.createdAt)}
                     </span>
@@ -473,7 +521,11 @@ function AdminPanel() {
                       </span>
                     ) : null}
                   </div>
-                  {hasReview ? <p className="line-clamp-2 text-xs text-(--muted)">{entry.review}</p> : null}
+                  {hasReview ? (
+                    <p className="line-clamp-2 text-xs text-(--muted)">
+                      {entry.review}
+                    </p>
+                  ) : null}
                   <div className="flex justify-end">
                     <button
                       type="button"
@@ -517,30 +569,52 @@ function AdminPanel() {
 
       {/* Website Feedback Section */}
       <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-        <h2 className="mb-4 text-lg font-bold text-(--text)">Website Feedback</h2>
+        <h2 className="mb-4 text-lg font-bold text-(--text)">
+          Website Feedback
+        </h2>
         {websiteFeedbacks.length === 0 ? (
-          <p className="text-sm text-(--muted)">No website feedback submitted yet.</p>
+          <p className="text-sm text-(--muted)">
+            No website feedback submitted yet.
+          </p>
         ) : (
           <>
             {/* Summary stats */}
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
               {(() => {
                 const total = websiteFeedbacks.length;
-                const avg = websiteFeedbacks.reduce((s, r) => s + (Number(r.rating) || 0), 0) / total;
-                const withSuggestions = websiteFeedbacks.filter((r) => String(r.suggestions || "").trim()).length;
+                const avg =
+                  websiteFeedbacks.reduce(
+                    (s, r) => s + (Number(r.rating) || 0),
+                    0,
+                  ) / total;
+                const withSuggestions = websiteFeedbacks.filter((r) =>
+                  String(r.suggestions || "").trim(),
+                ).length;
                 return (
                   <>
                     <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">Submissions</p>
-                      <p className="mt-1 text-xl font-bold text-(--text)">{total}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+                        Submissions
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-(--text)">
+                        {total}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">Avg Rating</p>
-                      <p className="mt-1 text-xl font-bold text-(--text)">{avg.toFixed(1)} / 5</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+                        Avg Rating
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-(--text)">
+                        {avg.toFixed(1)} / 5
+                      </p>
                     </div>
                     <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">With Suggestions</p>
-                      <p className="mt-1 text-xl font-bold text-(--text)">{withSuggestions}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+                        With Suggestions
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-(--text)">
+                        {withSuggestions}
+                      </p>
                     </div>
                   </>
                 );
@@ -550,16 +624,35 @@ function AdminPanel() {
             {/* Rating distribution */}
             <div className="mb-4 space-y-1">
               {[5, 4, 3, 2, 1].map((star) => {
-                const count = websiteFeedbacks.filter((r) => Number(r.rating) === star).length;
-                const maxCount = Math.max(...[5, 4, 3, 2, 1].map((s) => websiteFeedbacks.filter((r) => Number(r.rating) === s).length), 1);
-                const width = count === 0 ? 0 : Math.max(4, Math.round((count / maxCount) * 100));
+                const count = websiteFeedbacks.filter(
+                  (r) => Number(r.rating) === star,
+                ).length;
+                const maxCount = Math.max(
+                  ...[5, 4, 3, 2, 1].map(
+                    (s) =>
+                      websiteFeedbacks.filter((r) => Number(r.rating) === s)
+                        .length,
+                  ),
+                  1,
+                );
+                const width =
+                  count === 0
+                    ? 0
+                    : Math.max(4, Math.round((count / maxCount) * 100));
                 return (
                   <div key={star} className="flex items-center gap-3">
-                    <span className="w-10 text-right text-xs text-(--muted)">{star} ★</span>
+                    <span className="w-10 text-right text-xs text-(--muted)">
+                      {star} ★
+                    </span>
                     <div className="flex-1 h-2 rounded-full bg-(--bg)">
-                      <div className="h-2 rounded-full bg-yellow-500" style={{ width: `${width}%` }} />
+                      <div
+                        className="h-2 rounded-full bg-yellow-500"
+                        style={{ width: `${width}%` }}
+                      />
                     </div>
-                    <span className="w-6 text-xs font-semibold text-(--text)">{count}</span>
+                    <span className="w-6 text-xs font-semibold text-(--text)">
+                      {count}
+                    </span>
                   </div>
                 );
               })}
@@ -568,60 +661,150 @@ function AdminPanel() {
             {/* Paginated entries */}
             {(() => {
               const WF_PER_PAGE = ADMIN_ENTRIES_PER_PAGE;
-              const totalWfPages = Math.max(1, Math.ceil(websiteFeedbacks.length / WF_PER_PAGE));
+              const totalWfPages = Math.max(
+                1,
+                Math.ceil(websiteFeedbacks.length / WF_PER_PAGE),
+              );
               const safeWfPage = Math.min(websiteFeedbackPage, totalWfPages);
-              const pagedWf = websiteFeedbacks.slice((safeWfPage - 1) * WF_PER_PAGE, safeWfPage * WF_PER_PAGE);
+              const pagedWf = websiteFeedbacks.slice(
+                (safeWfPage - 1) * WF_PER_PAGE,
+                safeWfPage * WF_PER_PAGE,
+              );
               return (
                 <div className="space-y-2">
                   {totalWfPages > 1 ? (
                     <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
-                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.max(1, p - 1))} disabled={safeWfPage <= 1} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Previous</button>
-                      <span className="text-xs text-(--muted)">Page {safeWfPage} of {totalWfPages}</span>
-                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.min(totalWfPages, p + 1))} disabled={safeWfPage >= totalWfPages} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Next</button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setWebsiteFeedbackPage((p) => Math.max(1, p - 1))
+                        }
+                        disabled={safeWfPage <= 1}
+                        className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-xs text-(--muted)">
+                        Page {safeWfPage} of {totalWfPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setWebsiteFeedbackPage((p) =>
+                            Math.min(totalWfPages, p + 1),
+                          )
+                        }
+                        disabled={safeWfPage >= totalWfPages}
+                        className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                      >
+                        Next
+                      </button>
                     </div>
                   ) : null}
                   {pagedWf.map((fb) => {
-                    const hasSuggestions = String(fb.suggestions || "").trim().length > 0;
+                    const hasSuggestions =
+                      String(fb.suggestions || "").trim().length > 0;
                     const rating = Number(fb.rating) || 0;
                     return (
-                      <div key={fb.id} className="rounded-xl border border-(--line) bg-(--panel) p-4 text-sm">
+                      <div
+                        key={fb.id}
+                        className="rounded-xl border border-(--line) bg-(--panel) p-4 text-sm"
+                      >
                         {/* Top row: stars + date */}
                         <div className="flex items-center justify-between gap-2 mb-3">
                           <div className="flex items-center gap-1.5">
                             <div className="flex gap-0.5">
-                              {[1,2,3,4,5].map((s) => (
-                                <span key={s} className={`text-lg leading-none ${s <= rating ? "text-yellow-500" : "text-(--line)"}`}>★</span>
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <span
+                                  key={s}
+                                  className={`text-lg leading-none ${s <= rating ? "text-yellow-500" : "text-(--line)"}`}
+                                >
+                                  ★
+                                </span>
                               ))}
                             </div>
-                            <span className="text-xs font-semibold text-(--muted)">{rating}/5</span>
+                            <span className="text-xs font-semibold text-(--muted)">
+                              {rating}/5
+                            </span>
                           </div>
-                          <span className="text-xs text-(--muted) shrink-0">{formatDateTime(fb.created_at)}</span>
+                          <span className="text-xs text-(--muted) shrink-0">
+                            {formatDateTime(fb.created_at)}
+                          </span>
                         </div>
                         {/* Meta row: email + page */}
                         <div className="flex flex-wrap items-center gap-2 mb-3">
                           <span className="inline-flex items-center gap-1 rounded-full bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--text)">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
-                            {fb.user_email || fb.app_user_id || fb.auth_user_id?.slice(0, 8) || "N/A"}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="w-3 h-3 text-(--muted)"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+                              <polyline points="22,6 12,12 2,6" />
+                            </svg>
+                            {fb.user_email ||
+                              fb.app_user_id ||
+                              fb.auth_user_id?.slice(0, 8) ||
+                              "N/A"}
                           </span>
                           {fb.page_path ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--muted)">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-3 h-3"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                              </svg>
                               {fb.page_path}
                             </span>
                           ) : null}
                         </div>
                         {/* Suggestions */}
-                        <div className={`rounded-lg px-3 py-2.5 text-xs ${hasSuggestions ? "bg-(--bg) text-(--text)" : "text-(--muted) italic"}`}>
-                          {hasSuggestions ? fb.suggestions : "No suggestions provided."}
+                        <div
+                          className={`rounded-lg px-3 py-2.5 text-xs ${hasSuggestions ? "bg-(--bg) text-(--text)" : "text-(--muted) italic"}`}
+                        >
+                          {hasSuggestions
+                            ? fb.suggestions
+                            : "No suggestions provided."}
                         </div>
                       </div>
                     );
                   })}
                   {totalWfPages > 1 ? (
                     <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.max(1, p - 1))} disabled={safeWfPage <= 1} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Previous</button>
-                      <span className="text-xs text-(--muted)">Page {safeWfPage} of {totalWfPages}</span>
-                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.min(totalWfPages, p + 1))} disabled={safeWfPage >= totalWfPages} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Next</button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setWebsiteFeedbackPage((p) => Math.max(1, p - 1))
+                        }
+                        disabled={safeWfPage <= 1}
+                        className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-xs text-(--muted)">
+                        Page {safeWfPage} of {totalWfPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setWebsiteFeedbackPage((p) =>
+                            Math.min(totalWfPages, p + 1),
+                          )
+                        }
+                        disabled={safeWfPage >= totalWfPages}
+                        className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50"
+                      >
+                        Next
+                      </button>
                     </div>
                   ) : null}
                 </div>

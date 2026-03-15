@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 @keyframes spin-once {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .theme-btn-spin {
   animation: spin-once 0.45s ease-out;

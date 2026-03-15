@@ -66,7 +66,9 @@ class WebsiteFeedbackService {
 
     const { data, error } = await supabase
       .from(this.table)
-      .select("id, auth_user_id, app_user_id, user_email, rating, suggestions, page_path, created_at, updated_at")
+      .select(
+        "id, auth_user_id, app_user_id, user_email, rating, suggestions, page_path, created_at, updated_at",
+      )
       .order("created_at", { ascending: false });
 
     throwIfSupabaseError(error, "Failed to fetch website feedback.");
