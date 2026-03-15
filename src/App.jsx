@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Navigate,
   Route,
@@ -26,12 +34,18 @@ import {
   ALLOWED_EMAIL_DOMAIN,
 } from "./lib/firebase/auth.js";
 import clientConfig from "./config/client.js";
+import websiteFeedbackService from "./services/websiteFeedbackService.js";
 import "./App.css";
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
 
 const SetupHelper = lazy(() => import("./components/admin/SetupHelper.jsx"));
 const AdminPanel = lazy(() => import("./components/admin/AdminPanel.jsx"));
-const LoginOverlay = lazy(() => import("./components/overlays/LoginOverlay.jsx"));
+const LoginOverlay = lazy(
+  () => import("./components/overlays/LoginOverlay.jsx"),
+);
+const WebsiteFeedbackOverlay = lazy(
+  () => import("./components/overlays/WebsiteFeedbackOverlay.jsx"),
+);
 const ToastContainer = lazy(() => import("./components/ui/ToastContainer.jsx"));
 const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
 const FacultyDirectoryPage = lazy(
@@ -45,6 +59,8 @@ const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.jsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.jsx"));
 const SITE_URL = "https://knowyourfaculty.vercel.app";
+const USER_SEEN_PREFIX = "kyf.userSeen.v1";
+const USER_FEEDBACK_DONE_PREFIX = "kyf.userFeedbackDone.v1";
 
 function upsertHeadMeta({ key, attribute = "name", content }) {
   if (typeof document === "undefined") return;
@@ -73,6 +89,8 @@ function App() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const scrollRestoreTimeoutRef = useRef(null);
+  const [showWebsiteFeedbackOverlay, setShowWebsiteFeedbackOverlay] =
+    useState(false);
 
   // Redux selectors
   const {
@@ -101,7 +119,11 @@ function App() {
     }
 
     return () => {
-      if (idleId && typeof window !== "undefined" && "cancelIdleCallback" in window) {
+      if (
+        idleId &&
+        typeof window !== "undefined" &&
+        "cancelIdleCallback" in window
+      ) {
         window.cancelIdleCallback(idleId);
       }
       if (timeoutId) clearTimeout(timeoutId);
@@ -163,20 +185,33 @@ function App() {
       description:
         "Discover faculty with real student feedback, anonymous reviews, and ratings.",
     };
-    const matched = seoByRoute.find((entry) => entry.test.test(path)) || defaultSeo;
+    const matched =
+      seoByRoute.find((entry) => entry.test.test(path)) || defaultSeo;
     const canonical = `${SITE_URL}${path}`;
     const isPrivateRoute = path === "/dashboard" || path === "/admin";
 
     document.title = matched.title;
     upsertHeadMeta({ key: "description", content: matched.description });
-    upsertHeadMeta({ key: "og:title", attribute: "property", content: matched.title });
+    upsertHeadMeta({
+      key: "og:title",
+      attribute: "property",
+      content: matched.title,
+    });
     upsertHeadMeta({
       key: "og:description",
       attribute: "property",
       content: matched.description,
     });
-    upsertHeadMeta({ key: "og:url", attribute: "property", content: canonical });
-    upsertHeadMeta({ key: "twitter:title", attribute: "property", content: matched.title });
+    upsertHeadMeta({
+      key: "og:url",
+      attribute: "property",
+      content: canonical,
+    });
+    upsertHeadMeta({
+      key: "twitter:title",
+      attribute: "property",
+      content: matched.title,
+    });
     upsertHeadMeta({
       key: "twitter:description",
       attribute: "property",
@@ -202,7 +237,11 @@ function App() {
     }
 
     scrollRestoreTimeoutRef.current = setTimeout(() => {
-      if (navigationType === "POP" && Number.isFinite(restoreTo) && restoreTo > 0) {
+      if (
+        navigationType === "POP" &&
+        Number.isFinite(restoreTo) &&
+        restoreTo > 0
+      ) {
         window.scrollTo(0, restoreTo);
       } else {
         window.scrollTo(0, 0);
@@ -252,6 +291,63 @@ function App() {
     window.history.replaceState({}, "", cleanUrl);
   }, [dispatch]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!authChecked || !currentUser?.$id || showLoginOverlay) {
+      setShowWebsiteFeedbackOverlay(false);
+      return;
+    }
+
+    const userId = String(currentUser.$id || "").trim();
+    if (!userId) return;
+
+    const seenKey = `${USER_SEEN_PREFIX}:${userId}`;
+    const doneKey = `${USER_FEEDBACK_DONE_PREFIX}:${userId}`;
+
+    const alreadySeen = window.localStorage.getItem(seenKey) === "1";
+    const alreadyCompleted = window.localStorage.getItem(doneKey) === "1";
+
+    if (!alreadySeen) {
+      window.localStorage.setItem(seenKey, "1");
+      setShowWebsiteFeedbackOverlay(false);
+      return;
+    }
+
+    if (alreadyCompleted) {
+      setShowWebsiteFeedbackOverlay(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setShowWebsiteFeedbackOverlay(true);
+    }, 900);
+
+    return () => clearTimeout(timeoutId);
+  }, [authChecked, currentUser, showLoginOverlay]);
+
+  const completeWebsiteFeedbackPrompt = () => {
+    if (typeof window === "undefined") return;
+    const userId = String(currentUser?.$id || "").trim();
+    if (!userId) return;
+    const doneKey = `${USER_FEEDBACK_DONE_PREFIX}:${userId}`;
+    window.localStorage.setItem(doneKey, "1");
+    setShowWebsiteFeedbackOverlay(false);
+  };
+
+  const handleWebsiteFeedbackSubmit = async ({ rating, suggestions }) => {
+    await websiteFeedbackService.submitFeedback({
+      authUserId: String(currentUser?.uid || "").trim(),
+      appUserId: String(currentUser?.$id || "").trim(),
+      email: String(currentUser?.email || "").trim(),
+      rating,
+      suggestions,
+      pagePath:
+        typeof window !== "undefined" ? window.location.pathname || "/" : "/",
+    });
+
+    completeWebsiteFeedbackPrompt();
+  };
+
   useLayoutEffect(() => {
     // Ensure first paint has correct navbar visibility to avoid CLS.
     if (location.pathname !== "/") {
@@ -272,14 +368,12 @@ function App() {
     try {
       // Allow slower first-connects on shared/dev networks.
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database check timeout")), 12000)
+        setTimeout(() => reject(new Error("Database check timeout")), 12000),
       );
-      
-      const { default: publicFacultyService } = await import("./services/publicFacultyService.js");
-      await Promise.race([
-        publicFacultyService.ping(),
-        timeoutPromise,
-      ]);
+
+      const { default: publicFacultyService } =
+        await import("./services/publicFacultyService.js");
+      await Promise.race([publicFacultyService.ping(), timeoutPromise]);
       dispatch(setIsSetupMode(false));
     } catch (error) {
       // Skip setup mode - app will use sample data if Supabase is unavailable
@@ -297,18 +391,17 @@ function App() {
     dispatch(logout());
   };
 
-  const isAdminUser = useMemo(
-    () => {
-      const email = String(currentUser?.email || "").trim().toLowerCase();
-      if (!email) return false;
-      const configuredAdmins =
-        clientConfig.adminEmails.length > 0
-          ? clientConfig.adminEmails
-          : clientConfig.explicitAllowedEmails || [];
-      return configuredAdmins.includes(email);
-    },
-    [currentUser],
-  );
+  const isAdminUser = useMemo(() => {
+    const email = String(currentUser?.email || "")
+      .trim()
+      .toLowerCase();
+    if (!email) return false;
+    const configuredAdmins =
+      clientConfig.adminEmails.length > 0
+        ? clientConfig.adminEmails
+        : clientConfig.explicitAllowedEmails || [];
+    return configuredAdmins.includes(email);
+  }, [currentUser]);
 
   const needsAuthCheckForRoute =
     location.pathname === "/dashboard" ||
@@ -429,6 +522,16 @@ function App() {
             authError={authError}
             onSignIn={handleGoogleLogin}
             signingIn={loginInProgress}
+          />
+        </Suspense>
+      ) : null}
+      {showWebsiteFeedbackOverlay ? (
+        <Suspense fallback={null}>
+          <WebsiteFeedbackOverlay
+            open={showWebsiteFeedbackOverlay}
+            onClose={completeWebsiteFeedbackPrompt}
+            onSubmit={handleWebsiteFeedbackSubmit}
+            userName={currentUser?.name}
           />
         </Suspense>
       ) : null}

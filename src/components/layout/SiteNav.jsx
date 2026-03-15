@@ -33,9 +33,7 @@ export default function SiteNav({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [themeRotation, setThemeRotation] = useState(
-    theme === "dark" ? 180 : 0,
-  );
+  const [themeSpin, setThemeSpin] = useState(false);
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const hasMountedThemeRef = useRef(false);
@@ -65,11 +63,9 @@ export default function SiteNav({
   useEffect(() => {
     if (!hasMountedThemeRef.current) {
       hasMountedThemeRef.current = true;
-      setThemeRotation(theme === "dark" ? 180 : 0);
       return;
     }
-
-    setThemeRotation((prev) => prev + 360);
+    setThemeSpin(true);
   }, [theme]);
 
   const getInitial = () => {
@@ -165,8 +161,9 @@ export default function SiteNav({
                 }
               >
                 <span
-                  className="relative flex h-5 w-5 items-center justify-center transition-transform duration-500 ease-out"
-                  style={{ transform: `rotate(${themeRotation}deg)` }}
+                  className={`relative flex h-5 w-5 items-center justify-center ${themeSpin ? "theme-btn-spin" : ""}`}
+                  style={{ animationFillMode: "none" }}
+                  onAnimationEnd={() => setThemeSpin(false)}
                   aria-hidden="true"
                 >
                   <FontAwesomeIcon

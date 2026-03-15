@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import facultyFeedbackService from "../../services/facultyFeedbackService.js";
 import courseService from "../../services/courseService.js";
+import websiteFeedbackService from "../../services/websiteFeedbackService.js";
+import publicFacultyService from "../../services/publicFacultyService.js";
 import ConfirmOverlay from "../overlays/ConfirmOverlay.jsx";
 import { PAGINATION_LIMITS } from "../../config/pagination.js";
 import clientConfig from "../../config/client.js";
@@ -68,6 +70,9 @@ function AdminPanel() {
   const [showUploadConfirm, setShowUploadConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState(null);
+  const [websiteFeedbacks, setWebsiteFeedbacks] = useState([]);
+  const [websiteFeedbackPage, setWebsiteFeedbackPage] = useState(1);
+  const [facultyNameMap, setFacultyNameMap] = useState({});
 
   const statsCards = useMemo(() => {
     if (!stats) return [];
@@ -76,6 +81,7 @@ function AdminPanel() {
       { label: "Users Joined", value: stats.usersJoined },
       { label: "Reviews (Recent)", value: stats.totalReviews },
       { label: "Ratings (Recent)", value: stats.totalRatings },
+      { label: "Website Feedback", value: stats.websiteFeedbackCount },
     ];
   }, [stats]);
 
@@ -154,11 +160,20 @@ function AdminPanel() {
       setLoading(true);
       setError(null);
 
-      const [recentRows, totalEntries] = await Promise.all([
+      const [recentRows, totalEntries, wfRows, facultySnapshot] = await Promise.all([
         facultyFeedbackService.getRecentFeedbackEntries(200),
         facultyFeedbackService.getFeedbackTotalCount(),
+        websiteFeedbackService.getAllFeedback(),
+        publicFacultyService.getFullFacultySnapshot(),
       ]);
       const rows = recentRows || [];
+
+      const nameMap = {};
+      for (const f of facultySnapshot || []) {
+        const empId = String(f?.employeeId || "").trim();
+        if (empId && f?.name) nameMap[empId] = String(f.name);
+      }
+      setFacultyNameMap(nameMap);
 
       const users = new Set();
       let reviewsCount = 0;
@@ -175,8 +190,10 @@ function AdminPanel() {
         usersJoined: users.size,
         totalReviews: reviewsCount,
         totalRatings: ratingsCount,
+        websiteFeedbackCount: (wfRows || []).length,
       });
       setFeedbackEntries(rows);
+      setWebsiteFeedbacks(wfRows || []);
     } catch (loadError) {
       setError(loadError?.message || "Failed to load admin data.");
     } finally {
@@ -424,7 +441,9 @@ function AdminPanel() {
             ) : null}
             {paginatedEntries.map((entry) => {
               const facultyId = String(entry?.facultyId || "").trim();
-              const facultyName = `Faculty ${facultyId || "N/A"}`;
+              const facultyName = facultyNameMap[facultyId] || `Faculty ${facultyId || "N/A"}`;
+              const userId = String(entry?.userId || "").trim();
+              const userLabel = userId || "N/A";
               const hasReview = String(entry?.review || "").trim().length > 0;
               const avgRating = getRowAverageRating(entry);
 
@@ -441,7 +460,7 @@ function AdminPanel() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-md bg-(--bg) px-2 py-1 text-xs text-(--muted)">
-                      User: {entry.userId || "N/A"}
+                      User: {userLabel}
                     </span>
                     {hasReview ? (
                       <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-600">
@@ -449,7 +468,7 @@ function AdminPanel() {
                       </span>
                     ) : null}
                     {Number.isFinite(avgRating) ? (
-                      <span className="rounded-md bg-blue-500/15 px-2 py-1 text-xs font-semibold text-blue-600">
+                      <span className="rounded-md bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-600">
                         Rating {avgRating.toFixed(1)}
                       </span>
                     ) : null}
@@ -493,6 +512,122 @@ function AdminPanel() {
               </div>
             ) : null}
           </div>
+        )}
+      </div>
+
+      {/* Website Feedback Section */}
+      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+        <h2 className="mb-4 text-lg font-bold text-(--text)">Website Feedback</h2>
+        {websiteFeedbacks.length === 0 ? (
+          <p className="text-sm text-(--muted)">No website feedback submitted yet.</p>
+        ) : (
+          <>
+            {/* Summary stats */}
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              {(() => {
+                const total = websiteFeedbacks.length;
+                const avg = websiteFeedbacks.reduce((s, r) => s + (Number(r.rating) || 0), 0) / total;
+                const withSuggestions = websiteFeedbacks.filter((r) => String(r.suggestions || "").trim()).length;
+                return (
+                  <>
+                    <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">Submissions</p>
+                      <p className="mt-1 text-xl font-bold text-(--text)">{total}</p>
+                    </div>
+                    <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">Avg Rating</p>
+                      <p className="mt-1 text-xl font-bold text-(--text)">{avg.toFixed(1)} / 5</p>
+                    </div>
+                    <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">With Suggestions</p>
+                      <p className="mt-1 text-xl font-bold text-(--text)">{withSuggestions}</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Rating distribution */}
+            <div className="mb-4 space-y-1">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = websiteFeedbacks.filter((r) => Number(r.rating) === star).length;
+                const maxCount = Math.max(...[5, 4, 3, 2, 1].map((s) => websiteFeedbacks.filter((r) => Number(r.rating) === s).length), 1);
+                const width = count === 0 ? 0 : Math.max(4, Math.round((count / maxCount) * 100));
+                return (
+                  <div key={star} className="flex items-center gap-3">
+                    <span className="w-10 text-right text-xs text-(--muted)">{star} ★</span>
+                    <div className="flex-1 h-2 rounded-full bg-(--bg)">
+                      <div className="h-2 rounded-full bg-yellow-500" style={{ width: `${width}%` }} />
+                    </div>
+                    <span className="w-6 text-xs font-semibold text-(--text)">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Paginated entries */}
+            {(() => {
+              const WF_PER_PAGE = ADMIN_ENTRIES_PER_PAGE;
+              const totalWfPages = Math.max(1, Math.ceil(websiteFeedbacks.length / WF_PER_PAGE));
+              const safeWfPage = Math.min(websiteFeedbackPage, totalWfPages);
+              const pagedWf = websiteFeedbacks.slice((safeWfPage - 1) * WF_PER_PAGE, safeWfPage * WF_PER_PAGE);
+              return (
+                <div className="space-y-2">
+                  {totalWfPages > 1 ? (
+                    <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.max(1, p - 1))} disabled={safeWfPage <= 1} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Previous</button>
+                      <span className="text-xs text-(--muted)">Page {safeWfPage} of {totalWfPages}</span>
+                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.min(totalWfPages, p + 1))} disabled={safeWfPage >= totalWfPages} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Next</button>
+                    </div>
+                  ) : null}
+                  {pagedWf.map((fb) => {
+                    const hasSuggestions = String(fb.suggestions || "").trim().length > 0;
+                    const rating = Number(fb.rating) || 0;
+                    return (
+                      <div key={fb.id} className="rounded-xl border border-(--line) bg-(--panel) p-4 text-sm">
+                        {/* Top row: stars + date */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex gap-0.5">
+                              {[1,2,3,4,5].map((s) => (
+                                <span key={s} className={`text-lg leading-none ${s <= rating ? "text-yellow-500" : "text-(--line)"}`}>★</span>
+                              ))}
+                            </div>
+                            <span className="text-xs font-semibold text-(--muted)">{rating}/5</span>
+                          </div>
+                          <span className="text-xs text-(--muted) shrink-0">{formatDateTime(fb.created_at)}</span>
+                        </div>
+                        {/* Meta row: email + page */}
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--text)">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+                            {fb.user_email || fb.app_user_id || fb.auth_user_id?.slice(0, 8) || "N/A"}
+                          </span>
+                          {fb.page_path ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--muted)">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                              {fb.page_path}
+                            </span>
+                          ) : null}
+                        </div>
+                        {/* Suggestions */}
+                        <div className={`rounded-lg px-3 py-2.5 text-xs ${hasSuggestions ? "bg-(--bg) text-(--text)" : "text-(--muted) italic"}`}>
+                          {hasSuggestions ? fb.suggestions : "No suggestions provided."}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {totalWfPages > 1 ? (
+                    <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.max(1, p - 1))} disabled={safeWfPage <= 1} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Previous</button>
+                      <span className="text-xs text-(--muted)">Page {safeWfPage} of {totalWfPages}</span>
+                      <button type="button" onClick={() => setWebsiteFeedbackPage((p) => Math.min(totalWfPages, p + 1))} disabled={safeWfPage >= totalWfPages} className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) disabled:opacity-50">Next</button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })()}
+          </>
         )}
       </div>
 

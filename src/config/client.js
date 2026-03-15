@@ -12,15 +12,14 @@ const getEnv = (key) => {
 const clientConfig = {
   supabaseUrl: getEnv("VITE_SUPABASE_URL"),
   supabaseAnonKey: getEnv("VITE_SUPABASE_ANON_KEY"),
-  supabaseFacultyTable:
-    getEnv("VITE_SUPABASE_FACULTY_TABLE") || "faculty",
-  supabaseReviewTable:
-    getEnv("VITE_SUPABASE_REVIEW_TABLE") || "reviews",
-  supabaseCoursesTable:
-    getEnv("VITE_SUPABASE_COURSES_TABLE") || "courses",
+  supabaseFacultyTable: getEnv("VITE_SUPABASE_FACULTY_TABLE") || "faculty",
+  supabaseReviewTable: getEnv("VITE_SUPABASE_REVIEW_TABLE") || "reviews",
+  supabaseCoursesTable: getEnv("VITE_SUPABASE_COURSES_TABLE") || "courses",
   supabasePollTable: getEnv("VITE_SUPABASE_POLL_TABLE") || "polls",
   supabasePollVotesTable:
     getEnv("VITE_SUPABASE_POLL_VOTES_TABLE") || "poll_votes",
+  supabaseWebsiteFeedbackTable:
+    getEnv("VITE_SUPABASE_WEBSITE_FEEDBACK_TABLE") || "website_feedback",
   supabaseDeleteAccountRpc:
     getEnv("VITE_SUPABASE_DELETE_ACCOUNT_RPC") || "delete_my_account",
   cloudinaryCloudName: getEnv("VITE_CLOUDINARY_CLOUD_NAME"),

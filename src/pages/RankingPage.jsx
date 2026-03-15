@@ -185,15 +185,14 @@ export default function RankingPage({ currentUser }) {
       const faculty = facultyResponse.faculty || [];
       setFacultyList(faculty);
 
-      const safeSummary =
-        summary || {
-          ratings: {},
-          counts: {},
-          byFacultyType: {},
-          byFacultyCourse: {},
-          byFacultyCourseType: {},
-          courseLookup: {},
-        };
+      const safeSummary = summary || {
+        ratings: {},
+        counts: {},
+        byFacultyType: {},
+        byFacultyCourse: {},
+        byFacultyCourseType: {},
+        courseLookup: {},
+      };
       setRatingsSummary(safeSummary);
 
       const courseIds = Object.keys(safeSummary.courseLookup || {});

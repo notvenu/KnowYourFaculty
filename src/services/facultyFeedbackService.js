@@ -112,8 +112,7 @@ class FacultyFeedbackService {
           expiresAt: Date.now() + ttlMs,
         }),
       );
-    } catch {
-    }
+    } catch {}
   }
 
   clearPersistentRatingsSummaryCache() {
@@ -129,8 +128,7 @@ class FacultyFeedbackService {
         }
       }
       keysToRemove.forEach((key) => storage.removeItem(key));
-    } catch {
-    }
+    } catch {}
   }
 
   toTimeMs(value) {
@@ -247,7 +245,9 @@ class FacultyFeedbackService {
 
   async getFacultyReviews(facultyId, limitNum = 20) {
     const rows = await this.getFacultyRows(facultyId);
-    return rows.filter((row) => String(row?.review || "").trim().length > 0).slice(0, limitNum);
+    return rows
+      .filter((row) => String(row?.review || "").trim().length > 0)
+      .slice(0, limitNum);
   }
 
   async getFacultyRatings(facultyId, limitNum = 200) {
@@ -265,10 +265,10 @@ class FacultyFeedbackService {
       const response = await this.listRows({
         limitNum: actualLimit,
       });
-      const result = this.sortRowsByFieldDesc(response.rows || [], "createdAt").slice(
-        0,
-        limitNum,
-      );
+      const result = this.sortRowsByFieldDesc(
+        response.rows || [],
+        "createdAt",
+      ).slice(0, limitNum);
       this.setCachedValue(cacheKey, result);
       return result;
     });
@@ -412,7 +412,8 @@ class FacultyFeedbackService {
         courseLookup[courseId].add(facultyId);
 
         if (scoreCount > 0) {
-          if (!byFacultyCourseAgg[facultyId]) byFacultyCourseAgg[facultyId] = {};
+          if (!byFacultyCourseAgg[facultyId])
+            byFacultyCourseAgg[facultyId] = {};
           if (!byFacultyCourseAgg[facultyId][courseId]) {
             byFacultyCourseAgg[facultyId][courseId] = {
               scoreSum: 0,
@@ -427,7 +428,8 @@ class FacultyFeedbackService {
 
         for (const [sectionKey, stats] of Object.entries(sectionStats)) {
           if (stats.scoreCount <= 0) continue;
-          if (!byFacultyCourseTypeAgg[facultyId]) byFacultyCourseTypeAgg[facultyId] = {};
+          if (!byFacultyCourseTypeAgg[facultyId])
+            byFacultyCourseTypeAgg[facultyId] = {};
           if (!byFacultyCourseTypeAgg[facultyId][courseId]) {
             byFacultyCourseTypeAgg[facultyId][courseId] = {};
           }
@@ -534,7 +536,9 @@ class FacultyFeedbackService {
     if (!summary || typeof summary !== "object") return null;
 
     const normalizedCourseLookup = {};
-    for (const [courseId, facultyIds] of Object.entries(summary.courseLookup || {})) {
+    for (const [courseId, facultyIds] of Object.entries(
+      summary.courseLookup || {},
+    )) {
       if (facultyIds instanceof Set) {
         normalizedCourseLookup[courseId] = facultyIds;
         continue;
@@ -586,9 +590,9 @@ class FacultyFeedbackService {
   hasTypeBreakdown(summary) {
     return Boolean(
       summary &&
-        typeof summary === "object" &&
-        summary.byFacultyType &&
-        summary.byFacultyCourseType,
+      typeof summary === "object" &&
+      summary.byFacultyType &&
+      summary.byFacultyCourseType,
     );
   }
 
@@ -739,7 +743,9 @@ class FacultyFeedbackService {
 
     const notesSummary = {};
     if (totalTheoryNotes > 0) {
-      const percentage = Math.round((theoryNotesCount / totalTheoryNotes) * 100);
+      const percentage = Math.round(
+        (theoryNotesCount / totalTheoryNotes) * 100,
+      );
       if (percentage >= 50) {
         notesSummary.theoryNotes = {
           count: theoryNotesCount,
@@ -787,7 +793,9 @@ class FacultyFeedbackService {
     }
 
     const ratings = await this.getFacultyRows(facultyId);
-    const reviews = ratings.filter((row) => String(row?.review || "").trim().length > 0).slice(0, 20);
+    const reviews = ratings
+      .filter((row) => String(row?.review || "").trim().length > 0)
+      .slice(0, 20);
     const result = {
       reviews,
       ratings,
@@ -817,7 +825,8 @@ class FacultyFeedbackService {
         ],
         limitNum: 1,
       });
-      const value = this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
+      const value =
+        this.sortRowsByFieldDesc(response.rows || [], "createdAt")[0] || null;
       this.setCachedValue(cacheKey, value);
       return value;
     });
@@ -835,10 +844,10 @@ class FacultyFeedbackService {
         filters: [{ field: "userId", value: normalizedUserId }],
         limitNum,
       });
-      const rows = this.sortRowsByFieldDesc(response.rows || [], "updatedAt").slice(
-        0,
-        limitNum,
-      );
+      const rows = this.sortRowsByFieldDesc(
+        response.rows || [],
+        "updatedAt",
+      ).slice(0, limitNum);
       const seenFacultyIds = new Set();
       for (const row of rows) {
         const fid = String(row?.facultyId || "").trim();
@@ -888,7 +897,10 @@ class FacultyFeedbackService {
       payload.review = reviewValidation.text;
     }
     if (Boolean(theoryNotes)) payload.theoryNotes = true;
-    if (allowedLabNotes.has(normalizedLabNotes) && normalizedLabNotes !== "None") {
+    if (
+      allowedLabNotes.has(normalizedLabNotes) &&
+      normalizedLabNotes !== "None"
+    ) {
       payload.labNotes = normalizedLabNotes;
     }
 
@@ -967,7 +979,10 @@ class FacultyFeedbackService {
 
   async deleteFeedbackById(rowId) {
     if (!String(rowId || "").trim()) return null;
-    const { error } = await supabase.from(this.reviewCollection).delete().eq("id", rowId);
+    const { error } = await supabase
+      .from(this.reviewCollection)
+      .delete()
+      .eq("id", rowId);
     throwIfSupabaseError(error, "Failed to delete feedback.");
     this.feedbackCache.clear();
     this.inflightRequests.clear();
