@@ -9,8 +9,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "scraper:run": "node scripts/scrapeOnce.js",
-    "supabase:functions:serve:weekly": "npx supabase functions serve weekly-scrape --no-verify-jwt --env-file .env",
-    "supabase:functions:deploy:weekly": "npx supabase functions deploy weekly-scrape --no-verify-jwt",
     "faculty:stats": "node -e \"import('./src/lib/firebase/facultyRepo.js').then(m => m.getFacultyStats()).then(console.log)\"",
     "faculty:count": "node -e \"import('./src/lib/firebase/facultyRepo.js').then(m => m.getAllEmployeeIds()).then(ids => console.log('Total faculty:', ids.size))\""
   },
