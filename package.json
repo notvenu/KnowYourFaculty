@@ -1,7 +1,7 @@
 {
   "name": "knowyourfaculty",
   "private": true,
-  "version": "3.0.1",
+  "version": "3.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -37,6 +37,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.12.0",
     "sharp": "^0.34.3",
+    "supabase": "^2.84.10",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {

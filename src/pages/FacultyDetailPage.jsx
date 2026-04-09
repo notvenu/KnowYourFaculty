@@ -83,6 +83,42 @@ function RatingLegend() {
   );
 }
 
+function FacultyDetailSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="flex items-center justify-between gap-2">
+        <div className="h-4 w-40 rounded bg-(--panel)" />
+        <div className="h-9 w-9 rounded-lg bg-(--panel) sm:h-9 sm:w-28" />
+      </div>
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-5">
+            <div className="mb-3 h-5 w-2/3 rounded bg-(--panel)" />
+            <div className="mb-2 h-3 w-full rounded bg-(--panel)" />
+            <div className="h-3 w-4/5 rounded bg-(--panel)" />
+          </div>
+          <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-5">
+            <div className="mb-3 h-4 w-1/2 rounded bg-(--panel)" />
+            <div className="space-y-2">
+              <div className="h-3 w-full rounded bg-(--panel)" />
+              <div className="h-3 w-5/6 rounded bg-(--panel)" />
+              <div className="h-3 w-3/4 rounded bg-(--panel)" />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-5">
+          <div className="mb-4 h-5 w-1/2 rounded bg-(--panel)" />
+          <div className="space-y-3">
+            <div className="h-8 w-full rounded bg-(--panel)" />
+            <div className="h-8 w-full rounded bg-(--panel)" />
+            <div className="h-8 w-full rounded bg-(--panel)" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FacultyDetailPage({ currentUser }) {
   const dispatch = useDispatch();
   const { facultyId } = useParams();
@@ -136,7 +172,13 @@ function FacultyDetailPage({ currentUser }) {
     [feedbackList, courseLookup],
   );
 
-  const hasUser = Boolean(currentUser?.$id);
+  const userIdCandidates = useMemo(
+    () =>
+      [...new Set([currentUser?.$id, currentUser?.uid].map((value) => String(value || "").trim()).filter(Boolean))],
+    [currentUser?.$id, currentUser?.uid],
+  );
+  const primaryUserId = userIdCandidates[0] || "";
+  const hasUser = userIdCandidates.length > 0;
   const facultyName = faculty?.name || "Faculty";
   const sectionAverages = useMemo(
     () => ({
@@ -150,10 +192,9 @@ function FacultyDetailPage({ currentUser }) {
   const userFeedback = useMemo(
     () =>
       feedbackList.find(
-        (row) =>
-          String(row?.userId || "").trim() === String(currentUser?.$id || ""),
+        (row) => userIdCandidates.includes(String(row?.userId || "").trim()),
       ) || null,
-    [feedbackList, currentUser?.$id],
+    [feedbackList, userIdCandidates],
   );
 
   const userHasReview = String(userFeedback?.review || "").trim().length > 0;
@@ -341,7 +382,7 @@ function FacultyDetailPage({ currentUser }) {
 
   useEffect(() => {
     loadFeedback();
-  }, [facultyId, hasUser, currentUser?.$id]);
+  }, [facultyId, hasUser, currentUser?.$id, currentUser?.uid]);
 
   useEffect(() => {
     let active = true;
@@ -441,8 +482,7 @@ function FacultyDetailPage({ currentUser }) {
       if (hasUser) {
         const existing = (response.ratings || []).find(
           (row) =>
-            String(row?.userId || "").trim() ===
-            String(currentUser?.$id || "").trim(),
+            userIdCandidates.includes(String(row?.userId || "").trim()),
         );
         if (existing) {
           setAlreadySubmitted(true);
@@ -551,7 +591,7 @@ function FacultyDetailPage({ currentUser }) {
 
       // Build payload with only expanded sections
       const payload = {
-        userId: currentUser.$id,
+        userId: String(userFeedback?.userId || primaryUserId),
         facultyId,
         courseId: feedbackForm.courseId,
       };
@@ -597,10 +637,14 @@ function FacultyDetailPage({ currentUser }) {
 
   const getExistingFeedbackForUser = async () => {
     if (userFeedback) return userFeedback;
-    return await facultyFeedbackService.getUserFacultyFeedback(
-      currentUser.$id,
-      facultyId,
-    );
+    for (const userId of userIdCandidates) {
+      const existing = await facultyFeedbackService.getUserFacultyFeedback(
+        userId,
+        facultyId,
+      );
+      if (existing) return existing;
+    }
+    return null;
   };
 
   const deleteReviewOnly = async (reviewId) => {
@@ -612,7 +656,7 @@ function FacultyDetailPage({ currentUser }) {
       if (existingFeedback) {
         await facultyFeedbackService.submitFeedback({
           ...existingFeedback,
-          userId: currentUser.$id,
+          userId: String(existingFeedback.userId || primaryUserId),
           facultyId,
           review: "",
         });
@@ -671,14 +715,14 @@ function FacultyDetailPage({ currentUser }) {
 
         if (isFirstReviewAdd) {
           await facultyFeedbackService.deleteUserFacultyFeedback(
-            currentUser.$id,
+            String(existingFeedback.userId || primaryUserId),
             facultyId,
           );
         }
 
         await facultyFeedbackService.submitFeedback({
           ...existingFeedback,
-          userId: currentUser.$id,
+          userId: String(existingFeedback.userId || primaryUserId),
           facultyId,
           review: reviewText,
         });
@@ -763,7 +807,7 @@ function FacultyDetailPage({ currentUser }) {
       const existingFeedback = await getExistingFeedbackForUser();
       if (existingFeedback) {
         const payload = {
-          userId: currentUser.$id,
+          userId: String(existingFeedback.userId || primaryUserId),
           facultyId,
           courseId: feedbackForm.courseId,
         };
@@ -813,7 +857,7 @@ function FacultyDetailPage({ currentUser }) {
       if (existingFeedback) {
         // Delete the entire feedback row (ratings + review)
         await facultyFeedbackService.deleteUserFacultyFeedback(
-          currentUser.$id,
+          String(existingFeedback.userId || primaryUserId),
           facultyId,
         );
       }
@@ -890,8 +934,7 @@ function FacultyDetailPage({ currentUser }) {
     setCourseQuery("");
   };
 
-  if (loading)
-    return <p className="text-sm text-(--muted)">Loading faculty profile...</p>;
+  if (loading) return <FacultyDetailSkeleton />;
   if (!faculty)
     return (
       <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -1382,7 +1425,7 @@ function FacultyDetailPage({ currentUser }) {
                       className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
-                      ×
+                      ï¿½
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (
@@ -1717,7 +1760,7 @@ function FacultyDetailPage({ currentUser }) {
                       className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
-                      ×
+                      ï¿½
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (

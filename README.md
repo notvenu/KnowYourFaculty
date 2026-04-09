@@ -169,6 +169,23 @@ npm run supabase:functions:deploy:weekly   # production
 npm run supabase:functions:serve:weekly    # local dev
 ```
 
+### Cron Setup (Supabase)
+
+This repository includes a ready-to-run SQL script at `supabase/sql/setup_weekly_scrape_cron.sql`.
+
+1. Deploy the Edge Function:
+
+```bash
+npm run supabase:functions:deploy:weekly
+```
+
+2. In Supabase SQL Editor, open `supabase/sql/setup_weekly_scrape_cron.sql`.
+3. Replace `<project-ref>` with your Supabase project ref.
+4. Ensure the function secret (`DB_CRON_SECRET`) and vault secret (`db_cron_secret`) use the same value.
+5. Run the script and verify job creation with the included `cron.job` query.
+
+If `DB_CRON_SECRET` is set but the cron request does not send `x-cron-secret`, the function returns `401 Unauthorized`.
+
 ## 🎨 Design System
 
 ### Color Themes

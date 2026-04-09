@@ -57,6 +57,26 @@ function toTimeMs(value) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function PollCardsSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse py-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={`poll-skeleton-${index}`}
+          className="rounded-xl border border-(--line) bg-(--bg-elev) p-4"
+        >
+          <div className="mb-3 h-4 w-2/3 rounded bg-(--panel)" />
+          <div className="mb-4 h-3 w-1/2 rounded bg-(--panel)" />
+          <div className="space-y-2">
+            <div className="h-9 w-full rounded bg-(--panel)" />
+            <div className="h-9 w-full rounded bg-(--panel)" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function PollPage() {
   const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.auth.currentUser);
@@ -927,10 +947,7 @@ export default function PollPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-(--primary)"></div>
-            <p className="mt-4 text-(--muted)">Loading...</p>
-          </div>
+          <PollCardsSkeleton />
         ) : (
           <>
             {/* Active Polls Tab */}

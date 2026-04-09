@@ -66,6 +66,24 @@ function getSearchRank(name, query) {
   };
 }
 
+function FacultyDirectorySkeletonCards() {
+  return (
+    <section className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+      {Array.from({ length: 10 }).map((_, index) => (
+        <div
+          key={`faculty-directory-skeleton-${index}`}
+          className="animate-pulse rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-(--shadow-card)"
+        >
+          <div className="mb-3 h-4 w-3/4 rounded bg-(--panel)" />
+          <div className="mb-2 h-3 w-1/2 rounded bg-(--panel)" />
+          <div className="mb-4 h-3 w-2/3 rounded bg-(--panel)" />
+          <div className="h-2 w-full rounded bg-(--panel)" />
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function FacultyDirectoryPage({ currentUser }) {
   const readPersistedState = () => {
     if (typeof window === "undefined") return null;
@@ -551,7 +569,7 @@ function FacultyDirectoryPage({ currentUser }) {
         <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
       ) : null}
       {loading ? (
-        <p className="text-sm text-(--muted)">Loading faculty...</p>
+        <div className="h-4 w-40 animate-pulse rounded bg-(--panel)" />
       ) : (
         <p className="text-sm text-(--muted)">
           {filteredFaculty.length} faculty found
@@ -582,21 +600,25 @@ function FacultyDirectoryPage({ currentUser }) {
         </div>
       ) : null}
 
-      <section className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {paginatedFaculty.map((item) => {
-          const facultyId = String(item.employeeId || "");
-          const overall = ratingLookup[facultyId];
-          const ratingCount = ratingCountLookup[facultyId] || 0;
-          return (
-            <FacultyCard
-              key={item.$id}
-              faculty={item}
-              overallRating={overall}
-              ratingCount={ratingCount}
-            />
-          );
-        })}
-      </section>
+      {loading ? (
+        <FacultyDirectorySkeletonCards />
+      ) : (
+        <section className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          {paginatedFaculty.map((item) => {
+            const facultyId = String(item.employeeId || "");
+            const overall = ratingLookup[facultyId];
+            const ratingCount = ratingCountLookup[facultyId] || 0;
+            return (
+              <FacultyCard
+                key={item.$id}
+                faculty={item}
+                overallRating={overall}
+                ratingCount={ratingCount}
+              />
+            );
+          })}
+        </section>
+      )}
 
       {totalPages > 1 ? (
         <div className="flex flex-wrap items-center justify-center gap-3 pt-8">

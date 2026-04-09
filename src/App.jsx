@@ -84,6 +84,31 @@ function upsertCanonical(href) {
   link.setAttribute("href", href);
 }
 
+function AppShellSkeleton({ fullScreen = false }) {
+  return (
+    <div
+      className={`mx-auto w-full max-w-7xl ${fullScreen ? "min-h-screen" : "min-h-[40vh]"} px-3 py-6 sm:px-6 sm:py-8`}
+    >
+      <div className="animate-pulse space-y-5">
+        <div className="h-9 w-full max-w-md rounded-lg bg-(--panel)" />
+        <div className="h-4 w-full max-w-xl rounded bg-(--panel)" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={`app-skeleton-card-${index}`}
+              className="rounded-xl border border-(--line) bg-(--bg-elev) p-4"
+            >
+              <div className="mb-3 h-4 w-2/3 rounded bg-(--panel)" />
+              <div className="mb-2 h-3 w-full rounded bg-(--panel)" />
+              <div className="h-3 w-5/6 rounded bg-(--panel)" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const dispatch = useDispatch();
   const location = useLocation();
@@ -409,11 +434,8 @@ function App() {
     location.pathname === "/rankings";
   if (needsAuthCheckForRoute && !authChecked) {
     return (
-      <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">
-        <div className="animate-fadeIn text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)"></div>
-          <p className="text-sm text-(--muted)">Setting things up for you...</p>
-        </div>
+      <div className="bg-(--bg) text-(--text) transition-colors duration-300">
+        <AppShellSkeleton fullScreen />
       </div>
     );
   }
@@ -422,8 +444,8 @@ function App() {
     return (
       <Suspense
         fallback={
-          <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text)">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)" />
+          <div className="bg-(--bg) text-(--text)">
+            <AppShellSkeleton fullScreen />
           </div>
         }
       >
@@ -454,9 +476,7 @@ function App() {
         <div className={`${showNavbar ? "mx-auto max-w-7xl" : ""}`}>
           <Suspense
             fallback={
-              <div className="grid min-h-[40vh] place-items-center">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)" />
-              </div>
+              <AppShellSkeleton />
             }
           >
             <Routes>

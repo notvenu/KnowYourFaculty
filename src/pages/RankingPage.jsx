@@ -25,6 +25,36 @@ import { PAGINATION_LIMITS } from "../config/pagination.js";
 
 const RANKINGS_PER_PAGE = PAGINATION_LIMITS.rankingsPerPage;
 
+function RankingsPageSkeleton({ fullScreen = false }) {
+  return (
+    <div
+      className={`container mx-auto max-w-7xl px-4 py-8 ${fullScreen ? "min-h-screen" : ""}`}
+    >
+      <div className="animate-pulse space-y-6">
+        <div>
+          <div className="h-8 w-64 rounded bg-(--panel)" />
+          <div className="mt-3 h-4 w-80 rounded bg-(--panel)" />
+        </div>
+        <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4">
+          <div className="h-10 w-full rounded bg-(--panel)" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={`rankings-skeleton-${index}`}
+              className="rounded-xl border border-(--line) bg-(--bg-elev) p-4"
+            >
+              <div className="mb-3 h-4 w-1/3 rounded bg-(--panel)" />
+              <div className="mb-2 h-3 w-full rounded bg-(--panel)" />
+              <div className="h-3 w-5/6 rounded bg-(--panel)" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RankIcon({ rank }) {
   if (rank === 1) {
     return (
@@ -333,11 +363,8 @@ export default function RankingPage({ currentUser }) {
   }, [rankedFaculty, currentPage]);
   if (!authChecked) {
     return (
-      <div className="grid min-h-screen place-items-center bg-(--bg) text-(--text) transition-colors duration-300">
-        <div className="animate-fadeIn text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-(--panel) border-t-(--primary)"></div>
-          <p className="text-sm text-(--muted)">Checking login state...</p>
-        </div>
+      <div className="bg-(--bg) text-(--text) transition-colors duration-300">
+        <RankingsPageSkeleton fullScreen />
       </div>
     );
   }
@@ -359,16 +386,7 @@ export default function RankingPage({ currentUser }) {
   }
 
   if (loading) {
-    return (
-      <div className="container mx-auto max-w-7xl px-4 py-12">
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-(--primary) border-r-transparent"></div>
-            <p className="text-lg text-(--muted)">Loading rankings...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <RankingsPageSkeleton />;
   }
 
   if (error) {

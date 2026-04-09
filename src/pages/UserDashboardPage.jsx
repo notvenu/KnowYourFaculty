@@ -40,6 +40,23 @@ const FEEDBACK_FACULTIES_PER_PAGE =
   PAGINATION_LIMITS.dashboardFeedbackFacultyPerPage;
 const USER_POLLS_PER_PAGE = PAGINATION_LIMITS.dashboardPollsPerPage;
 
+function DashboardListSkeleton({ rows = 4 }) {
+  return (
+    <div className="space-y-3 animate-pulse">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div
+          key={`dashboard-skeleton-row-${index}`}
+          className="rounded-xl border border-(--line) bg-(--panel) p-4"
+        >
+          <div className="mb-3 h-4 w-1/3 rounded bg-(--bg-elev)" />
+          <div className="mb-2 h-3 w-full rounded bg-(--bg-elev)" />
+          <div className="h-3 w-5/6 rounded bg-(--bg-elev)" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -802,7 +819,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         </div>
 
         {loading ? (
-          <p className="text-sm text-(--muted)">Loading your feedback...</p>
+          <DashboardListSkeleton rows={4} />
         ) : entries.length === 0 ? (
           <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
             You have not posted any ratings/reviews yet.
@@ -1163,7 +1180,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         </div>
 
         {loadingPolls ? (
-          <p className="text-sm text-(--muted)">Loading your polls...</p>
+          <DashboardListSkeleton rows={3} />
         ) : userPolls.length === 0 ? (
           <p className="rounded-lg border border-(--line) bg-(--panel) px-3 py-3 text-sm text-(--muted)">
             You haven't created any polls yet.
