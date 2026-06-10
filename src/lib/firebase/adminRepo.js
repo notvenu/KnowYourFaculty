@@ -40,36 +40,94 @@ export async function addFacultyAdmin(facultyData) {
   return normalizeRow(data);
 }
 
-export async function getAllEmployeeIdsAdmin() {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from(FACULTY_COLLECTION)
-    .select("employeeId")
-    .limit(5000);
-  throwIfSupabaseError(error, "Failed to load faculty ids.");
-
-  return new Set(
-    (data || []).map((row) => getEmployeeIdKey(row.employeeId)).filter(Boolean),
-  );
-}
-
-export async function getFacultyIndexByEmployeeIdAdmin() {
-  const supabase = getAdminClient();
-  const { data, error } = await supabase
-    .from(FACULTY_COLLECTION)
-    .select("id, employeeId, photoFileId")
-    .limit(5000);
-  throwIfSupabaseError(error, "Failed to load faculty index.");
-
+function buildFacultyIndex(rows = [], sourceColumn = "employeeId") {
   const index = new Map();
-  normalizeRows(data || []).forEach((row) => {
-    const employeeId = getEmployeeIdKey(row.employeeId);
-    if (!employeeId) return;
+  let missingEmployeeId = 0;
+
+  normalizeRows(rows || []).forEach((row) => {
+    const rawEmployeeId =
+      sourceColumn === "employeeid" ? row.employeeid : row.employeeId;
+    const employeeId = getEmployeeIdKey(rawEmployeeId);
+    if (!employeeId) {
+      missingEmployeeId++;
+      return;
+    }
+
     index.set(employeeId, {
       $id: row.$id,
       photoFileId: row.photoFileId || null,
     });
   });
+
+  return {
+    index,
+    stats: {
+      table: FACULTY_COLLECTION,
+      sourceColumn,
+      totalRows: rows?.length || 0,
+      indexedCount: index.size,
+      missingEmployeeId,
+    },
+  };
+}
+
+export async function getAllEmployeeIdsAdmin() {
+  const { index } = await getFacultyIndexByEmployeeIdAdminWithStats();
+  return new Set(index.keys());
+}
+
+export async function getFacultyIndexByEmployeeIdAdminWithStats() {
+  const supabase = getAdminClient();
+  const primary = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("id, employeeId, photoFileId")
+    .limit(5000);
+
+  if (primary.error) {
+    const fallback = await supabase
+      .from(FACULTY_COLLECTION)
+      .select("id, employeeid, photoFileId")
+      .limit(5000);
+
+    if (fallback.error) {
+      throw new Error(
+        `Failed to load faculty index from ${FACULTY_COLLECTION}: ${primary.error.message}; fallback failed: ${fallback.error.message}`,
+      );
+    }
+
+    return buildFacultyIndex(fallback.data || [], "employeeid");
+  }
+
+  const primaryResult = buildFacultyIndex(primary.data || [], "employeeId");
+  if (
+    primaryResult.stats.indexedCount > 0 ||
+    primaryResult.stats.totalRows === 0
+  ) {
+    return primaryResult;
+  }
+
+  const legacyFallback = await supabase
+    .from(FACULTY_COLLECTION)
+    .select("id, employeeid, photoFileId")
+    .limit(5000);
+
+  if (legacyFallback.error) {
+    return primaryResult;
+  }
+
+  const fallbackResult = buildFacultyIndex(
+    legacyFallback.data || [],
+    "employeeid",
+  );
+  if (fallbackResult.stats.indexedCount > 0) {
+    return fallbackResult;
+  }
+
+  return primaryResult;
+}
+
+export async function getFacultyIndexByEmployeeIdAdmin() {
+  const { index } = await getFacultyIndexByEmployeeIdAdminWithStats();
   return index;
 }
 
@@ -110,6 +168,7 @@ export default {
   addFacultyAdmin,
   getAllEmployeeIdsAdmin,
   getFacultyIndexByEmployeeIdAdmin,
+  getFacultyIndexByEmployeeIdAdminWithStats,
   updateFacultyPhotoByDocIdAdmin,
   uploadPhotoFromUrlAdmin,
   photoFileExistsAdmin,

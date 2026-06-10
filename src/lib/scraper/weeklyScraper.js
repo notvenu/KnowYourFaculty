@@ -1,8 +1,7 @@
 import { fetchFacultyProfiles } from "./scrape.js";
 import {
   addFacultyAdmin,
-  getAllEmployeeIdsAdmin,
-  getFacultyIndexByEmployeeIdAdmin,
+  getFacultyIndexByEmployeeIdAdminWithStats,
   updateFacultyPhotoByDocIdAdmin,
   uploadPhotoFromUrlAdmin,
   photoFileExistsAdmin,
@@ -51,17 +50,23 @@ export async function weeklyScrape() {
       String(process.env.SCRAPER_SYNC_EXISTING_PHOTOS || "").toLowerCase() ===
       "true";
     const scraped = await fetchFacultyProfiles();
-    const existingIds = await getAllEmployeeIdsAdmin();
-    const facultyIndex = await getFacultyIndexByEmployeeIdAdmin();
+    const { index: facultyIndex, stats: facultyIndexStats } =
+      await getFacultyIndexByEmployeeIdAdminWithStats();
 
     let added = 0;
     let photosUploaded = 0;
+    let updatedPhotos = 0;
+    let skipped = 0;
+    let failed = 0;
 
     for (const faculty of scraped) {
       const employeeId = normalizeEmployeeId(faculty.employeeid);
-      if (!employeeId) continue;
+      if (!employeeId || !Number.isFinite(Number(employeeId))) {
+        skipped++;
+        continue;
+      }
 
-      if (existingIds.has(employeeId)) {
+      if (facultyIndex.has(employeeId)) {
         if (!shouldSyncExistingPhotos) continue;
         const synced = await syncExistingFacultyPhoto(
           faculty,
@@ -70,6 +75,7 @@ export async function weeklyScrape() {
         );
         if (synced) {
           photosUploaded++;
+          updatedPhotos++;
         }
         continue;
       }
@@ -99,19 +105,40 @@ export async function weeklyScrape() {
         });
 
         added++;
-        existingIds.add(employeeId);
         if (created?.$id) {
           facultyIndex.set(employeeId, { $id: created.$id, photoFileId });
+        } else {
+          facultyIndex.set(employeeId, { $id: "", photoFileId });
         }
       } catch (error) {
-        if (error?.code !== 409) {
+        if (error?.code === "23505" || error?.code === 409) {
+          facultyIndex.set(employeeId, { $id: "", photoFileId: null });
+        } else {
+          failed++;
           console.error(
             `Failed to add faculty ${employeeId}:`,
             error?.message ?? error,
           );
+          if (error?.details) console.error("Details:", error.details);
+          if (error?.hint) console.error("Hint:", error.hint);
         }
       }
     }
+
+    return {
+      ok: failed === 0,
+      scanned: scraped.length,
+      facultyTable: facultyIndexStats.table,
+      indexSourceColumn: facultyIndexStats.sourceColumn,
+      existingRowsScanned: facultyIndexStats.totalRows,
+      existingIndexed: facultyIndexStats.indexedCount,
+      existingMissingEmployeeId: facultyIndexStats.missingEmployeeId,
+      added,
+      photosUploaded,
+      updatedPhotos,
+      skipped,
+      failed,
+    };
   } catch (error) {
     throw error;
   }

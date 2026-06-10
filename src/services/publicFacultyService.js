@@ -7,7 +7,6 @@ import { fuzzyMatchAny } from "../lib/fuzzySearch.js";
 import { supabase, isSupabaseConfigured } from "../lib/supabase/client.js";
 import {
   applyInChunks,
-  normalizeRow,
   normalizeRows,
   throwIfSupabaseError,
 } from "../lib/supabase/helpers.js";
@@ -55,6 +54,7 @@ class PublicFacultyService {
   trendingCacheLimit = null;
   fullFacultyCache = null;
   fullFacultyCacheExpiry = 0;
+  fullFacultyCacheFromPersistent = false;
   fullFacultyInflight = null;
   facultyByDocIdCache = new Map();
   PERSISTENT_CACHE_PREFIX = "kyf.publicFaculty.v2";
@@ -132,9 +132,10 @@ class PublicFacultyService {
   hydrateFullFacultyFromPersistentCache() {
     const persisted = this.readPersistentCache("fullFaculty:v3");
     if (!Array.isArray(persisted) || persisted.length === 0) return;
-    this.fullFacultyCache = persisted;
+    this.fullFacultyCache = this.normalizeFacultyRows(persisted);
     this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
-    persisted.forEach((row) => {
+    this.fullFacultyCacheFromPersistent = true;
+    this.fullFacultyCache.forEach((row) => {
       if (row?.$id) {
         this.facultyByDocIdCache.set(String(row.$id), {
           value: row,
@@ -151,8 +152,103 @@ class PublicFacultyService {
     });
   }
 
+  normalizeFacultyRows(rows = []) {
+    return normalizeRows(rows || []).map((row) => {
+      const legacyEmployeeId = row?.employeeid;
+      const employeeId =
+        this.getEmployeeIdKey(row?.employeeId) ||
+        this.getEmployeeIdKey(legacyEmployeeId);
+
+      return {
+        ...row,
+        employeeId: employeeId ? Number(employeeId) : row?.employeeId,
+      };
+    });
+  }
+
+  cacheFacultyRows(records = []) {
+    this.fullFacultyCache = records;
+    this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
+    this.fullFacultyCacheFromPersistent = false;
+    this.writePersistentCache("fullFaculty:v3", records);
+
+    records.forEach((row) => {
+      if (row?.$id) {
+        this.facultyByDocIdCache.set(String(row.$id), {
+          value: row,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+      }
+      const employeeId = this.getEmployeeIdKey(row?.employeeId);
+      if (employeeId) {
+        this.facultyByIdCache.set(employeeId, {
+          value: row,
+          expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
+        });
+      }
+    });
+  }
+
+  async loadFullFacultyRows() {
+    const { data, error } = await supabase
+      .from(this.facultyTable)
+      .select(FACULTY_LIST_COLUMNS)
+      .order("name", { ascending: true })
+      .limit(this.FULL_FACULTY_LIMIT);
+    throwIfSupabaseError(error, "Failed to load faculty.");
+
+    const rows = this.normalizeFacultyRows(data || []);
+    const rowsMissingEmployeeId = rows.filter(
+      (row) => !this.getEmployeeIdKey(row?.employeeId),
+    );
+
+    if (rowsMissingEmployeeId.length === 0) {
+      return rows;
+    }
+
+    const legacyIds = rowsMissingEmployeeId
+      .map((row) => row?.$id || row?.id)
+      .filter(Boolean);
+    if (legacyIds.length === 0) return rows;
+
+    try {
+      const legacyById = new Map();
+      for (const chunk of applyInChunks(legacyIds, 100)) {
+        const { data: legacyRows, error: legacyError } = await supabase
+          .from(this.facultyTable)
+          .select("id, employeeid")
+          .in("id", chunk);
+        if (legacyError) return rows;
+
+        (legacyRows || []).forEach((row) => {
+          const employeeId = this.getEmployeeIdKey(row?.employeeid);
+          if (employeeId) legacyById.set(String(row.id), Number(employeeId));
+        });
+      }
+
+      if (legacyById.size === 0) return rows;
+
+      return rows.map((row) => {
+        const rowId = String(row?.$id || row?.id || "");
+        if (this.getEmployeeIdKey(row?.employeeId) || !legacyById.has(rowId)) {
+          return row;
+        }
+        return {
+          ...row,
+          employeeId: legacyById.get(rowId),
+        };
+      });
+    } catch {
+      return rows;
+    }
+  }
+
   async getFullFacultySnapshot() {
-    if (this.fullFacultyCache && this.fullFacultyCacheExpiry > Date.now()) {
+    if (
+      this.fullFacultyCache &&
+      this.fullFacultyCacheExpiry > Date.now() &&
+      !this.fullFacultyCacheFromPersistent
+    ) {
       return this.fullFacultyCache;
     }
     if (this.fullFacultyInflight) {
@@ -160,39 +256,18 @@ class PublicFacultyService {
     }
 
     this.fullFacultyInflight = (async () => {
-      const { data, error } = await supabase
-        .from(this.facultyTable)
-        .select(FACULTY_LIST_COLUMNS)
-        .order("name", { ascending: true })
-        .limit(this.FULL_FACULTY_LIMIT);
-      throwIfSupabaseError(error, "Failed to load faculty.");
-
-      const records = normalizeRows(data || []);
-      this.fullFacultyCache = records;
-      this.fullFacultyCacheExpiry = Date.now() + this.CACHE_TTL_MS;
-      this.writePersistentCache("fullFaculty:v3", records);
-
-      records.forEach((row) => {
-        if (row?.$id) {
-          this.facultyByDocIdCache.set(String(row.$id), {
-            value: row,
-            expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
-          });
-        }
-        const employeeId = this.getEmployeeIdKey(row?.employeeId);
-        if (employeeId) {
-          this.facultyByIdCache.set(employeeId, {
-            value: row,
-            expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
-          });
-        }
-      });
-
+      const records = await this.loadFullFacultyRows();
+      this.cacheFacultyRows(records);
       return records;
     })();
 
     try {
       return await this.fullFacultyInflight;
+    } catch (error) {
+      if (Array.isArray(this.fullFacultyCache) && this.fullFacultyCache.length) {
+        return this.fullFacultyCache;
+      }
+      throw error;
     } finally {
       this.fullFacultyInflight = null;
     }
@@ -335,8 +410,9 @@ class PublicFacultyService {
       const fullSnapshot =
         this.fullFacultyCache || this.readPersistentCache("fullFaculty:v3");
       if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
+        const normalizedSnapshot = this.normalizeFacultyRows(fullSnapshot);
         const match =
-          fullSnapshot.find(
+          normalizedSnapshot.find(
             (row) => this.getEmployeeIdKey(row?.employeeId) === cacheKey,
           ) || null;
         if (match) {
@@ -355,7 +431,26 @@ class PublicFacultyService {
         .limit(1)
         .maybeSingle();
       throwIfSupabaseError(error, "Failed to load faculty.");
-      const result = data ? normalizeRow(data) : null;
+      let result = data ? this.normalizeFacultyRows([data])[0] : null;
+
+      if (!result) {
+        try {
+          const { data: legacyData, error: legacyError } = await supabase
+            .from(this.facultyTable)
+            .select(FACULTY_LIST_COLUMNS)
+            .eq("employeeid", Number(cacheKey))
+            .limit(1)
+            .maybeSingle();
+          if (!legacyError && legacyData) {
+            result = this.normalizeFacultyRows([
+              { ...legacyData, employeeid: cacheKey },
+            ])[0];
+          }
+        } catch {
+          // Ignore legacy lookup failures; not every table has employeeid.
+        }
+      }
+
       this.facultyByIdCache.set(cacheKey, {
         value: result,
         expiresAt: Date.now() + this.FACULTY_CACHE_TTL_MS,
@@ -399,7 +494,7 @@ class PublicFacultyService {
       this.fullFacultyCache || this.readPersistentCache("fullFaculty:v3");
     if (Array.isArray(fullSnapshot) && fullSnapshot.length > 0) {
       const byEmployeeId = new Map();
-      fullSnapshot.forEach((row) => {
+      this.normalizeFacultyRows(fullSnapshot).forEach((row) => {
         const employeeId = this.getEmployeeIdKey(row?.employeeId);
         if (employeeId) byEmployeeId.set(employeeId, row);
       });
@@ -431,7 +526,7 @@ class PublicFacultyService {
           .select(FACULTY_LIST_COLUMNS)
           .in("employeeId", numericChunk);
         throwIfSupabaseError(error, "Failed to load faculty batch.");
-        const rows = normalizeRows(data || []);
+        const rows = this.normalizeFacultyRows(data || []);
         const rowMap = new Map(
           rows.map((row) => [this.getEmployeeIdKey(row.employeeId), row]),
         );
@@ -458,7 +553,7 @@ class PublicFacultyService {
         .select(FACULTY_LIST_COLUMNS)
         .in("employeeId", numericChunk);
       throwIfSupabaseError(error, "Failed to load faculty batch.");
-      const rows = normalizeRows(data || []);
+      const rows = this.normalizeFacultyRows(data || []);
       const rowMap = new Map(
         rows.map((row) => [this.getEmployeeIdKey(row.employeeId), row]),
       );

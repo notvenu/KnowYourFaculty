@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .env
 scripts/*
+!scripts/scrapeOnce.js
 **/build/
 
 supabase/

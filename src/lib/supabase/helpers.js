@@ -52,5 +52,11 @@ export function applyInChunks(items = [], chunkSize = 100) {
 
 export function throwIfSupabaseError(error, fallbackMessage) {
   if (!error) return;
-  throw new Error(error.message || fallbackMessage || "Supabase request failed.");
+  const wrapped = new Error(
+    error.message || fallbackMessage || "Supabase request failed.",
+  );
+  if (error.code) wrapped.code = error.code;
+  if (error.details) wrapped.details = error.details;
+  if (error.hint) wrapped.hint = error.hint;
+  throw wrapped;
 }
