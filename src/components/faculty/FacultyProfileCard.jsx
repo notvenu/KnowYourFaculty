@@ -5,13 +5,13 @@ function DetailRow({ label, value }) {
   if (value == null || String(value).trim() === "") return null;
   return (
     <p>
-      <span className="font-semibold text-(--text)">{label}:</span>{" "}
+      <span className="font-medium text-(--text)">{label}:</span>{" "}
       {String(value).trim()}
     </p>
   );
 }
 
-export default function FacultyProfileCard({ faculty }) {
+export default function FacultyProfileCard({faculty, headingAs = "h1" }) {
   const photoFileId = faculty?.photoFileId;
   const photoUrl = publicFacultyService.getFacultyPhotoUrl(photoFileId);
   const photoCandidates = useMemo(
@@ -28,7 +28,7 @@ export default function FacultyProfileCard({ faculty }) {
     : null;
 
   return (
-    <div className="flex flex-col rounded-xl border border-(--line) bg-(--bg-elev) p-3 shadow-lg sm:p-4 md:p-5 pb-6">
+    <div className="flex flex-col rounded-xl border border-(--line) bg-(--bg-elev) p-3 sm:p-4 md:p-5 pb-6">
       <div className="aspect-4/3 w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-(--bg-elev)">
         <img
           src={imageSrc}
@@ -44,10 +44,15 @@ export default function FacultyProfileCard({ faculty }) {
         />
       </div>
       <div className="mt-4 min-w-0 space-y-1">
-        <h1 className="text-lg font-extrabold leading-tight tracking-tight text-(--text) sm:text-xl">
-          {faculty.name}
-        </h1>
-        <p className="text-xs font-semibold text-(--primary) sm:text-sm">
+        {(() => {
+          const Heading = headingAs;
+          return (
+            <Heading className="text-lg font-medium leading-tight text-(--text) sm:text-xl">
+              {faculty.name}
+            </Heading>
+          );
+        })()}
+        <p className="text-xs font-medium text-(--accent-text) sm:text-sm">
           {faculty.designation || "—"}
         </p>
         <div className="space-y-0.5 text-xs text-(--muted)">
@@ -55,7 +60,7 @@ export default function FacultyProfileCard({ faculty }) {
         </div>
         {faculty.subDepartment ? (
           <p className="text-xs text-(--muted)">
-            <span className="font-semibold text-(--muted)">Area - </span>{" "}
+            <span className="font-medium text-(--muted)">Area - </span>{" "}
             {faculty.subDepartment}
           </p>
         ) : null}
@@ -69,7 +74,7 @@ export default function FacultyProfileCard({ faculty }) {
                 .map((area, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center rounded-full bg-(--primary-soft) px-2.5 py-1 text-xs font-medium text-(--primary)"
+                    className="inline-flex items-center rounded-md bg-(--panel) px-2 py-1 text-xs font-medium text-(--secondary-text)"
                   >
                     {area}
                   </span>

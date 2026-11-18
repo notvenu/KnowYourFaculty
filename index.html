@@ -25,7 +25,7 @@
       content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
     />
     <meta name="googlebot" content="index, follow" />
-    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="theme-color" content="#2f5bd0" />
     <meta name="color-scheme" content="light dark" />
 
     <!-- Open Graph / Facebook -->
@@ -84,9 +84,10 @@
     <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="dns-prefetch" href="https://cloud.appwrite.io" />
+    <link rel="preconnect" href="https://res.cloudinary.com" />
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
 
@@ -137,7 +138,13 @@
     <noscript>
       KnowYourFaculty (also searched as Know Your Faculty, KnowYourAculty, KnowYouFaculty) is a student platform for anonymous faculty reviews and ratings.
     </noscript>
-    <div id="root"></div>
+    <div id="root">
+      <main class="boot-fallback" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
+        <h1>KnowYourFaculty: anonymous faculty ratings for VIT-AP students</h1>
+        <p>Read what students say about each professor, split into theory, lab and ECS, and see who is strict about attendance and who marks fairly. Ratings are anonymous and sign-in is only needed to post.</p>
+        <p><a href="/faculty">Browse faculty</a> <a href="/rankings">Rankings</a> <a href="/polls">Polls</a> <a href="/contact">Contact</a></p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -2,7 +2,7 @@
 function TermsPage() {
   return (
     <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 sm:p-8">
-      <h1 className="text-3xl font-black tracking-tight text-(--text)">
+      <h1 className="text-3xl font-medium text-(--text)">
         Terms and Conditions
       </h1>
       <p className="mt-2 text-xs text-(--muted)">
@@ -11,7 +11,7 @@ function TermsPage() {
 
       <div className="mt-6 space-y-6 text-sm text-(--muted)">
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">1. Purpose</h2>
+          <h2 className="text-base font-medium text-(--text)">1. Purpose</h2>
           <p>
             This platform is provided for academic feedback and informed faculty
             discovery by students.
@@ -19,7 +19,7 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             2. Eligibility and verification
           </h2>
           <p>
@@ -30,7 +30,7 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             3. Anonymous public content
           </h2>
           <p>
@@ -40,7 +40,7 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             4. User responsibilities
           </h2>
           <ul className="list-disc space-y-1 pl-5">
@@ -51,7 +51,7 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             5. Optional ratings and edits
           </h2>
           <p>
@@ -61,7 +61,7 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">6. Moderation</h2>
+          <h2 className="text-base font-medium text-(--text)">6. Moderation</h2>
           <p>
             Administrators may moderate or remove content that violates these
             terms, community standards, or applicable institutional policies.
@@ -69,7 +69,7 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             7. Service availability
           </h2>
           <p>
@@ -79,10 +79,10 @@ function TermsPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">8. FAQs</h2>
+          <h2 className="text-base font-medium text-(--text)">8. FAQs</h2>
           <div className="space-y-3">
             <div className="rounded-lg border border-(--line) bg-(--panel) p-3">
-              <p className="font-semibold text-(--text)">
+              <p className="font-medium text-(--text)">
                 Can guests view ratings and reviews?
               </p>
               <p className="mt-1">
@@ -90,7 +90,7 @@ function TermsPage() {
               </p>
             </div>
             <div className="rounded-lg border border-(--line) bg-(--panel) p-3">
-              <p className="font-semibold text-(--text)">
+              <p className="font-medium text-(--text)">
                 Why is sign-in required then?
               </p>
               <p className="mt-1">
@@ -98,7 +98,7 @@ function TermsPage() {
               </p>
             </div>
             <div className="rounded-lg border border-(--line) bg-(--panel) p-3">
-              <p className="font-semibold text-(--text)">
+              <p className="font-medium text-(--text)">
                 Can I remove my feedback later?
               </p>
               <p className="mt-1">

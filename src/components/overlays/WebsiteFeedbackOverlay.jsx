@@ -45,7 +45,7 @@ export default function WebsiteFeedbackOverlay({
   return (
     <Overlay open={open} onClose={onClose}>
       <div className="p-5 sm:p-6">
-        <h2 className="text-lg font-bold text-(--text)">
+        <h2 className="text-lg font-medium text-(--text)">
           Quick feedback, {titleName}
         </h2>
         <p className="mt-2 text-sm text-(--muted)">
@@ -66,8 +66,8 @@ export default function WebsiteFeedbackOverlay({
                   key={value}
                   type="button"
                   onClick={() => setRating(value)}
-                  className={`text-2xl leading-none transition-transform hover:scale-110 ${
-                    value <= rating ? "text-yellow-500" : "text-(--muted)"
+                  className={`text-2xl leading-none transition-transform ${
+                    value <= rating ? "text-(--warning)" : "text-(--muted)"
                   }`}
                   aria-pressed={rating === value}
                   aria-label={`${value} star${value === 1 ? "" : "s"}`}
@@ -102,7 +102,7 @@ export default function WebsiteFeedbackOverlay({
             </p>
           </div>
 
-          {message ? <p className="text-sm text-red-500">{message}</p> : null}
+          {message ? <p className="text-sm text-(--danger)">{message}</p> : null}
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
@@ -116,7 +116,7 @@ export default function WebsiteFeedbackOverlay({
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-(--primary) px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+              className="rounded-lg bg-(--primary) px-4 py-2 text-sm font-medium text-white hover:opacity-90"
             >
               {submitting ? "Submitting..." : "Submit"}
             </button>

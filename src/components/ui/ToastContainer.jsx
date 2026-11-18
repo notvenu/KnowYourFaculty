@@ -18,10 +18,10 @@ const TOAST_ICONS = {
 };
 
 const TOAST_COLORS = {
-  success: "bg-(--success)",
-  error: "bg-(--danger)",
-  warning: "bg-(--warning)",
-  info: "bg-(--info)",
+  success: "text-(--success)",
+  error: "text-(--danger)",
+  warning: "text-(--warning)",
+  info: "text-(--info)",
 };
 
 export default function ToastContainer() {
@@ -45,17 +45,17 @@ export default function ToastContainer() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`${TOAST_COLORS[toast.type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-slide-in-right`}
+          className="flex items-center gap-3 rounded-lg border border-(--line) bg-(--bg-elev) px-4 py-3 text-(--text) shadow-(--shadow-pop) animate-slide-in-right"
           role="alert"
         >
           <FontAwesomeIcon
             icon={TOAST_ICONS[toast.type]}
-            className="text-xl shrink-0"
+            className={`h-4 w-4 shrink-0 ${TOAST_COLORS[toast.type]}`}
           />
           <p className="flex-1 text-sm font-medium">{toast.message}</p>
           <button
             onClick={() => dispatch(removeToast(toast.id))}
-            className="shrink-0 hover:opacity-80 transition-opacity"
+            className="shrink-0 text-(--muted) transition-colors hover:text-(--text)"
             aria-label="Close notification"
           >
             <FontAwesomeIcon icon={faTimes} />

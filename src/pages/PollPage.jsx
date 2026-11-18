@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import { addToast } from "../store/uiSlice.js";
+import { setShowLoginOverlay } from "../store/authSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChartBar,
@@ -9,7 +10,6 @@ import {
   faPoll,
   faVoteYea,
   faCheckCircle,
-  faClock,
   faUser,
   faBook,
   faToggleOn,
@@ -353,7 +353,7 @@ export default function PollPage() {
 
       setPollResults((prev) => ({ ...prev, [pollId]: results }));
       dispatch(
-        addToast({ message: "Vote submitted successfully!", type: "success" }),
+        addToast({ message: "Vote submitted", type: "success" }),
       );
     } catch (err) {
       setPollResults((prev) => ({ ...prev, [pollId]: previousResults }));
@@ -461,7 +461,7 @@ export default function PollPage() {
       setShowDeleteConfirm(false);
       setDeletingPoll(null);
       dispatch(
-        addToast({ message: "Poll deleted successfully", type: "success" }),
+        addToast({ message: "Poll deleted", type: "success" }),
       );
 
       // Reload polls
@@ -482,7 +482,7 @@ export default function PollPage() {
   };
 
   const handlePollCreatedOrUpdated = async () => {
-    dispatch(addToast({ message: "Poll saved successfully", type: "success" }));
+    dispatch(addToast({ message: "Poll saved", type: "success" }));
     await loadInitialData();
   };
 
@@ -546,16 +546,16 @@ export default function PollPage() {
       <div
         key={poll.$id}
         id={`poll-${poll.$id}`}
-        className="bg-(--card) rounded-lg shadow-md p-4 sm:p-6 border border-(--border)"
+        className="bg-(--card) rounded-lg p-4 sm:p-6 border border-(--border)"
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <FontAwesomeIcon
                 icon={poll.facultyId ? faUser : faBook}
-                className="text-(--primary) text-sm sm:text-base"
+                className="text-(--accent-text) text-sm sm:text-base"
               />
-              <h3 className="text-base sm:text-lg font-semibold text-(--text)">
+              <h3 className="text-base sm:text-lg font-medium text-(--text)">
                 {poll.facultyId
                   ? getFacultyName(poll.facultyId)
                   : getCourseName(poll.courseId)}
@@ -574,7 +574,7 @@ export default function PollPage() {
             {poll.facultyId && (
               <Link
                 to={`/faculty/${getFacultyEmployeeId(poll.facultyId)}`}
-                className="text-xs sm:text-sm text-(--primary) hover:underline"
+                className="text-xs sm:text-sm text-(--accent-text) hover:underline"
               >
                 View Faculty Profile
               </Link>
@@ -582,19 +582,21 @@ export default function PollPage() {
           </div>
           <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 self-start">
             {isActive ? (
-              <span
-                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
-                style={{ backgroundColor: "#10b981" }}
-              >
-                <FontAwesomeIcon icon={faVoteYea} className="text-xs" />
+              <span className="flex items-center gap-2 whitespace-nowrap text-xs text-(--secondary-text)">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: "var(--success)" }}
+                />
                 Active
               </span>
             ) : (
-              <span
-                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
-                style={{ backgroundColor: "#6b7280" }}
-              >
-                <FontAwesomeIcon icon={faClock} className="text-xs" />
+              <span className="flex items-center gap-2 whitespace-nowrap text-xs text-(--secondary-text)">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: "var(--muted)" }}
+                />
                 Ended
               </span>
             )}
@@ -623,10 +625,10 @@ export default function PollPage() {
                 key={option.value}
                 onClick={() => isActive && handleVote(poll.$id, option.value)}
                 disabled={!isActive || isVotePending}
-                className={`w-full relative overflow-hidden rounded-lg border-2 transition-all ${
+                className={`w-full relative overflow-hidden rounded-lg border-2 transition-colors ${
                   isUserVote
                     ? "border-(--primary) bg-(--primary-soft)"
-                    : "border-(--border) hover:border-(--primary)"
+                    : "border-(--border) hover:border-(--muted)"
                 } ${!isActive || isVotePending ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <div
@@ -638,7 +640,7 @@ export default function PollPage() {
                     {isUserVote && (
                       <FontAwesomeIcon
                         icon={faCheckCircle}
-                        className="text-(--primary) text-sm sm:text-base"
+                        className="text-(--accent-text) text-sm sm:text-base"
                       />
                     )}
                     <span className="font-medium text-(--text) text-sm sm:text-base">
@@ -662,7 +664,7 @@ export default function PollPage() {
             <FontAwesomeIcon icon={faChartBar} className="text-xs sm:text-sm" />
             <span>
               Total votes: {results?.totalVotes || 0}
-              {isVotePending ? " • Saving vote..." : ""}
+              {isVotePending ? " • Saving vote" : ""}
             </span>
           </div>
 
@@ -715,16 +717,16 @@ export default function PollPage() {
       <div
         key={poll.$id}
         id={`poll-${poll.$id}`}
-        className="bg-(--card) rounded-lg shadow-md p-4 sm:p-6 border border-(--border)"
+        className="bg-(--card) rounded-lg p-4 sm:p-6 border border-(--border)"
       >
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0 mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <FontAwesomeIcon
                 icon={poll.facultyId ? faUser : faBook}
-                className="text-(--primary) text-sm sm:text-base"
+                className="text-(--accent-text) text-sm sm:text-base"
               />
-              <h3 className="text-base sm:text-lg font-semibold text-(--text)">
+              <h3 className="text-base sm:text-lg font-medium text-(--text)">
                 {poll.facultyId
                   ? getFacultyName(poll.facultyId)
                   : getCourseName(poll.courseId)}
@@ -743,7 +745,7 @@ export default function PollPage() {
             {poll.facultyId && (
               <Link
                 to={`/faculty/${getFacultyEmployeeId(poll.facultyId)}`}
-                className="text-xs sm:text-sm text-(--primary) hover:underline"
+                className="text-xs sm:text-sm text-(--accent-text) hover:underline"
               >
                 View Faculty Profile
               </Link>
@@ -751,19 +753,21 @@ export default function PollPage() {
           </div>
           <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 self-start">
             {isActive ? (
-              <span
-                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
-                style={{ backgroundColor: "#10b981" }}
-              >
-                <FontAwesomeIcon icon={faVoteYea} className="text-xs" />
+              <span className="flex items-center gap-2 whitespace-nowrap text-xs text-(--secondary-text)">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: "var(--success)" }}
+                />
                 Active
               </span>
             ) : (
-              <span
-                className="px-2 sm:px-3 py-1 rounded-full text-white text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 whitespace-nowrap"
-                style={{ backgroundColor: "#6b7280" }}
-              >
-                <FontAwesomeIcon icon={faClock} className="text-xs" />
+              <span className="flex items-center gap-2 whitespace-nowrap text-xs text-(--secondary-text)">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: "var(--muted)" }}
+                />
                 Ended
               </span>
             )}
@@ -792,7 +796,7 @@ export default function PollPage() {
                 className="w-full relative overflow-hidden rounded-lg border border-(--border)"
               >
                 <div
-                  className="absolute inset-0 bg-(--primary) opacity-10 transition-all"
+                  className="absolute inset-0 bg-(--primary) opacity-10 transition-colors"
                   style={{ width: `${percentage}%` }}
                 />
                 <div className="relative flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3">
@@ -883,12 +887,20 @@ export default function PollPage() {
     return (
       <div className="min-h-screen bg-(--background) flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-(--text) mb-4">
-            Login Required
-          </h2>
+          <h1 className="text-2xl font-medium text-(--text) mb-4">
+            Sign in to join the polls
+          </h1>
           <p className="text-(--muted)">
             Please log in to view and participate in polls.
           </p>
+          <button
+            type="button"
+            onClick={() => dispatch(setShowLoginOverlay(true))}
+            className="btn-slide mt-6 inline-flex h-12 items-center rounded-(--radius) bg-(--primary) px-5 text-sm font-medium text-white"
+            style={{ "--fill": "color-mix(in srgb, var(--primary), #000 35%)" }}
+          >
+            Sign in
+          </button>
         </div>
       </div>
     );
@@ -900,7 +912,7 @@ export default function PollPage() {
         {/* Header */}
         <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-start sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-(--text) mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3">
+            <h1 className="text-2xl sm:text-3xl font-medium text-(--text) mb-1 sm:mb-2 flex items-center gap-2 sm:gap-3">
               <FontAwesomeIcon icon={faPoll} className="text-xl sm:text-2xl" />
               <span>Faculty & Course Polls</span>
             </h1>
@@ -925,7 +937,7 @@ export default function PollPage() {
             onClick={() => setActiveTab("active")}
             className={`px-4 sm:px-6 py-2 sm:py-3 font-medium transition-colors text-sm sm:text-base whitespace-nowrap ${
               activeTab === "active"
-                ? "text-(--primary) border-b-2 border-(--primary)"
+                ? "text-(--accent-text) border-b-2 border-(--primary)"
                 : "text-(--muted) hover:text-(--text)"
             }`}
           >
@@ -936,7 +948,7 @@ export default function PollPage() {
             onClick={() => setActiveTab("my-polls")}
             className={`px-4 sm:px-6 py-2 sm:py-3 font-medium transition-colors text-sm sm:text-base whitespace-nowrap ${
               activeTab === "my-polls"
-                ? "text-(--primary) border-b-2 border-(--primary)"
+                ? "text-(--accent-text) border-b-2 border-(--primary)"
                 : "text-(--muted) hover:text-(--text)"
             }`}
           >
@@ -1060,7 +1072,7 @@ export default function PollPage() {
                         onClick={() => setMyPollFilter("all")}
                         className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                           myPollFilter === "all"
-                            ? "border-(--primary) text-(--primary)"
+                            ? "border-(--primary) text-(--accent-text)"
                             : "border-transparent text-(--muted) hover:text-(--text)"
                         }`}
                       >
@@ -1070,7 +1082,7 @@ export default function PollPage() {
                         onClick={() => setMyPollFilter("active")}
                         className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                           myPollFilter === "active"
-                            ? "border-(--primary) text-(--primary)"
+                            ? "border-(--primary) text-(--accent-text)"
                             : "border-transparent text-(--muted) hover:text-(--text)"
                         }`}
                       >
@@ -1080,7 +1092,7 @@ export default function PollPage() {
                         onClick={() => setMyPollFilter("ended")}
                         className={`px-3 sm:px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                           myPollFilter === "ended"
-                            ? "border-(--primary) text-(--primary)"
+                            ? "border-(--primary) text-(--accent-text)"
                             : "border-transparent text-(--muted) hover:text-(--text)"
                         }`}
                       >

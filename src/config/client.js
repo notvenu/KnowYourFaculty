@@ -2,11 +2,33 @@
  * Client configuration shared by the Vite frontend and browser-side helpers.
  */
 
+// Each variable is read with a static `import.meta.env.VITE_X` so Vite bundles only the names listed
+// here. A dynamic `import.meta.env[key]` would inline every VITE_ variable (including secrets by mistake).
+// In Node (`import.meta.env` is undefined) the read throws and falls back to process.env.
+const viteEnv = {
+  VITE_SUPABASE_URL: () => import.meta.env.VITE_SUPABASE_URL,
+  VITE_SUPABASE_ANON_KEY: () => import.meta.env.VITE_SUPABASE_ANON_KEY,
+  VITE_SUPABASE_FACULTY_TABLE: () => import.meta.env.VITE_SUPABASE_FACULTY_TABLE,
+  VITE_SUPABASE_REVIEW_TABLE: () => import.meta.env.VITE_SUPABASE_REVIEW_TABLE,
+  VITE_SUPABASE_COURSES_TABLE: () => import.meta.env.VITE_SUPABASE_COURSES_TABLE,
+  VITE_SUPABASE_POLL_TABLE: () => import.meta.env.VITE_SUPABASE_POLL_TABLE,
+  VITE_SUPABASE_POLL_VOTES_TABLE: () => import.meta.env.VITE_SUPABASE_POLL_VOTES_TABLE,
+  VITE_SUPABASE_WEBSITE_FEEDBACK_TABLE: () => import.meta.env.VITE_SUPABASE_WEBSITE_FEEDBACK_TABLE,
+  VITE_SUPABASE_DELETE_ACCOUNT_RPC: () => import.meta.env.VITE_SUPABASE_DELETE_ACCOUNT_RPC,
+  VITE_CLOUDINARY_CLOUD_NAME: () => import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+  VITE_CLOUDINARY_FOLDER: () => import.meta.env.VITE_CLOUDINARY_FOLDER,
+  VITE_CLOUDINARY_UPLOAD_PRESET: () => import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+  VITE_SITE_URL: () => import.meta.env.VITE_SITE_URL,
+  VITE_ADMIN_EMAILS: () => import.meta.env.VITE_ADMIN_EMAILS,
+  VITE_EXPLICIT_ALLOWED_EMAILS: () => import.meta.env.VITE_EXPLICIT_ALLOWED_EMAILS,
+};
+
 const getEnv = (key) => {
-  if (typeof import.meta !== "undefined" && import.meta.env) {
-    return import.meta.env[key];
+  try {
+    return viteEnv[key]();
+  } catch {
+    return process.env[key];
   }
-  return process.env[key];
 };
 
 const clientConfig = {

@@ -10,7 +10,9 @@ const uiSlice = createSlice({
         ? "dark"
         : "light";
     })(),
-    showNavbar: false,
+    // The landing page hides the nav until scroll; every other route shows it from first paint.
+    showNavbar:
+      typeof window !== "undefined" && window.location.pathname !== "/",
     isSetupMode: true,
     setupChecked: false,
     toasts: [],

@@ -6,10 +6,20 @@ import {
 } from "../cloudinary/shared.js";
 import { createCloudinaryUploadSignature } from "../cloudinary/server.js";
 
+// Photos are only fetched from the CMS and its media bucket, over https, with a size cap.
+const ALLOWED_PHOTO_HOSTS = new Set([
+  "cms.vitap.ac.in",
+  "vitap-backend.s3.ap-south-1.amazonaws.com",
+]);
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
 function resolvePhotoUrl(url) {
   if (!url) return null;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return new URL(url, "https://cms.vitap.ac.in").toString();
+  const resolved = new URL(url, "https://cms.vitap.ac.in");
+  if (resolved.protocol !== "https:" || !ALLOWED_PHOTO_HOSTS.has(resolved.hostname)) {
+    throw new Error("Photo URL host is not allowed");
+  }
+  return resolved.toString();
 }
 
 function extensionFromContentType(contentType) {
@@ -114,7 +124,9 @@ export async function uploadPhotoFromUrl(employeeId, url, options = {}) {
   const response = await axios.get(sourceUrl, {
     responseType: "arraybuffer",
     timeout: 20000,
-    maxRedirects: 5,
+    maxRedirects: 0,
+    maxContentLength: MAX_PHOTO_BYTES,
+    maxBodyLength: MAX_PHOTO_BYTES,
     headers: {
       "User-Agent": "Mozilla/5.0",
       Accept: "image/*",
@@ -122,7 +134,10 @@ export async function uploadPhotoFromUrl(employeeId, url, options = {}) {
     validateStatus: (status) => status >= 200 && status < 300,
   });
 
-  const incomingContentType = response.headers["content-type"] || "image/jpeg";
+  const incomingContentType = String(response.headers["content-type"] || "");
+  if (!incomingContentType.startsWith("image/")) {
+    throw new Error(`Unexpected content type for ${employeeId}`);
+  }
   const originalBuffer = Buffer.from(response.data);
   return uploadBufferToCloudinary(
     employeeId,

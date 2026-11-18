@@ -17,6 +17,7 @@ const FACULTY_ENDPOINT =
 
 type FacultyRecord = {
   employeeId: number | null;
+  rawEmployeeId: unknown;
   name: string;
   designation: string;
   department: string;
@@ -39,7 +40,7 @@ function readEnv(...keys: string[]) {
 
 function getRequiredEnv(key: string) {
   const aliases: Record<string, string[]> = {
-    AUTH_TOKEN: ["AUTH_TOKEN", "VITE_AUTH_TOKEN"],
+    AUTH_TOKEN: ["AUTH_TOKEN"],
     DB_URL: [
       "DB_URL",
       "SUPABASE_URL",
@@ -83,6 +84,33 @@ function json(data: unknown, status = 200) {
       "content-type": "application/json; charset=utf-8",
     },
   });
+}
+
+// Photos are only fetched from the CMS and its media bucket, over https, with a size cap.
+const ALLOWED_PHOTO_HOSTS = new Set([
+  "cms.vitap.ac.in",
+  "vitap-backend.s3.ap-south-1.amazonaws.com",
+]);
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+function assertAllowedPhotoUrl(value: string) {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || !ALLOWED_PHOTO_HOSTS.has(url.hostname)) {
+    throw new Error("Photo URL host is not allowed");
+  }
+  return url;
+}
+
+// Constant-time string comparison for the shared secret.
+function safeEqual(a: string, b: string) {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  }
+  return diff === 0;
 }
 
 function getFacultyTable() {
@@ -141,6 +169,7 @@ function normalizeFaculty(payload: any): FacultyRecord[] {
 
     return {
       employeeId: normalizeEmployeeId(attributes.Employee_Id),
+      rawEmployeeId: attributes.Employee_Id,
       name: attributes.Name || "Unknown",
       designation: attributes.Designation || "Unknown",
       department: attributes.Department || "Unknown",
@@ -153,6 +182,40 @@ function normalizeFaculty(payload: any): FacultyRecord[] {
       photoUrl,
     };
   });
+}
+
+/*
+ * The CMS Employee_Id is a decimal such as 11.70279. The part before the dot changes over time,
+ * so stripping the dot (what we store: 1170279) gives the same person a new id on a later crawl,
+ * and an id-only match inserts a duplicate. The digits after the dot (70279) are the stable id.
+ * Stored ids keep the old composite form, so match on "stored id ends with the stable id and
+ * has at most two extra leading digits".
+ */
+function getStableKey(rawEmployeeId: unknown) {
+  const text = String(rawEmployeeId ?? "").trim();
+  const dot = text.indexOf(".");
+  return dot >= 0 && dot < text.length - 1 ? text.slice(dot + 1) : null;
+}
+
+function normalizeName(name: unknown) {
+  return String(name ?? "")
+    .toLowerCase()
+    .replace(/\b(dr|prof|mr|mrs|ms)\b\.?/g, "")
+    .replace(/[^a-z]/g, "");
+}
+
+function buildSuffixIndex(ids: Iterable<string>) {
+  const suffixIndex = new Map<string, string[]>();
+  for (const id of ids) {
+    for (let cut = 0; cut <= 2; cut++) {
+      const key = id.slice(cut);
+      if (key.length < 4) continue;
+      const list = suffixIndex.get(key) || [];
+      list.push(id);
+      suffixIndex.set(key, list);
+    }
+  }
+  return suffixIndex;
 }
 
 async function sha1Hex(value: string) {
@@ -178,18 +241,37 @@ async function createCloudinaryUploadSignature(
   return sha1Hex(`${payload}${apiSecret}`);
 }
 
-async function scrapeFacultyProfiles() {
-  const response = await fetch(`${CMS_BASE_URL}${FACULTY_ENDPOINT}`, {
-    headers: {
-      Authorization: `Bearer ${getRequiredEnv("AUTH_TOKEN")}`,
-    },
-  });
+const PAGE_SIZE = 100;
+const MAX_PAGES = 50; // safety stop; 607 faculty is 7 pages
 
-  if (!response.ok) {
-    throw new Error(`CMS scrape failed with status ${response.status}`);
+// The CMS (Strapi) paginates, default 500 per page. Without pagination params only the first
+// page came back and everyone past it was never scraped.
+async function scrapeFacultyProfiles() {
+  const rows: FacultyRecord[] = [];
+  let pageCount = 1;
+
+  for (let page = 1; page <= pageCount && page <= MAX_PAGES; page++) {
+    const response = await fetch(
+      `${CMS_BASE_URL}${FACULTY_ENDPOINT}&pagination[page]=${page}&pagination[pageSize]=${PAGE_SIZE}`,
+      {
+        headers: {
+          Authorization: `Bearer ${getRequiredEnv("AUTH_TOKEN")}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `CMS scrape failed with status ${response.status} on page ${page}`,
+      );
+    }
+
+    const payload = await response.json();
+    rows.push(...normalizeFaculty(payload));
+    pageCount = payload?.meta?.pagination?.pageCount || 1;
   }
 
-  return normalizeFaculty(await response.json());
+  return rows;
 }
 
 function getSupabaseClient() {
@@ -208,13 +290,17 @@ function getSupabaseClient() {
 async function getFacultyIndex() {
   const supabase = getSupabaseClient();
   const table = getFacultyTable();
-  const index = new Map<string, { id: string; photoFileId: string | null }>();
+  const index = new Map<
+    string,
+    { id: string; name: string; photoFileId: string | null }
+  >();
 
   const buildIndex = (
     rows: Array<{
       id: string | number;
       employeeId?: unknown;
       employeeid?: unknown;
+      name?: string | null;
       photoFileId?: string | null;
     }>,
     sourceColumn: "employeeId" | "employeeid",
@@ -230,6 +316,7 @@ async function getFacultyIndex() {
       }
       index.set(employeeId, {
         id: String(row.id),
+        name: row.name || "",
         photoFileId: row.photoFileId || null,
       });
     }
@@ -247,13 +334,13 @@ async function getFacultyIndex() {
 
   const primary = await supabase
     .from(table)
-    .select("id, employeeId, photoFileId")
+    .select("id, employeeId, name, photoFileId")
     .limit(5000);
 
   if (primary.error) {
     const fallback = await supabase
       .from(table)
-      .select("id, employeeid, photoFileId")
+      .select("id, employeeid, name, photoFileId")
       .limit(5000);
 
     if (fallback.error) {
@@ -276,7 +363,7 @@ async function getFacultyIndex() {
   // Some datasets may still carry legacy "employeeid" values while "employeeId" is null.
   const legacyFallback = await supabase
     .from(table)
-    .select("id, employeeid, photoFileId")
+    .select("id, employeeid, name, photoFileId")
     .limit(5000);
 
   if (legacyFallback.error) {
@@ -317,7 +404,9 @@ async function uploadPhotoFromUrl(
   photoUrl: string,
   options: { forceReplace?: boolean } = {},
 ) {
-  const response = await fetch(photoUrl, {
+  const response = await fetch(assertAllowedPhotoUrl(photoUrl), {
+    redirect: "manual",
+    signal: AbortSignal.timeout(20000),
     headers: {
       "User-Agent": "Mozilla/5.0",
       Accept: "image/*",
@@ -328,7 +417,17 @@ async function uploadPhotoFromUrl(
     throw new Error(`Image fetch failed for ${employeeId}: ${response.status}`);
   }
 
-  const contentType = response.headers.get("content-type") || "image/jpeg";
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.startsWith("image/")) {
+    throw new Error(`Unexpected content type for ${employeeId}`);
+  }
+  if (Number(response.headers.get("content-length") || 0) > MAX_PHOTO_BYTES) {
+    throw new Error(`Image too large for ${employeeId}`);
+  }
+  const photoBytes = await response.arrayBuffer();
+  if (photoBytes.byteLength > MAX_PHOTO_BYTES) {
+    throw new Error(`Image too large for ${employeeId}`);
+  }
   const publicId = buildCloudinaryPublicId(`${employeeId}.jpg`);
   const timestamp = Math.floor(Date.now() / 1000);
   const overwrite = options.forceReplace ? "true" : "false";
@@ -337,7 +436,7 @@ async function uploadPhotoFromUrl(
   const formData = new FormData();
   formData.append(
     "file",
-    new Blob([await response.arrayBuffer()], { type: contentType }),
+    new Blob([photoBytes], { type: contentType }),
     `${employeeId}.jpg`,
   );
   formData.append("public_id", publicId);
@@ -423,18 +522,21 @@ async function updateFacultyPhoto(rowId: string, photoFileId: string) {
 
 Deno.serve(async (request) => {
   try {
+    // Fail closed: with no secret configured nobody may trigger a service-role scrape.
     const cronSecret = getRequiredEnv("DB_CRON_SECRET");
-    if (cronSecret) {
-      const provided =
-        request.headers.get("x-cron-secret") ||
-        request.headers
-          .get("authorization")
-          ?.replace(/^Bearer\s+/i, "")
-          .trim() ||
-        "";
-      if (provided !== cronSecret) {
-        return json({ error: "Unauthorized" }, 401);
-      }
+    if (!cronSecret) {
+      console.error("weekly-scrape: DB_CRON_SECRET is not configured");
+      return json({ error: "Service not configured" }, 503);
+    }
+    const provided =
+      request.headers.get("x-cron-secret") ||
+      request.headers
+        .get("authorization")
+        ?.replace(/^Bearer\s+/i, "")
+        .trim() ||
+      "";
+    if (!safeEqual(provided, cronSecret)) {
+      return json({ error: "Unauthorized" }, 401);
     }
 
     const syncExistingPhotos =
@@ -455,6 +557,15 @@ Deno.serve(async (request) => {
     let updatedPhotos = 0;
     let wouldUpdatePhotos = 0;
     let skipped = 0;
+    const suffixIndex = buildSuffixIndex(facultyIndex.keys());
+    // Safety net: the CMS can list one person under two profiles. A new id with an
+    // already-stored name is skipped, not inserted as a duplicate.
+    const storedNames = new Set(
+      [...facultyIndex.values()]
+        .map((row) => normalizeName(row.name))
+        .filter(Boolean),
+    );
+    const skippedSameName: Array<{ employeeId: string; name: string }> = [];
 
     for (const faculty of scrapedFaculty) {
       const employeeKey = getEmployeeIdKey(faculty.employeeId);
@@ -463,7 +574,11 @@ Deno.serve(async (request) => {
         continue;
       }
 
-      const existing = facultyIndex.get(employeeKey);
+      const stableKey = getStableKey(faculty.rawEmployeeId);
+      const matchedKey = facultyIndex.has(employeeKey)
+        ? employeeKey
+        : (stableKey ? suffixIndex.get(stableKey) || [] : [])[0];
+      const existing = matchedKey ? facultyIndex.get(matchedKey) : undefined;
       if (existing) {
         if (!syncExistingPhotos || !faculty.photoUrl) continue;
 
@@ -489,23 +604,38 @@ Deno.serve(async (request) => {
         continue;
       }
 
+      const nameKey = normalizeName(faculty.name);
+      if (nameKey && storedNames.has(nameKey)) {
+        skippedSameName.push({ employeeId: employeeKey, name: faculty.name });
+        continue;
+      }
+      if (nameKey) storedNames.add(nameKey);
+
       if (dryRun) {
         wouldAdd += 1;
-        facultyIndex.set(employeeKey, { id: "", photoFileId: null });
+        facultyIndex.set(employeeKey, {
+          id: "",
+          name: faculty.name,
+          photoFileId: null,
+        });
         continue;
       }
 
       let photoFileId: string | null = null;
       if (faculty.photoUrl) {
-        photoFileId = await uploadPhotoFromUrl(
-          Number(faculty.employeeId),
-          faculty.photoUrl,
-        );
-        if (photoFileId) photosUploaded += 1;
+        try {
+          photoFileId = await uploadPhotoFromUrl(
+            Number(faculty.employeeId),
+            faculty.photoUrl,
+          );
+          if (photoFileId) photosUploaded += 1;
+        } catch (error) {
+          console.error(`Photo skipped for ${faculty.employeeId}:`, error);
+        }
       }
 
       await insertFaculty(faculty, photoFileId);
-      facultyIndex.set(employeeKey, { id: "", photoFileId });
+      facultyIndex.set(employeeKey, { id: "", name: faculty.name, photoFileId });
       added += 1;
     }
 
@@ -524,14 +654,10 @@ Deno.serve(async (request) => {
       updatedPhotos,
       wouldUpdatePhotos,
       skipped,
+      skippedSameName,
     });
   } catch (error) {
-    return json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      500,
-    );
+    console.error("weekly-scrape failed:", error);
+    return json({ ok: false, error: "Internal error" }, 500);
   }
 });

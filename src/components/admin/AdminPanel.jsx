@@ -280,7 +280,7 @@ function AdminPanel() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-(--text)">
+        <h1 className="text-3xl font-medium text-(--text)">
           Admin Dashboard
         </h1>
         <p className="mt-1 text-sm text-(--muted)">
@@ -290,10 +290,10 @@ function AdminPanel() {
       </div>
 
       {loading ? (
-        <p className="text-sm font-medium text-(--muted)">Loading...</p>
+        <p className="text-sm font-medium text-(--muted)">Loading</p>
       ) : null}
       {error ? (
-        <p className="rounded-xl border border-red-300 bg-red-500/10 p-4 text-sm font-medium text-red-600">
+        <p className="rounded-xl border border-(--danger)/40 bg-(--danger-light) p-4 text-sm font-medium text-(--danger)">
           {error}
         </p>
       ) : null}
@@ -303,12 +303,12 @@ function AdminPanel() {
           {statsCards.map((card) => (
             <div
               key={card.label}
-              className="rounded-lg border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow)"
+              className="rounded-lg border border-(--line) bg-(--bg-elev) p-5 "
             >
-              <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+              <p className="text-xs font-medium text-(--muted)">
                 {card.label}
               </p>
-              <p className="mt-2 text-2xl font-bold text-(--text)">
+              <p className="mt-2 text-2xl font-medium text-(--text)">
                 {card.value}
               </p>
             </div>
@@ -317,8 +317,8 @@ function AdminPanel() {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-          <h2 className="mb-4 text-lg font-bold text-(--text)">
+        <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 ">
+          <h2 className="mb-4 text-lg font-medium text-(--text)">
             Upload course PDF
           </h2>
           <form onSubmit={handleSubmitCourse} className="space-y-4">
@@ -331,13 +331,13 @@ function AdminPanel() {
                   file: e.target.files?.[0] || null,
                 }))
               }
-              className="w-full rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5 text-sm text-(--text) file:mr-3 file:rounded-lg file:border-0 file:bg-(--primary) file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+              className="w-full rounded-xl border border-(--line) bg-(--panel) px-4 py-2.5 text-sm text-(--text) file:mr-3 file:rounded-lg file:border-0 file:bg-(--primary) file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
               required
             />
             <button
               type="submit"
               disabled={uploading}
-              className="rounded-xl bg-(--primary) px-5 py-2.5 text-sm font-semibold text-white shadow-(--shadow) disabled:opacity-60"
+              className="rounded-xl bg-(--primary) px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60"
             >
               {uploading ? "Parsing..." : "Parse PDF and save courses"}
             </button>
@@ -347,8 +347,8 @@ function AdminPanel() {
           </form>
         </div>
 
-        <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-          <h2 className="mb-4 text-lg font-bold text-(--text)">
+        <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 ">
+          <h2 className="mb-4 text-lg font-medium text-(--text)">
             Users Joined (Activity Based)
           </h2>
           {userJoinedSeries.length === 0 ? (
@@ -370,16 +370,16 @@ function AdminPanel() {
                     className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3"
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-(--muted)">
+                      <span className="text-xs font-medium text-(--muted)">
                         {item.date}
                       </span>
-                      <span className="text-sm font-bold text-(--primary)">
+                      <span className="text-sm font-medium text-(--accent-text)">
                         {item.count}
                       </span>
                     </div>
                     <div className="h-2 rounded-full bg-(--bg)">
                       <div
-                        className="h-2 rounded-full bg-(--primary)"
+                        className="h-2 rounded-(--radius) bg-(--primary)"
                         style={{ width: `${width}%` }}
                       />
                     </div>
@@ -391,8 +391,8 @@ function AdminPanel() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-        <h2 className="mb-4 text-lg font-bold text-(--text)">
+      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 ">
+        <h2 className="mb-4 text-lg font-medium text-(--text)">
           Ratings Distribution
         </h2>
         {feedbackEntries.length === 0 ? (
@@ -415,13 +415,13 @@ function AdminPanel() {
                     <span className="text-sm font-medium text-(--text)">
                       {rating} Star
                     </span>
-                    <span className="text-sm font-bold text-(--primary)">
+                    <span className="text-sm font-medium text-(--accent-text)">
                       {count}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-(--bg)">
                     <div
-                      className="h-2 rounded-full bg-(--primary)"
+                      className="h-2 rounded-(--radius) bg-(--primary)"
                       style={{ width: `${width}%` }}
                     />
                   </div>
@@ -432,9 +432,9 @@ function AdminPanel() {
         )}
       </div>
 
-      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
+      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 ">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-(--text)">
+          <h2 className="text-lg font-medium text-(--text)">
             Reviews and Ratings
           </h2>
           <div className="flex items-center gap-2">
@@ -443,7 +443,7 @@ function AdminPanel() {
                 key={filter}
                 type="button"
                 onClick={() => setEntryFilter(filter)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize ${
                   entryFilter === filter
                     ? "bg-(--primary) text-white"
                     : "bg-(--panel) text-(--muted)"
@@ -499,7 +499,7 @@ function AdminPanel() {
                   className="flex flex-col gap-2 rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold text-(--text)">
+                    <span className="font-medium text-(--text)">
                       {facultyName}
                     </span>
                     <span className="text-xs text-(--muted)">
@@ -511,12 +511,12 @@ function AdminPanel() {
                       User: {userLabel}
                     </span>
                     {hasReview ? (
-                      <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-600">
+                      <span className="rounded-md bg-(--success-light) px-2 py-1 text-xs font-medium text-(--success)">
                         Review
                       </span>
                     ) : null}
                     {Number.isFinite(avgRating) ? (
-                      <span className="rounded-md bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-600">
+                      <span className="rounded-md bg-(--warning-light) px-2 py-1 text-xs font-medium text-(--warning)">
                         Rating {avgRating.toFixed(1)}
                       </span>
                     ) : null}
@@ -530,7 +530,7 @@ function AdminPanel() {
                     <button
                       type="button"
                       onClick={() => requestDeleteEntry(entry)}
-                      className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+                      className="rounded-lg bg-(--danger) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
                     >
                       Delete Entry
                     </button>
@@ -568,8 +568,8 @@ function AdminPanel() {
       </div>
 
       {/* Website Feedback Section */}
-      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow)">
-        <h2 className="mb-4 text-lg font-bold text-(--text)">
+      <div className="rounded-lg border border-(--line) bg-(--bg-elev) p-6 ">
+        <h2 className="mb-4 text-lg font-medium text-(--text)">
           Website Feedback
         </h2>
         {websiteFeedbacks.length === 0 ? (
@@ -593,26 +593,26 @@ function AdminPanel() {
                 return (
                   <>
                     <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+                      <p className="text-xs font-medium text-(--muted)">
                         Submissions
                       </p>
-                      <p className="mt-1 text-xl font-bold text-(--text)">
+                      <p className="mt-1 text-xl font-medium text-(--text)">
                         {total}
                       </p>
                     </div>
                     <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+                      <p className="text-xs font-medium text-(--muted)">
                         Avg Rating
                       </p>
-                      <p className="mt-1 text-xl font-bold text-(--text)">
+                      <p className="mt-1 text-xl font-medium text-(--text)">
                         {avg.toFixed(1)} / 5
                       </p>
                     </div>
                     <div className="rounded-xl border border-(--line) bg-(--panel) px-4 py-3 text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-(--muted)">
+                      <p className="text-xs font-medium text-(--muted)">
                         With Suggestions
                       </p>
-                      <p className="mt-1 text-xl font-bold text-(--text)">
+                      <p className="mt-1 text-xl font-medium text-(--text)">
                         {withSuggestions}
                       </p>
                     </div>
@@ -646,11 +646,11 @@ function AdminPanel() {
                     </span>
                     <div className="flex-1 h-2 rounded-full bg-(--bg)">
                       <div
-                        className="h-2 rounded-full bg-yellow-500"
+                        className="h-2 rounded-full bg-(--warning)"
                         style={{ width: `${width}%` }}
                       />
                     </div>
-                    <span className="w-6 text-xs font-semibold text-(--text)">
+                    <span className="w-6 text-xs font-medium text-(--text)">
                       {count}
                     </span>
                   </div>
@@ -717,13 +717,13 @@ function AdminPanel() {
                               {[1, 2, 3, 4, 5].map((s) => (
                                 <span
                                   key={s}
-                                  className={`text-lg leading-none ${s <= rating ? "text-yellow-500" : "text-(--line)"}`}
+                                  className={`text-lg leading-none ${s <= rating ? "text-(--warning)" : "text-(--line)"}`}
                                 >
                                   ★
                                 </span>
                               ))}
                             </div>
-                            <span className="text-xs font-semibold text-(--muted)">
+                            <span className="text-xs font-medium text-(--muted)">
                               {rating}/5
                             </span>
                           </div>
@@ -733,7 +733,7 @@ function AdminPanel() {
                         </div>
                         {/* Meta row: email + page */}
                         <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--text)">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--text)">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="w-3 h-3 text-(--muted)"
@@ -751,7 +751,7 @@ function AdminPanel() {
                               "N/A"}
                           </span>
                           {fb.page_path ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--muted)">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-(--bg) border border-(--line) px-3 py-1 text-xs font-medium text-(--muted)">
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 className="w-3 h-3"
@@ -769,7 +769,7 @@ function AdminPanel() {
                         </div>
                         {/* Suggestions */}
                         <div
-                          className={`rounded-lg px-3 py-2.5 text-xs ${hasSuggestions ? "bg-(--bg) text-(--text)" : "text-(--muted) italic"}`}
+                          className={`rounded-lg px-3 py-2.5 text-xs ${hasSuggestions ? "bg-(--bg) text-(--text)" : "text-(--muted)"}`}
                         >
                           {hasSuggestions
                             ? fb.suggestions

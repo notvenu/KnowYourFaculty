@@ -73,7 +73,7 @@ function RatingLegend() {
     <div className="sm:hidden flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-(--panel) px-3 py-2">
       {RATING_ORDER.map((rating) => (
         <span key={rating} className="flex items-center gap-1">
-          <span className="text-sm font-bold" style={{ color: getTierColor(getTierFromRating(rating)) }}>
+          <span className="text-sm font-medium" style={{ color: getTierColor(getTierFromRating(rating)) }}>
             {RATING_SHORT_LABELS[rating]}
           </span>
           <span className="text-xs text-(--muted)">{RATING_LABELS[rating]}</span>
@@ -122,10 +122,23 @@ function FacultyDetailSkeleton() {
 function FacultyDetailPage({ currentUser }) {
   const dispatch = useDispatch();
   const { facultyId } = useParams();
+  // The profile card renders twice (phone and desktop slots); only the visible one is the h1.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const [faculty, setFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (faculty?.name) document.title = `${faculty.name} - KnowYourFaculty`;
+  }, [faculty]);
   const [deleting, setDeleting] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [feedbackList, setFeedbackList] = useState([]);
@@ -917,7 +930,7 @@ function FacultyDetailPage({ currentUser }) {
       dispatch(setShowLoginOverlay(true));
       dispatch(
         addToast({
-          message: "Please sign in to share feedback.",
+          message: "Please sign in to share feedback",
           type: "info",
         }),
       );
@@ -937,7 +950,7 @@ function FacultyDetailPage({ currentUser }) {
   if (loading) return <FacultyDetailSkeleton />;
   if (!faculty)
     return (
-      <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
+      <p className="rounded-xl bg-(--danger-light) p-4 text-sm text-(--danger)">
         {error || "Faculty not found."}
       </p>
     );
@@ -947,7 +960,7 @@ function FacultyDetailPage({ currentUser }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           to="/faculty"
-          className="inline-flex items-center gap-1 text-xs text-(--muted) hover:text-(--text)"
+          className="inline-flex min-h-6 items-center gap-1 text-xs text-(--muted) hover:text-(--text)"
         >
           <FontAwesomeIcon icon={byPrefixAndName.fas["angle-left"]} />
           <span>Back to Faculty Search</span>
@@ -955,7 +968,8 @@ function FacultyDetailPage({ currentUser }) {
         <button
           type="button"
           onClick={handleShareFacultyPage}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-(--line) bg-(--panel) p-0 text-xs font-semibold text-(--text) hover:bg-(--bg-elev) sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-2"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-(--line) bg-(--panel) p-0 text-xs font-medium text-(--text) btn-slide sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-2"
+          style={{ "--fill": "var(--panel-dark)" }}
           aria-label="Share page"
           title="Share page"
         >
@@ -965,19 +979,19 @@ function FacultyDetailPage({ currentUser }) {
       </div>
 
       {error ? (
-        <p className="mb-4 rounded-lg bg-red-50 p-3 text-xs text-red-600">
+        <p className="mb-4 rounded-lg bg-(--danger-light) p-3 text-xs text-(--danger)">
           {error}
         </p>
       ) : null}
 
       {/* Main Layout: Fixed Grid Layout */}
       <div className="mb-3 lg:hidden">
-        <FacultyProfileCard faculty={faculty} />
+        <FacultyProfileCard faculty={faculty} headingAs={isDesktop ? "p" : "h1"} />
       </div>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="order-2 space-y-3 lg:order-1">
           <div className="hidden lg:block">
-            <FacultyProfileCard faculty={faculty} />
+            <FacultyProfileCard faculty={faculty} headingAs={isDesktop ? "h1" : "p"} />
           </div>
 
           {/* What students say */}
@@ -1062,10 +1076,10 @@ function FacultyDetailPage({ currentUser }) {
             </div>
           ) : null}
           {showFeedbackForm && editingReviewOnly && hasUser ? (
-            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 md:p-6">
               <form onSubmit={submitReviewOnly} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
-                  <h2 className="mb-1 text-2xl font-bold text-(--text)">
+                  <h2 className="mb-1 text-2xl font-medium text-(--text)">
                     {reviewOnlyMode === "add"
                       ? "Add Review"
                       : "Edit Your Review"}
@@ -1076,7 +1090,7 @@ function FacultyDetailPage({ currentUser }) {
                       : `Update your feedback for ${facultyName}`}
                   </p>
                   <div className="mt-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-(--text)">
+                    <p className="text-xs font-medium text-(--text)">
                       Note
                     </p>
                     <p className="mt-1 text-xs text-(--muted)">
@@ -1088,7 +1102,7 @@ function FacultyDetailPage({ currentUser }) {
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-(--text)">
+                    <label className="block text-sm font-medium text-(--text)">
                       Your Review
                     </label>
                     <span className="text-xs text-(--muted)">
@@ -1119,14 +1133,14 @@ function FacultyDetailPage({ currentUser }) {
                       setCurrentEditingReviewId(null);
                       setShowFeedbackForm(false);
                     }}
-                    className="rounded-full border border-(--line) px-6 py-3 text-sm font-semibold text-(--text) hover:bg-(--panel)"
+                    className="rounded-(--radius) border border-(--line) px-6 py-3 text-sm font-medium text-(--text) hover:bg-(--panel)"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="rounded-full bg-(--primary) px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
+                    className="rounded-(--radius) bg-(--primary) px-8 py-3 text-sm font-medium text-white disabled:opacity-60"
                   >
                     {saving
                       ? "Saving..."
@@ -1138,17 +1152,17 @@ function FacultyDetailPage({ currentUser }) {
               </form>
             </div>
           ) : editingRatingsOnly && hasUser ? (
-            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 md:p-6">
               <form onSubmit={submitRatingsOnly} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
-                  <h2 className="mb-1 text-2xl font-bold text-(--text)">
+                  <h2 className="mb-1 text-2xl font-medium text-(--text)">
                     Edit Your Ratings
                   </h2>
                   <p className="text-sm text-(--muted)">
                     Update your ratings for {facultyName}
                   </p>
                   <div className="mt-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-(--text)">
+                    <p className="text-xs font-medium text-(--text)">
                       Note
                     </p>
                     <p className="mt-1 text-xs text-(--muted)">
@@ -1170,7 +1184,7 @@ function FacultyDetailPage({ currentUser }) {
                     }
                     className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                   >
-                    <span className="font-semibold text-(--text)">Theory</span>
+                    <span className="font-medium text-(--text)">Theory</span>
                     <span className="text-(--muted)">
                       <FontAwesomeIcon
                         icon={faChevronDown}
@@ -1198,12 +1212,12 @@ function FacultyDetailPage({ currentUser }) {
                         />
                       ))}
                       <div>
-                        <p className="mb-3 text-sm font-semibold text-(--text)">
+                        <p className="mb-3 text-sm font-medium text-(--text)">
                           Theory Notes Required?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
-                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-[left] duration-200 ease-out"
+                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) transition-[left] duration-200 ease-out"
                             style={{
                               width: "calc((100% - 1rem) / 2)",
                               left: `calc(0.5rem + (100% - 1rem) * ${
@@ -1215,9 +1229,9 @@ function FacultyDetailPage({ currentUser }) {
                             {THEORY_NOTE_OPTIONS.map((label, idx) => (
                               <span
                                 key={label}
-                                className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                                className={`select-none text-center text-xs font-medium transition-colors duration-150 ${
                                   (feedbackForm.theoryNotes ? 1 : 0) === idx
-                                    ? "opacity-100 text-(--text)"
+                                    ? "opacity-100 text-white"
                                     : "opacity-50 text-(--muted)"
                                 }`}
                               >
@@ -1258,7 +1272,7 @@ function FacultyDetailPage({ currentUser }) {
                     }
                     className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                   >
-                    <span className="font-semibold text-(--text)">Lab</span>
+                    <span className="font-medium text-(--text)">Lab</span>
                     <span className="text-(--muted)">
                       <FontAwesomeIcon
                         icon={faChevronDown}
@@ -1286,12 +1300,12 @@ function FacultyDetailPage({ currentUser }) {
                         />
                       ))}
                       <div>
-                        <p className="mb-3 text-sm font-semibold text-(--text)">
+                        <p className="mb-3 text-sm font-medium text-(--text)">
                           Lab Observation/Notes Type?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
-                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-[left] duration-200 ease-out"
+                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) transition-[left] duration-200 ease-out"
                             style={{
                               width: "calc((100% - 1rem) / 4)",
                               left: `calc(0.5rem + (100% - 1rem) * ${
@@ -1309,7 +1323,7 @@ function FacultyDetailPage({ currentUser }) {
                             {LAB_NOTE_OPTIONS.map((opt, idx) => (
                               <span
                                 key={opt.value}
-                                className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                                className={`select-none text-center text-xs font-medium transition-colors duration-150 ${
                                   Math.max(
                                     0,
                                     LAB_NOTE_OPTIONS.findIndex(
@@ -1317,7 +1331,7 @@ function FacultyDetailPage({ currentUser }) {
                                         item.value === feedbackForm.labNotes,
                                     ),
                                   ) === idx
-                                    ? "opacity-100 text-(--text)"
+                                    ? "opacity-100 text-white"
                                     : "opacity-50 text-(--muted)"
                                 }`}
                               >
@@ -1366,7 +1380,7 @@ function FacultyDetailPage({ currentUser }) {
                     }
                     className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                   >
-                    <span className="font-semibold text-(--text)">
+                    <span className="font-medium text-(--text)">
                       ECS / Capstone
                     </span>
                     <span className="text-(--muted)">
@@ -1400,7 +1414,7 @@ function FacultyDetailPage({ currentUser }) {
                 </div>
 
                 <div className="relative border-t border-(--line) pt-6">
-                  <label className="mb-2 block text-sm font-semibold text-(--text)">
+                  <label className="mb-2 block text-sm font-medium text-(--text)">
                     Which Course? (Optional)
                   </label>
                   <input
@@ -1412,7 +1426,7 @@ function FacultyDetailPage({ currentUser }) {
                       setCourseQuery(value);
                       setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                     }}
-                    className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 pr-10 text-sm outline-none"
+                    className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-3 pr-10 text-sm outline-none"
                   />
                   {String(courseQuery || "").trim() || feedbackForm.courseId ? (
                     <button
@@ -1422,14 +1436,14 @@ function FacultyDetailPage({ currentUser }) {
                         setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                         setCourseSuggestions([]);
                       }}
-                      className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                      className="absolute right-2 top-15 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
                       �
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-lg">
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-(--shadow-pop)">
                       {courseSuggestions.map((course) => (
                         <button
                           key={course.$id}
@@ -1442,7 +1456,7 @@ function FacultyDetailPage({ currentUser }) {
                       ))}
                     </div>
                   ) : courseQuery.trim() && !feedbackForm.courseId ? (
-                    <div className="absolute z-10 mt-1 w-full rounded-2xl border border-(--line) bg-(--bg) p-3 shadow-lg">
+                    <div className="absolute z-10 mt-1 w-full rounded-2xl border border-(--line) bg-(--bg) p-3 shadow-(--shadow-pop)">
                       <p className="text-xs text-(--muted)">
                         No courses found. Keep typing to search...
                       </p>
@@ -1458,14 +1472,14 @@ function FacultyDetailPage({ currentUser }) {
                       setCurrentEditingReviewId(null);
                       setShowFeedbackForm(false);
                     }}
-                    className="rounded-full border border-(--line) px-6 py-3 text-sm font-semibold text-(--text) hover:bg-(--panel)"
+                    className="rounded-(--radius) border border-(--line) px-6 py-3 text-sm font-medium text-(--text) hover:bg-(--panel)"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="rounded-full bg-(--primary) px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
+                    className="rounded-(--radius) bg-(--primary) px-8 py-3 text-sm font-medium text-white disabled:opacity-60"
                   >
                     {saving ? "Saving..." : "Save Ratings"}
                   </button>
@@ -1473,17 +1487,17 @@ function FacultyDetailPage({ currentUser }) {
               </form>
             </div>
           ) : hasUser && isEditing && showFeedbackForm ? (
-            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
+            <div className="mb-8 rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 md:p-6">
               <form onSubmit={submitFeedback} className="space-y-6">
                 <div className="border-b-2 border-(--line) pb-3">
-                  <h2 className="mb-1 text-2xl font-bold text-(--text)">
+                  <h2 className="mb-1 text-2xl font-medium text-(--text)">
                     Share Your Experience
                   </h2>
                   <p className="text-sm text-(--muted)">
                     Help fellow students by rating your time with {facultyName}
                   </p>
                   <div className="mt-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-(--text)">
+                    <p className="text-xs font-medium text-(--text)">
                       Note
                     </p>
                     <p className="mt-1 text-xs text-(--muted)">
@@ -1505,7 +1519,7 @@ function FacultyDetailPage({ currentUser }) {
                     }
                     className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                   >
-                    <span className="font-semibold text-(--text)">Theory</span>
+                    <span className="font-medium text-(--text)">Theory</span>
                     <span className="text-(--muted)">
                       <FontAwesomeIcon
                         icon={faChevronDown}
@@ -1533,12 +1547,12 @@ function FacultyDetailPage({ currentUser }) {
                         />
                       ))}
                       <div>
-                        <p className="mb-3 text-sm font-semibold text-(--text)">
+                        <p className="mb-3 text-sm font-medium text-(--text)">
                           Theory Notes Required?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
-                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-[left] duration-200 ease-out"
+                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) transition-[left] duration-200 ease-out"
                             style={{
                               width: "calc((100% - 1rem) / 2)",
                               left: `calc(0.5rem + (100% - 1rem) * ${
@@ -1550,9 +1564,9 @@ function FacultyDetailPage({ currentUser }) {
                             {THEORY_NOTE_OPTIONS.map((label, idx) => (
                               <span
                                 key={label}
-                                className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                                className={`select-none text-center text-xs font-medium transition-colors duration-150 ${
                                   (feedbackForm.theoryNotes ? 1 : 0) === idx
-                                    ? "opacity-100 text-(--text)"
+                                    ? "opacity-100 text-white"
                                     : "opacity-50 text-(--muted)"
                                 }`}
                               >
@@ -1593,7 +1607,7 @@ function FacultyDetailPage({ currentUser }) {
                     }
                     className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                   >
-                    <span className="font-semibold text-(--text)">Lab</span>
+                    <span className="font-medium text-(--text)">Lab</span>
                     <span className="text-(--muted)">
                       <FontAwesomeIcon
                         icon={faChevronDown}
@@ -1621,12 +1635,12 @@ function FacultyDetailPage({ currentUser }) {
                         />
                       ))}
                       <div>
-                        <p className="mb-3 text-sm font-semibold text-(--text)">
+                        <p className="mb-3 text-sm font-medium text-(--text)">
                           Lab Observation/Notes Type?
                         </p>
                         <div className="relative flex h-14 items-center rounded-2xl border border-(--line) bg-(--panel) px-2 py-1">
                           <div
-                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) shadow-md transition-[left] duration-200 ease-out"
+                            className="absolute h-10 rounded-xl border-2 border-(--bg-elev) bg-(--primary) transition-[left] duration-200 ease-out"
                             style={{
                               width: "calc((100% - 1rem) / 4)",
                               left: `calc(0.5rem + (100% - 1rem) * ${
@@ -1644,7 +1658,7 @@ function FacultyDetailPage({ currentUser }) {
                             {LAB_NOTE_OPTIONS.map((opt, idx) => (
                               <span
                                 key={opt.value}
-                                className={`select-none text-center text-xs font-semibold transition-all duration-150 ${
+                                className={`select-none text-center text-xs font-medium transition-colors duration-150 ${
                                   Math.max(
                                     0,
                                     LAB_NOTE_OPTIONS.findIndex(
@@ -1652,7 +1666,7 @@ function FacultyDetailPage({ currentUser }) {
                                         item.value === feedbackForm.labNotes,
                                     ),
                                   ) === idx
-                                    ? "opacity-100 text-(--text)"
+                                    ? "opacity-100 text-white"
                                     : "opacity-50 text-(--muted)"
                                 }`}
                               >
@@ -1701,7 +1715,7 @@ function FacultyDetailPage({ currentUser }) {
                     }
                     className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                   >
-                    <span className="font-semibold text-(--text)">
+                    <span className="font-medium text-(--text)">
                       ECS / Capstone
                     </span>
                     <span className="text-(--muted)">
@@ -1735,7 +1749,7 @@ function FacultyDetailPage({ currentUser }) {
                 </div>
 
                 <div className="relative border-t border-(--line) pt-6">
-                  <label className="mb-2 block text-sm font-semibold text-(--text)">
+                  <label className="mb-2 block text-sm font-medium text-(--text)">
                     Which Course? (Optional)
                   </label>
                   <input
@@ -1747,7 +1761,7 @@ function FacultyDetailPage({ currentUser }) {
                       setCourseQuery(value);
                       setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                     }}
-                    className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-3 pr-10 text-sm outline-none"
+                    className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-3 pr-10 text-sm outline-none"
                   />
                   {String(courseQuery || "").trim() || feedbackForm.courseId ? (
                     <button
@@ -1757,14 +1771,14 @@ function FacultyDetailPage({ currentUser }) {
                         setFeedbackForm((prev) => ({ ...prev, courseId: "" }));
                         setCourseSuggestions([]);
                       }}
-                      className="absolute right-2 top-15 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                      className="absolute right-2 top-15 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
                       �
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (
-                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-lg">
+                    <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-2xl border border-(--line) bg-(--bg) shadow-(--shadow-pop)">
                       {courseSuggestions.map((course) => (
                         <button
                           key={course.$id}
@@ -1777,7 +1791,7 @@ function FacultyDetailPage({ currentUser }) {
                       ))}
                     </div>
                   ) : courseQuery.trim() && !feedbackForm.courseId ? (
-                    <div className="absolute z-10 mt-1 w-full rounded-2xl border border-(--line) bg-(--bg) p-3 shadow-lg">
+                    <div className="absolute z-10 mt-1 w-full rounded-2xl border border-(--line) bg-(--bg) p-3 shadow-(--shadow-pop)">
                       <p className="text-xs text-(--muted)">
                         No courses found. Keep typing to search...
                       </p>
@@ -1787,7 +1801,7 @@ function FacultyDetailPage({ currentUser }) {
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-(--text)">
+                    <label className="block text-sm font-medium text-(--text)">
                       Your Review
                     </label>
                     <span className="text-xs text-(--muted)">
@@ -1816,14 +1830,14 @@ function FacultyDetailPage({ currentUser }) {
                       setShowFeedbackForm(false);
                       setIsEditing(false);
                     }}
-                    className="rounded-full border border-(--line) px-6 py-3 text-sm font-semibold text-(--text) hover:bg-(--panel)"
+                    className="rounded-(--radius) border border-(--line) px-6 py-3 text-sm font-medium text-(--text) hover:bg-(--panel)"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="rounded-full bg-(--primary) px-8 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
+                    className="rounded-(--radius) bg-(--primary) px-8 py-3 text-sm font-medium text-white disabled:opacity-60"
                   >
                     {saving ? "Saving..." : "Save Feedback"}
                   </button>

@@ -371,7 +371,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       setShowDeletePollConfirm(false);
       setDeletingPoll(null);
       dispatch(
-        addToast({ message: "Poll deleted successfully", type: "success" }),
+        addToast({ message: "Poll deleted", type: "success" }),
       );
       await loadUserPolls();
     } catch (err) {
@@ -390,7 +390,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
   };
 
   const handlePollCreatedOrUpdated = async () => {
-    dispatch(addToast({ message: "Poll saved successfully", type: "success" }));
+    dispatch(addToast({ message: "Poll saved", type: "success" }));
     await loadUserPolls();
   };
 
@@ -501,7 +501,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       setShowInstantDeleteConfirm(false);
       dispatch(
         addToast({
-          message: "Account deleted successfully.",
+          message: "Account deleted",
           type: "success",
         }),
       );
@@ -533,7 +533,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       );
       await refreshEntries();
       dispatch(
-        addToast({ message: "Feedback deleted successfully", type: "success" }),
+        addToast({ message: "Feedback deleted", type: "success" }),
       );
     } catch (deleteError) {
       dispatch(
@@ -570,7 +570,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       });
       await refreshEntries();
       dispatch(
-        addToast({ message: "Review deleted successfully", type: "success" }),
+        addToast({ message: "Review deleted", type: "success" }),
       );
     } catch (deleteError) {
       dispatch(
@@ -693,7 +693,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       await facultyFeedbackService.submitFeedback(payload);
       await refreshEntries();
       dispatch(
-        addToast({ message: "Feedback saved successfully", type: "success" }),
+        addToast({ message: "Feedback saved", type: "success" }),
       );
     } catch (saveError) {
       dispatch(
@@ -709,8 +709,8 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
 
   return (
     <div className="space-y-6">
-      <section className="p-4 shadow-(--shadow-card)">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-(--text)">
+      <section className="p-4 ">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium text-(--text)">
           My Dashboard
         </h1>
         <p className="mt-3 text-sm text-(--muted)">
@@ -719,8 +719,8 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       </section>
 
       {/* User Details Section */}
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow-card)">
-        <h2 className="mb-4 text-lg font-semibold text-(--text)">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-5 ">
+        <h2 className="mb-4 text-lg font-medium text-(--text)">
           Account Details
         </h2>
         <div className="space-y-3">
@@ -762,7 +762,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         <div className="mt-6 pt-6 border-t border-(--line)">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-(--text)">
+              <h3 className="text-base font-medium text-(--text)">
                 Account Deletion
               </h3>
               <p className="text-xs text-(--muted)">
@@ -774,7 +774,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                 <button
                   type="button"
                   onClick={handleScheduleDeletion}
-                  className="rounded-xl border border-(--danger) bg-(--danger-light) px-4 py-2 text-sm font-semibold text-(--danger) hover:bg-(--danger-lighter)"
+                  className="rounded-xl border border-(--danger) bg-(--danger-light) px-4 py-2 text-sm font-medium text-(--danger) hover:bg-(--danger-lighter)"
                   disabled={saving}
                 >
                   Request account deletion
@@ -782,7 +782,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                 <button
                   type="button"
                   onClick={() => setShowInstantDeleteConfirm(true)}
-                  className="rounded-xl border border-(--danger) bg-(--danger) px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                  className="rounded-xl border border-(--danger) bg-(--danger) px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
                   disabled={saving}
                 >
                   Delete account now
@@ -792,7 +792,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
               <button
                 type="button"
                 onClick={handleCancelDeletion}
-                className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-sm font-semibold text-(--text) hover:bg-(--bg-elev)"
+                className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--bg-elev)"
               >
                 Cancel deletion request
               </button>
@@ -810,9 +810,9 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow-card)">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-5 ">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-(--text)">My Feedback</h2>
+          <h2 className="text-lg font-medium text-(--text)">My Feedback</h2>
           <span className="text-xs text-(--muted)">
             {entries.length} entries
           </span>
@@ -881,7 +881,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                           />
                         </svg>
                         <div className="text-left">
-                          <p className="text-sm font-semibold text-(--text)">
+                          <p className="text-sm font-medium text-(--text)">
                             {facultyRecord?.name ||
                               `Faculty ${facultyId || "-"}`}
                           </p>
@@ -894,7 +894,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                       <Link
                         to={`/faculty/${facultyId}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
+                        className="rounded-lg border border-(--line) bg-(--bg-elev) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--muted)"
                       >
                         View Faculty
                       </Link>
@@ -921,7 +921,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteReview(entry)}
-                                    className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
+                                    className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--muted)"
                                     disabled={saving}
                                   >
                                     Delete Review
@@ -989,7 +989,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                       />
                                       {courseSuggestions[entry.$id]?.length >
                                         0 && (
-                                        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-(--line) bg-(--bg) shadow-lg">
+                                        <div className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-lg border border-(--line) bg-(--bg) shadow-(--shadow-pop)">
                                           {courseSuggestions[entry.$id].map(
                                             (course) => (
                                               <button
@@ -1041,7 +1041,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                         key={key}
                                         className="rounded-lg border border-(--line) bg-(--bg-elev) px-2 py-2"
                                       >
-                                        <span className="mb-1 block text-[11px] text-(--muted)">
+                                        <span className="mb-1 block text-xs text-(--muted)">
                                           {label}
                                         </span>
                                         <select
@@ -1076,7 +1076,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                         initiateCancelChanges(entry.$id)
                                       }
                                       disabled={saving}
-                                      className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev) disabled:opacity-60"
+                                      className="rounded-lg border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) hover:bg-(--bg-elev) disabled:opacity-60"
                                     >
                                       Cancel
                                     </button>
@@ -1084,9 +1084,9 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                                       type="button"
                                       onClick={() => initiateUpdate(entry)}
                                       disabled={saving}
-                                      className="rounded-lg bg-(--primary) px-4 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                                      className="rounded-lg bg-(--primary) px-4 py-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
                                     >
-                                      {saving ? "Updating..." : "Update"}
+                                      {saving ? "Updating" : "Update"}
                                     </button>
                                   </div>
                                 )}
@@ -1129,16 +1129,16 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
       </section>
 
       {/* My Polls Section */}
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 shadow-(--shadow-card)">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 ">
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h2 className="text-lg font-semibold text-(--text)">My Polls</h2>
+          <h2 className="text-lg font-medium text-(--text)">My Polls</h2>
           <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-3">
             <span className="text-xs text-(--muted)">
               {userPolls.length} {userPolls.length === 1 ? "poll" : "polls"}
             </span>
             <button
               onClick={() => setShowCreatePollOverlay(true)}
-              className="rounded-lg bg-(--primary) px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 whitespace-nowrap"
+              className="rounded-lg bg-(--primary) px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 whitespace-nowrap"
             >
               Create Poll
             </button>
@@ -1151,7 +1151,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
             onClick={() => setPollFilter("all")}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
               pollFilter === "all"
-                ? "border-(--primary) text-(--primary)"
+                ? "border-(--primary) text-(--accent-text)"
                 : "border-transparent text-(--muted) hover:text-(--text)"
             }`}
           >
@@ -1161,7 +1161,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
             onClick={() => setPollFilter("active")}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
               pollFilter === "active"
-                ? "border-(--primary) text-(--primary)"
+                ? "border-(--primary) text-(--accent-text)"
                 : "border-transparent text-(--muted) hover:text-(--text)"
             }`}
           >
@@ -1171,7 +1171,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
             onClick={() => setPollFilter("ended")}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
               pollFilter === "ended"
-                ? "border-(--primary) text-(--primary)"
+                ? "border-(--primary) text-(--accent-text)"
                 : "border-transparent text-(--muted) hover:text-(--text)"
             }`}
           >
@@ -1230,9 +1230,9 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                           <div className="flex items-center gap-2 mb-1">
                             <FontAwesomeIcon
                               icon={faPoll}
-                              className="text-(--primary) text-sm"
+                              className="text-(--accent-text) text-sm"
                             />
-                            <h3 className="text-sm font-semibold text-(--text)">
+                            <h3 className="text-sm font-medium text-(--text)">
                               Poll for Faculty/Course
                             </h3>
                           </div>
@@ -1243,12 +1243,12 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
                         </div>
                         <div className="flex sm:flex-col items-start sm:items-end gap-1">
                           {isActive ? (
-                            <span className="px-2 py-1 rounded-full bg-(--success-light) text-(--success) text-xs font-medium flex items-center gap-1">
+                            <span className="px-2 py-1 rounded-md bg-(--success-light) text-(--success) text-xs font-medium flex items-center gap-1">
                               <FontAwesomeIcon icon={faVoteYea} />
                               Active
                             </span>
                           ) : (
-                            <span className="px-2 py-1 rounded-full bg-(--secondary) text-(--text) text-xs font-medium flex items-center gap-1">
+                            <span className="px-2 py-1 rounded-md bg-(--secondary) text-(--text) text-xs font-medium flex items-center gap-1">
                               <FontAwesomeIcon icon={faClock} />
                               Ended
                             </span>
@@ -1351,7 +1351,7 @@ export default function UserDashboardPage({ currentUser, onLogout }) {
         <button
           type="button"
           onClick={() => setShowLogoutConfirm(true)}
-          className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-sm font-semibold text-(--text) hover:bg-(--bg-elev)"
+          className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--bg-elev)"
         >
           Logout
         </button>

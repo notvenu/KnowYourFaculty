@@ -128,7 +128,7 @@ export default function FeedbackList({
   }
 
   return (
-    <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
+    <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 md:p-6">
       {showFiltersOverlay &&
         (setCourseFilter || setTimeFilter || setRatingFilter) && (
           <>
@@ -136,9 +136,9 @@ export default function FeedbackList({
               className="fixed inset-0 z-40 bg-black/30"
               onClick={() => setShowFiltersOverlay(false)}
             />
-            <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-2xl">
+            <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow-pop)">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-(--text)">
+                <h3 className="text-lg font-medium text-(--text)">
                   Review Filters
                 </h3>
                 <button
@@ -154,7 +154,7 @@ export default function FeedbackList({
               <div className="space-y-4">
                 {setCourseFilter && (
                   <div>
-                    <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                    <label className="mb-2 block text-xs font-medium text-(--muted)">
                       Review Course
                     </label>
                     <select
@@ -177,7 +177,7 @@ export default function FeedbackList({
 
                 {setTimeFilter && (
                   <div>
-                    <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                    <label className="mb-2 block text-xs font-medium text-(--muted)">
                       Review Time
                     </label>
                     <select
@@ -194,7 +194,7 @@ export default function FeedbackList({
 
                 {setRatingFilter && (
                   <div>
-                    <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                    <label className="mb-2 block text-xs font-medium text-(--muted)">
                       Rating Band
                     </label>
                     <select
@@ -235,7 +235,7 @@ export default function FeedbackList({
         )}
 
       <div className="mb-3 flex items-center justify-between sm:mb-4">
-        <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
+        <h2 className="text-xl font-medium text-(--text) sm:text-2xl">
           What students say
         </h2>
         {(setCourseFilter || setTimeFilter || setRatingFilter) && (
@@ -244,7 +244,7 @@ export default function FeedbackList({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="hidden sm:inline-flex items-center rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--muted) hover:text-(--text) hover:bg-(--bg-elev)"
+                className="hidden sm:inline-flex items-center rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-medium text-(--muted) hover:text-(--text) hover:bg-(--bg-elev)"
                 aria-label="Clear review filters"
               >
                 Clear
@@ -253,12 +253,12 @@ export default function FeedbackList({
             <button
               type="button"
               onClick={() => setShowFiltersOverlay(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev)"
+              className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-medium text-(--text) hover:bg-(--bg-elev)"
             >
               <FontAwesomeIcon icon={faFilter} className="h-3 w-3" />
               <span className="hidden sm:inline">Filters</span>
               {activeFiltersCount > 0 ? (
-                <span className="rounded-full bg-(--primary-soft) px-2 py-0.5 text-[10px] font-bold text-(--primary)">
+                <span className="rounded-md bg-(--panel) px-2 py-0.5 text-xs font-medium text-(--secondary-text)">
                   {activeFiltersCount}
                 </span>
               ) : null}
@@ -306,11 +306,11 @@ export default function FeedbackList({
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-(--text)">
+                    <span className="font-medium text-(--text)">
                       {isOwnReview ? "Your review" : "Anonymous"}
                     </span>
                     {row.courseId && courseLookup[row.courseId] && (
-                      <span className="rounded-lg bg-(--primary-soft) px-2 py-0.5 text-xs font-medium text-(--primary)">
+                      <span className="rounded-lg bg-(--primary-soft) px-2 py-0.5 text-xs font-medium text-(--accent-text)">
                         {courseLookup[row.courseId].courseCode}
                       </span>
                     )}
@@ -324,7 +324,7 @@ export default function FeedbackList({
                     ) : null}
                   </div>
                   <span
-                    className="min-w-18 text-center rounded-lg bg-(--primary-soft) px-2 py-1 text-xs font-semibold text-(--primary)"
+                    className="min-w-18 text-center rounded-lg bg-(--primary-soft) px-2 py-1 text-xs font-medium text-(--accent-text)"
                     aria-hidden
                   >
                     {hasUser ? ratingTierLabel : `${avgRating}/5`}
@@ -343,7 +343,7 @@ export default function FeedbackList({
                       <button
                         type="button"
                         onClick={() => onEditReview(row.$id)}
-                        className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--primary)/50"
+                        className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1.5 text-xs font-medium text-(--text) hover:border-(--muted)"
                       >
                         Edit
                       </button>
@@ -353,7 +353,7 @@ export default function FeedbackList({
                         type="button"
                         onClick={() => onDeleteReview(row.$id)}
                         disabled={deleting}
-                        className="rounded-lg border border-red-400 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-60"
+                        className="rounded-lg border border-(--danger)/40 bg-(--danger-light) px-3 py-1.5 text-xs font-medium text-(--danger) hover:bg-(--danger-lighter) disabled:opacity-60"
                       >
                         {deleting ? "Removing…" : "Delete"}
                       </button>

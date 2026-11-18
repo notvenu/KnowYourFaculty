@@ -3,11 +3,12 @@ import { weeklyScrape } from "../src/lib/scraper/weeklyScraper.js";
 
 config();
 
+const dryRun = process.argv.includes("--dry-run");
 const startedAt = Date.now();
 
 try {
-  console.log("Starting one-time faculty scrape...");
-  const result = await weeklyScrape();
+  console.log(`Starting one-time faculty scrape${dryRun ? " (dry run, no writes)" : ""}...`);
+  const result = await weeklyScrape({ dryRun });
 
   const durationSeconds = ((Date.now() - startedAt) / 1000).toFixed(1);
   console.log("Scrape summary:", result);

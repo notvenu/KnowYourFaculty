@@ -312,7 +312,7 @@ export default function CreatePollOverlay({
   return (
     <Overlay open={open} onClose={handleClose}>
       <div className="p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold text-(--text) sm:text-2xl mb-6">
+        <h2 className="text-xl font-medium text-(--text) sm:text-2xl mb-6">
           {editMode ? "Edit Poll" : "Create New Poll"}
         </h2>
 
@@ -374,7 +374,7 @@ export default function CreatePollOverlay({
               {showFacultyDropdown &&
                 !selectedFaculty &&
                 !editMode && (
-                  <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
+                  <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-(--shadow-pop)">
                     {filteredFaculty.length > 0 ? (
                       filteredFaculty.map((faculty) => (
                           <button
@@ -467,7 +467,7 @@ export default function CreatePollOverlay({
               )}
               {showCourseDropdown &&
                 !selectedCourse && (
-                  <div className="absolute z-40 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-xl">
+                  <div className="absolute z-40 w-full mt-1 max-h-60 overflow-y-auto bg-(--bg-elev) border border-(--border) rounded-lg shadow-(--shadow-pop)">
                     {filteredCourses.length > 0 ? (
                       filteredCourses.map((course) => (
                           <button

@@ -16,32 +16,32 @@ function ContactPage() {
       subtitle: "venu.kasibhatla@gmail.com",
       href: "mailto:venu.kasibhatla@gmail.com",
       icon: faEnvelope,
-      bgColor: "bg-red-100",
-      iconColor: "text-red-600",
+      bgColor: "bg-(--panel)",
+      iconColor: "text-(--muted)",
     },
     {
       title: "GitHub",
       subtitle: "@notvenu",
       href: "https://github.com/notvenu",
       icon: faGithub,
-      bgColor: "bg-gray-100",
-      iconColor: "text-(--text)",
+      bgColor: "bg-(--panel)",
+      iconColor: "text-(--muted)",
     },
     {
       title: "LinkedIn",
       subtitle: "Venu Bhargava Jishith Kasibhatla",
       href: "https://linkedin.com/in/venu-kasibhatla",
       icon: faLinkedin,
-      bgColor: "bg-blue-100",
-      iconColor: "text-blue-600",
+      bgColor: "bg-(--panel)",
+      iconColor: "text-(--muted)",
     },
     {
       title: "Instagram",
       subtitle: "@veeennnuuu",
       href: "https://instagram.com/veeennnuuu",
       icon: faInstagram,
-      bgColor: "bg-pink-100",
-      iconColor: "text-pink-600",
+      bgColor: "bg-(--panel)",
+      iconColor: "text-(--muted)",
     },
   ];
 
@@ -49,14 +49,13 @@ function ContactPage() {
     <div className="animate-fadeIn w-full max-w-4xl mx-auto px-4 py-8">
       {currentUser && (
         <>
-          {/* Contact Us Section */}
+          {/* Contact Section */}
           <div className="mb-12">
-            <h1 className="text-4xl font-bold text-(--text) mb-4">
-              Contact Us
+            <h1 className="text-3xl font-medium text-(--text) mb-3">
+              Contact
             </h1>
-            <p className="text-lg text-(--muted) mb-8">
-              Have questions or suggestions? Feel free to reach out through any of
-              these channels:
+            <p className="text-base text-(--muted) mb-8">
+              Questions or suggestions? Reach out on any of these channels
             </p>
 
             {/* Contact Grid */}
@@ -67,14 +66,14 @@ function ContactPage() {
                   href={channel.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--primary) transition-all hover:shadow-md"
+                  className="flex items-center gap-4 p-4 rounded-xl border border-(--line) bg-(--bg-elev) hover:border-(--muted) transition-colors"
                 >
                   <FontAwesomeIcon
                     icon={channel.icon}
-                    className={`text-2xl shrink-0 ${channel.iconColor}`}
+                    className={`h-5 w-5 shrink-0 ${channel.iconColor}`}
                   />
                   <div className="flex-1">
-                    <p className="font-semibold text-(--text)">
+                    <p className="font-medium text-(--text)">
                       {channel.title}
                     </p>
                     <p className="text-sm text-(--muted)">
@@ -92,11 +91,17 @@ function ContactPage() {
       )}
       {/* Contribute Section */}
       <div>
-        <h2 className="text-3xl font-bold text-(--text) mb-4">
-          Contribute on GitHub
-        </h2>
-        <p className="text-lg text-(--muted) mb-8">
-          Found a bug or have a feature idea? Contribute to the project:
+        {currentUser ? (
+          <h2 className="text-3xl font-medium text-(--text) mb-4">
+            Contribute on GitHub
+          </h2>
+        ) : (
+          <h1 className="text-3xl font-medium text-(--text) mb-4">
+            Contribute on GitHub
+          </h1>
+        )}
+        <p className="text-base text-(--muted) mb-8">
+          Found a bug or have a feature idea? Contribute to the project
         </p>
 
         {/* Action Cards */}
@@ -105,23 +110,18 @@ function ContactPage() {
             href="https://github.com/notvenu/KnowYourFaculty/issues"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-4 p-6 rounded-xl border transition-all hover:shadow-lg"
-            style={{
-              borderColor: "#dc2626",
-              backgroundColor:
-                "color-mix(in srgb, #dc2626 15%, var(--bg-elev))",
-            }}
+            className="flex items-start gap-4 rounded-xl border border-(--line) bg-(--bg-elev) p-6 transition-colors hover:border-(--muted)"
           >
             <FontAwesomeIcon
               icon={faGithub}
-              className="text-2xl text-red-600 mt-1 shrink-0"
+              className="text-2xl text-(--muted) mt-1 shrink-0"
             />
             <div className="flex-1">
-              <p className="font-semibold text-(--text)">
-                Report an Issue
+              <p className="font-medium text-(--text)">
+                Report an issue
               </p>
               <p className="text-sm text-(--muted)">
-                Found a bug? Let us know
+                Found a bug? Tell us
               </p>
             </div>
           </a>
@@ -130,23 +130,18 @@ function ContactPage() {
             href="https://github.com/notvenu/KnowYourFaculty/pulls"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-4 p-6 rounded-xl border transition-all hover:shadow-lg"
-            style={{
-              borderColor: "#2563eb",
-              backgroundColor:
-                "color-mix(in srgb, #2563eb 15%, var(--bg-elev))",
-            }}
+            className="flex items-start gap-4 rounded-xl border border-(--line) bg-(--bg-elev) p-6 transition-colors hover:border-(--muted)"
           >
             <FontAwesomeIcon
               icon={faGithub}
-              className="text-2xl text-blue-600 mt-1 shrink-0"
+              className="text-2xl text-(--muted) mt-1 shrink-0"
             />
             <div className="flex-1">
-              <p className="font-semibold text-(--text)">
-                Submit a Pull Request
+              <p className="font-medium text-(--text)">
+                Submit a pull request
               </p>
               <p className="text-sm text-(--muted)">
-                Got improvements? Submit a PR
+                Got an improvement? Open a PR
               </p>
             </div>
           </a>

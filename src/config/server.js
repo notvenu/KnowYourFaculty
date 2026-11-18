@@ -52,7 +52,7 @@ const serverConfig = {
     "CLOUDINARY_UPLOAD_PRESET",
     "VITE_CLOUDINARY_UPLOAD_PRESET",
   ),
-  authToken: readServerEnv("AUTH_TOKEN", "VITE_AUTH_TOKEN"),
+  authToken: readServerEnv("AUTH_TOKEN"),
   server: {
     port: process.env.PORT || 3000,
     environment: process.env.NODE_ENV || "development",

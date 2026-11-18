@@ -23,14 +23,14 @@ function Overlay({ open, onClose, children }) {
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-[color-mix(in_srgb,var(--text)_40%,transparent)] backdrop-blur-md"
+        className="absolute inset-0 bg-black/40"
         onClick={onClose}
         onKeyDown={(e) => e.key === "Enter" && onClose?.()}
         role="button"
         tabIndex={0}
         aria-label="Close overlay"
       />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-(--line) bg-(--bg-elev) shadow-(--shadow-card)">
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-(--line) bg-(--bg-elev) shadow-(--shadow-pop)">
         {children}
       </div>
     </div>

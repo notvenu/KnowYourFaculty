@@ -6,6 +6,7 @@ import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
 import { addToast } from "../store/uiSlice.js";
+import { setShowLoginOverlay } from "../store/authSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTrophy,
@@ -60,7 +61,7 @@ function RankIcon({ rank }) {
     return (
       <FontAwesomeIcon
         icon={faTrophy}
-        className="text-2xl text-yellow-500"
+        className="text-2xl text-(--warning)"
         title="1st Place"
       />
     );
@@ -83,7 +84,7 @@ function RankIcon({ rank }) {
       />
     );
   }
-  return <span className="text-2xl font-bold text-(--muted)">#{rank}</span>;
+  return <span className="text-2xl font-medium text-(--muted)">#{rank}</span>;
 }
 
 export default function RankingPage({ currentUser }) {
@@ -374,12 +375,20 @@ export default function RankingPage({ currentUser }) {
     return (
       <div className="min-h-screen bg-(--background) flex items-center justify-center px-4">
         <div className="text-center">
-          <h2 className="mb-4 text-2xl font-bold text-(--text)">
-            Login Required
-          </h2>
+          <h1 className="mb-4 text-2xl font-medium text-(--text)">
+            Sign in to see the rankings
+          </h1>
           <p className="text-(--muted)">
             Please log in to view faculty rankings.
           </p>
+          <button
+            type="button"
+            onClick={() => dispatch(setShowLoginOverlay(true))}
+            className="btn-slide mt-6 inline-flex h-12 items-center rounded-(--radius) bg-(--primary) px-5 text-sm font-medium text-white"
+            style={{ "--fill": "color-mix(in srgb, var(--primary), #000 35%)" }}
+          >
+            Sign in
+          </button>
         </div>
       </div>
     );
@@ -393,10 +402,10 @@ export default function RankingPage({ currentUser }) {
     return (
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 text-center">
-          <p className="text-lg text-red-500">{error}</p>
+          <p className="text-lg text-(--danger)">{error}</p>
           <button
             onClick={loadData}
-            className="mt-4 rounded-lg bg-(--primary) px-6 py-2 text-sm font-semibold text-white hover:opacity-90"
+            className="mt-4 rounded-lg bg-(--primary) px-6 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             Try Again
           </button>
@@ -410,17 +419,17 @@ export default function RankingPage({ currentUser }) {
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="mb-1 sm:mb-2 text-2xl sm:text-3xl lg:text-4xl font-bold text-(--text) flex items-center gap-2 sm:gap-3">
+          <h1 className="mb-1 sm:mb-2 text-2xl sm:text-3xl lg:text-4xl font-medium text-(--text) flex items-center gap-2 sm:gap-3">
             <FontAwesomeIcon
               icon={faTrophy}
-              className="text-xl sm:text-2xl text-(--primary)"
+              className="text-xl sm:text-2xl text-(--accent-text)"
             />
             <span>Faculty Rankings</span>
           </h1>
           <button
             type="button"
             onClick={handleShareRankingPage}
-            className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs sm:text-sm font-semibold text-(--text) hover:bg-(--bg-elev)"
+            className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs sm:text-sm font-medium text-(--text) hover:bg-(--bg-elev)"
           >
             <FontAwesomeIcon icon={faShareAlt} />
             Share Page
@@ -438,7 +447,7 @@ export default function RankingPage({ currentUser }) {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--bg-elev) px-4 py-2.5 text-sm font-semibold text-(--text) hover:bg-(--panel) shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--bg-elev) px-4 py-2.5 text-sm font-medium text-(--text) hover:bg-(--panel) transition-colors"
           >
             <FontAwesomeIcon icon={faFilter} />
             Filters
@@ -447,7 +456,7 @@ export default function RankingPage({ currentUser }) {
               selectedCourse !== "all" ||
               selectedType !== "all" ||
               minRatings !== 3) && (
-              <span className="ml-1 rounded-full bg-(--primary) px-2 py-0.5 text-xs text-white">
+              <span className="ml-1 rounded-(--radius) bg-(--primary) px-2 py-0.5 text-xs text-white">
                 Active
               </span>
             )}
@@ -459,9 +468,9 @@ export default function RankingPage({ currentUser }) {
         </div>
 
         {/* Mobile/Tablet Filter Header */}
-        <div className="lg:hidden mb-3 sm:mb-4 rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg">
+        <div className="lg:hidden mb-3 sm:mb-4 rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev)">
           <div className="flex items-center justify-between px-3 py-3 sm:px-4 sm:py-3.5">
-            <h3 className="text-base sm:text-lg font-bold text-(--text)">
+            <h3 className="text-base sm:text-lg font-medium text-(--text)">
               <FontAwesomeIcon
                 icon={faFilter}
                 className="mr-1.5 sm:mr-2 text-sm sm:text-base"
@@ -471,7 +480,7 @@ export default function RankingPage({ currentUser }) {
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
-              className="text-xs sm:text-sm font-semibold text-(--primary) hover:underline"
+              className="text-xs sm:text-sm font-medium text-(--accent-text) hover:underline"
             >
               {showFilters ? "Hide" : "Show"}
             </button>
@@ -482,12 +491,12 @@ export default function RankingPage({ currentUser }) {
         <div
           className={`${
             showFilters ? "block" : "hidden"
-          } rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) shadow-lg lg:absolute lg:right-0 lg:z-10 lg:w-125 xl:w-150`}
+          } rounded-lg sm:rounded-xl border border-(--line) bg-(--bg-elev) lg:absolute lg:right-0 lg:z-10 lg:w-125 xl:w-150`}
         >
           <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-5">
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                <label className="mb-1.5 sm:mb-2 block text-xs font-medium text-(--muted)">
                   Department
                 </label>
                 <select
@@ -511,7 +520,7 @@ export default function RankingPage({ currentUser }) {
               </div>
 
               <div>
-                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                <label className="mb-1.5 sm:mb-2 block text-xs font-medium text-(--muted)">
                   Designation
                 </label>
                 <select
@@ -535,7 +544,7 @@ export default function RankingPage({ currentUser }) {
               </div>
 
               <div>
-                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                <label className="mb-1.5 sm:mb-2 block text-xs font-medium text-(--muted)">
                   Course
                 </label>
                 <select
@@ -559,7 +568,7 @@ export default function RankingPage({ currentUser }) {
               </div>
 
               <div>
-                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                <label className="mb-1.5 sm:mb-2 block text-xs font-medium text-(--muted)">
                   Type
                 </label>
                 <select
@@ -586,7 +595,7 @@ export default function RankingPage({ currentUser }) {
               </div>
 
               <div>
-                <label className="mb-1.5 sm:mb-2 block text-xs font-semibold text-(--muted)">
+                <label className="mb-1.5 sm:mb-2 block text-xs font-medium text-(--muted)">
                   Min. Ratings Required
                 </label>
                 <select
@@ -623,7 +632,7 @@ export default function RankingPage({ currentUser }) {
                   setSelectedType("all");
                   setMinRatings(3);
                 }}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white text-xs sm:text-sm font-semibold hover:bg-red-600 transition-colors"
+                className="px-4 py-2 rounded-lg bg-(--danger) text-white text-xs sm:text-sm font-medium hover:opacity-90 transition-colors"
               >
                 Reset Filters
               </button>
@@ -636,7 +645,7 @@ export default function RankingPage({ currentUser }) {
       <div className="mb-4 sm:mb-6 text-center">
         <p className="text-xs sm:text-sm text-(--muted)">
           Showing{" "}
-          <span className="font-semibold text-(--text)">
+          <span className="font-medium text-(--text)">
             {rankedFaculty.length}
           </span>{" "}
           ranked faculty members
@@ -691,7 +700,7 @@ export default function RankingPage({ currentUser }) {
               <Link
                 key={faculty.employeeId}
                 to={`/faculty/${faculty.employeeId}`}
-                className="block cursor-pointer rounded-lg border border-(--line) bg-(--bg-elev) p-3 shadow-sm transition-all hover:border-(--primary) hover:shadow-md sm:p-4"
+                className="block cursor-pointer rounded-lg border border-(--line) bg-(--bg-elev) p-3 transition-colors hover:border-(--muted) sm:p-4"
               >
                 <div className="flex items-center gap-3">
                   {/* Rank */}
@@ -699,7 +708,7 @@ export default function RankingPage({ currentUser }) {
                     {rank <= 3 ? (
                       <RankIcon rank={rank} />
                     ) : (
-                      <span className="text-lg font-bold text-(--muted)">
+                      <span className="text-lg font-medium text-(--muted)">
                         #{rank}
                       </span>
                     )}
@@ -707,7 +716,7 @@ export default function RankingPage({ currentUser }) {
 
                   {/* Faculty Info */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="mb-0.5 text-base font-bold text-(--text) truncate sm:text-lg">
+                    <h3 className="mb-0.5 text-base font-medium text-(--text) truncate sm:text-lg">
                       {faculty.name}
                     </h3>
                     <p className="text-xs text-(--muted) truncate">
@@ -728,12 +737,12 @@ export default function RankingPage({ currentUser }) {
                     {/* Rating Badge */}
                     <div className="flex flex-col items-center">
                       <div
-                        className="flex min-h-10 w-20 items-center justify-center rounded-lg px-2 text-[10px] font-bold text-white shadow-sm sm:min-h-12 sm:w-24 sm:text-xs"
+                        className="flex min-h-10 w-20 items-center justify-center rounded-lg px-2 text-xs font-medium text-white sm:min-h-12 sm:w-24 sm:text-xs"
                         style={{ backgroundColor: tierColor }}
                       >
                         {tierLabel}
                       </div>
-                      <div className="mt-0.5 text-[10px] font-semibold text-(--text)">
+                      <div className="mt-0.5 text-xs font-medium text-(--text)">
                         {faculty.overallRating.toFixed(1)}
                       </div>
                     </div>

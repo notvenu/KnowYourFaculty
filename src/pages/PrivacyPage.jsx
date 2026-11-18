@@ -2,7 +2,7 @@
 function PrivacyPage() {
   return (
     <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 sm:p-8">
-      <h1 className="text-3xl font-black tracking-tight text-(--text)">
+      <h1 className="text-3xl font-medium text-(--text)">
         Privacy Policy
       </h1>
       <p className="mt-2 text-xs text-(--muted)">
@@ -11,7 +11,7 @@ function PrivacyPage() {
 
       <div className="mt-6 space-y-6 text-sm text-(--muted)">
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">1. Overview</h2>
+          <h2 className="text-base font-medium text-(--text)">1. Overview</h2>
           <p>
             KnowYourFaculty helps students discover faculty insights through
             public, anonymous feedback. We collect only the data needed to run
@@ -20,7 +20,7 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             2. Why login/signup exists
           </h2>
           <p>
@@ -31,7 +31,7 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             3. What we collect
           </h2>
           <ul className="list-disc space-y-1 pl-5">
@@ -50,7 +50,7 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             4. Public anonymity
           </h2>
           <p>
@@ -60,7 +60,7 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             5. Data control and deletion
           </h2>
           <p>
@@ -71,7 +71,7 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">
+          <h2 className="text-base font-medium text-(--text)">
             6. Data sharing and sale
           </h2>
           <p>
@@ -81,7 +81,7 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">7. Security</h2>
+          <h2 className="text-base font-medium text-(--text)">7. Security</h2>
           <p>
             We apply practical technical safeguards (access control, moderation
             controls, and transport protections) to reduce misuse and
@@ -90,10 +90,10 @@ function PrivacyPage() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-base font-bold text-(--text)">8. FAQs</h2>
+          <h2 className="text-base font-medium text-(--text)">8. FAQs</h2>
           <div className="space-y-3">
             <div className="rounded-lg border border-(--line) bg-(--panel) p-3">
-              <p className="font-semibold text-(--text)">
+              <p className="font-medium text-(--text)">
                 Is feedback submission mandatory after login?
               </p>
               <p className="mt-1">
@@ -101,7 +101,7 @@ function PrivacyPage() {
               </p>
             </div>
             <div className="rounded-lg border border-(--line) bg-(--panel) p-3">
-              <p className="font-semibold text-(--text)">
+              <p className="font-medium text-(--text)">
                 Can I submit only some ratings?
               </p>
               <p className="mt-1">
@@ -109,7 +109,7 @@ function PrivacyPage() {
               </p>
             </div>
             <div className="rounded-lg border border-(--line) bg-(--panel) p-3">
-              <p className="font-semibold text-(--text)">
+              <p className="font-medium text-(--text)">
                 Can I remove my data completely?
               </p>
               <p className="mt-1">

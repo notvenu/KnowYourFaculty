@@ -55,6 +55,7 @@ function buildFacultyIndex(rows = [], sourceColumn = "employeeId") {
 
     index.set(employeeId, {
       $id: row.$id,
+      name: row.name || "",
       photoFileId: row.photoFileId || null,
     });
   });
@@ -80,13 +81,13 @@ export async function getFacultyIndexByEmployeeIdAdminWithStats() {
   const supabase = getAdminClient();
   const primary = await supabase
     .from(FACULTY_COLLECTION)
-    .select("id, employeeId, photoFileId")
+    .select("id, employeeId, name, photoFileId")
     .limit(5000);
 
   if (primary.error) {
     const fallback = await supabase
       .from(FACULTY_COLLECTION)
-      .select("id, employeeid, photoFileId")
+      .select("id, employeeid, name, photoFileId")
       .limit(5000);
 
     if (fallback.error) {
@@ -108,7 +109,7 @@ export async function getFacultyIndexByEmployeeIdAdminWithStats() {
 
   const legacyFallback = await supabase
     .from(FACULTY_COLLECTION)
-    .select("id, employeeid, photoFileId")
+    .select("id, employeeid, name, photoFileId")
     .limit(5000);
 
   if (legacyFallback.error) {

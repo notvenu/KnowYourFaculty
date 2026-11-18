@@ -20,7 +20,7 @@ function hasEnvValue(key) {
       "SUPABASE_FACULTY_TABLE",
       "VITE_SUPABASE_FACULTY_TABLE",
     ],
-    AUTH_TOKEN: ["AUTH_TOKEN", "VITE_AUTH_TOKEN"],
+    AUTH_TOKEN: ["AUTH_TOKEN"],
   };
   const keys = aliases[key] || [key];
   for (const envKey of keys) {

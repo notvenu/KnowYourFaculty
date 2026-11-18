@@ -1,174 +1,172 @@
-// eslint-disable tailwindcss/no-custom-classname
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import Hero from "../components/landing/Hero.jsx";
+import { TIER_SYSTEM } from "../lib/ratingConfig.js";
+import { useReveals, useSmoothScroll } from "../lib/motion.js";
+
+const features = [
+  {
+    title: "Rated by section",
+    text: "Theory, lab and ECS are scored separately, so a strong lecturer with a harsh lab does not average out.",
+  },
+  {
+    title: "Search by course",
+    text: "Filter by department, course or top rating, then read what students say about workload, grading and teaching style.",
+  },
+  {
+    title: "Yours to edit",
+    text: "Every section is optional. Change or delete your feedback from your dashboard whenever you like.",
+  },
+];
+
+const trust = [
+  {
+    title: "Student verification",
+    text: "Only verified VIT-AP student accounts can post feedback.",
+  },
+  {
+    title: "Public but anonymous",
+    text: "Ratings and reviews are visible to everyone. Identities are never shown.",
+  },
+  {
+    title: "Full data control",
+    text: "Update or delete your feedback anytime, or request account deletion.",
+  },
+];
+
+const faqs = [
+  {
+    q: "Do I need to sign in to view data?",
+    a: "No. Faculty ratings and reviews are public. Sign in is only required to verify VIT-AP students before they submit feedback.",
+  },
+  {
+    q: "Is feedback anonymous?",
+    a: "Yes. Public feedback is anonymous. Your account is used only for verification, moderation and letting you edit or delete your own entries.",
+  },
+  {
+    q: "Are all rating sections mandatory?",
+    a: "No. Submit only the parts you experienced: Theory, Lab or ECS.",
+  },
+  {
+    q: "Can I remove my data later?",
+    a: "Yes. Edit or delete your feedback from your dashboard, or request account deletion.",
+  },
+];
+
+const TIER_COLORS = ["D", "C", "B", "A", "S"].map((k) => TIER_SYSTEM[k].color);
 
 function LandingPage({ onOpenLogin }) {
   const currentUser = useSelector((state) => state.auth.currentUser);
-  const features = [
-    {
-      icon: "01",
-      title: "Find Your Perfect Match",
-      text: "Filter by department, course, or top ratings. Discover faculty whose teaching style clicks with how you learn best.",
-    },
-    {
-      icon: "02",
-      title: "Course-Specific Insights",
-      text: "See what students say about specific courses. Get the real scoop on workload, grading, and teaching approach.",
-    },
-    {
-      icon: "03",
-      title: "Your Voice Matters",
-      text: "Share your experience and help fellow students choose wisely. Ratings are optional and you can edit or delete your feedback anytime.",
-    },
-  ];
-
-  const faqs = [
-    {
-      q: "Do I need to sign in to view data?",
-      a: "No. Faculty ratings and reviews are public to help students make decisions. Sign in is only required to verify legitimate VIT-AP students before allowing submissions.",
-    },
-    {
-      q: "Is feedback anonymous?",
-      a: "Yes. Publicly displayed feedback is anonymous. We use your account only for verification, moderation, and letting you edit/delete your own entries.",
-    },
-    {
-      q: "Are all rating sections mandatory?",
-      a: "No. Ratings are optional by section. You can submit only the parts you genuinely experienced (Theory, Lab, or ECS).",
-    },
-    {
-      q: "Can I remove my data later?",
-      a: "Yes. You can edit or delete your feedback anytime from your dashboard, and you can also request account deletion.",
-    },
-  ];
+  const pageRef = useRef(null);
+  useSmoothScroll();
+  useReveals(pageRef);
 
   return (
-    <div>
-      {/* Hero - Full Screen */}
-      <section className="animate-fadeIn min-h-screen flex items-center justify-center px-4 py-12">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-extrabold leading-[1.15] tracking-tight text-(--text) sm:text-5xl md:text-6xl">
-            Discover professors who&apos;ll make you love learning
-          </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-base leading-relaxed text-(--muted) sm:text-lg">
-            Real feedback from students like you. Find professors who inspire,
-            challenge, and support. No more guesswork—just honest reviews to
-            help you choose. Login/signup is only for student verification;
-            public feedback remains anonymous.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/faculty"
-              className="inline-flex items-center gap-2 rounded-full bg-(--primary) px-7 py-3.5 text-sm font-semibold text-white shadow-(--shadow) transition hover:shadow-(--shadow-hover)"
-            >
-              Explore Faculty
-            </Link>
-            {!currentUser && (
-              <button
-                type="button"
-                onClick={onOpenLogin}
-                className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--panel) px-7 py-3.5 text-sm font-semibold text-(--text) transition hover:bg-(--bg-elev)"
-              >
-                Login / Register
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
+    <div ref={pageRef}>
+      <Hero currentUser={currentUser} onOpenLogin={onOpenLogin} />
 
       {/* Features */}
-      <section className="py-20 sm:py-24 px-4">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-10 text-center text-2xl font-bold text-(--text) sm:text-3xl">
-            Why use KnowYourFaculty?
+      <section className="py-24 lg:py-32">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <h2
+            data-split
+            className="max-w-2xl text-[clamp(2rem,1.2rem+2.6vw,3.5rem)] font-normal leading-[1.08] tracking-[-0.03em] text-(--text)"
+          >
+            What you get on every faculty page
           </h2>
-          <div className="grid gap-6 md:grid-cols-3 stagger-children">
-            {features.map((item) => (
-              <article
-                key={item.title}
-                className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 transition-all hover:border-(--primary)/50 sm:p-8"
-              >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-(--primary-soft) text-lg font-bold text-(--primary)">
-                  {item.icon}
-                </div>
-                <h3 className="text-lg font-bold text-(--text) sm:text-xl">
+          <div className="mt-14 grid gap-x-12 gap-y-10 md:grid-cols-3">
+            {features.map((item, i) => (
+              <div key={item.title} data-reveal data-delay={i * 0.08}>
+                <div data-draw className="h-px bg-(--text)/30" />
+                <h3 className="mt-5 text-lg font-medium text-(--text)">
                   {item.title}
                 </h3>
-                <p className="mt-3 text-sm leading-relaxed text-(--muted)">
+                <p className="mt-2 text-sm leading-6 text-(--secondary-text)">
                   {item.text}
                 </p>
-              </article>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-14 sm:py-18 px-4">
-        <div className="mx-auto max-w-6xl rounded-xl border border-(--line) bg-(--bg-elev) p-6 sm:p-8">
-          <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
+      {/* Trust */}
+      <section className="py-24">
+        <div className="mx-auto grid max-w-7xl px-4 sm:px-6 gap-12 lg:grid-cols-[1fr_2fr]">
+          <h2
+            data-split
+            className="text-[clamp(2rem,1.2rem+2.6vw,3.5rem)] font-normal leading-[1.08] tracking-[-0.03em] text-(--text)"
+          >
             Built for trust and control
           </h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-(--line) bg-(--panel) p-4">
-              <p className="text-sm font-semibold text-(--text)">
-                Student Verification
-              </p>
-              <p className="mt-2 text-xs text-(--muted)">
-                Only verified VIT-AP student accounts can post feedback.
-              </p>
-            </div>
-            <div className="rounded-lg border border-(--line) bg-(--panel) p-4">
-              <p className="text-sm font-semibold text-(--text)">
-                Public but Anonymous
-              </p>
-              <p className="mt-2 text-xs text-(--muted)">
-                Ratings/reviews are visible publicly, but identities are not
-                shown in public views.
-              </p>
-            </div>
-            <div className="rounded-lg border border-(--line) bg-(--panel) p-4">
-              <p className="text-sm font-semibold text-(--text)">
-                Full Data Control
-              </p>
-              <p className="mt-2 text-xs text-(--muted)">
-                You can update or delete your feedback anytime from your
-                dashboard.
-              </p>
-            </div>
-          </div>
+          <dl className="border-t border-(--line)">
+            {trust.map((item) => (
+              <div
+                key={item.title}
+                data-reveal
+                className="grid gap-1 border-b border-(--line) py-6 sm:grid-cols-[14rem_1fr] sm:gap-6"
+              >
+                <dt className="text-sm font-medium text-(--text)">
+                  {item.title}
+                </dt>
+                <dd className="text-sm leading-6 text-(--secondary-text)">
+                  {item.text}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 
-      <section className="py-14 sm:py-18 px-4">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-6 text-center text-2xl font-bold text-(--text) sm:text-3xl">
+      {/* FAQ */}
+      <section className="py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <h2
+            data-split
+            className="text-[clamp(2rem,1.2rem+2.6vw,3.5rem)] font-normal leading-[1.08] tracking-[-0.03em] text-(--text)"
+          >
             Frequently asked questions
           </h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {faqs.map((item) => (
-              <article
-                key={item.q}
-                className="rounded-xl border border-(--line) bg-(--bg-elev) p-5"
-              >
-                <h3 className="text-sm font-bold text-(--text)">{item.q}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-(--muted)">
+          <div className="mt-14 grid gap-x-12 gap-y-10 md:grid-cols-2">
+            {faqs.map((item, i) => (
+              <div key={item.q} data-reveal data-delay={(i % 2) * 0.08}>
+                <div className="h-px bg-(--line)" />
+                <h3 className="mt-5 text-base font-medium text-(--text)">
+                  {item.q}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-(--secondary-text)">
                   {item.a}
                 </p>
-              </article>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 sm:py-24 px-4">
-        <div className="mx-auto max-w-6xl">
-          <div className="rounded-xl border border-(--line) bg-(--panel) p-8 text-center sm:p-12">
-            <p className="text-base font-medium text-(--muted) sm:text-lg">
-              By students, for students.
+      {/* CTA: the scale again, drawn across the page */}
+      <section className="pb-24 pt-16 lg:pb-32">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div data-draw className="grid grid-cols-5 gap-0.5" aria-hidden="true">
+            {TIER_COLORS.map((c) => (
+              <span
+                key={c}
+                className="h-2 rounded-xs"
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+          <div className="mt-12 flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-end">
+            <p
+              data-split
+              className="max-w-3xl text-[clamp(2.25rem,1rem+5vw,5.5rem)] font-normal leading-[1.02] tracking-[-0.035em] text-(--text)"
+            >
+              By students, for students
             </p>
             <Link
               to="/faculty"
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-(--primary) px-7 py-3.5 text-sm font-semibold text-white shadow-(--shadow) transition hover:shadow-(--shadow-hover)"
+              className="btn-slide inline-flex h-12 shrink-0 items-center rounded-(--radius) bg-(--primary) px-5 text-sm font-medium text-white"
+              style={{ "--fill": "color-mix(in srgb, var(--primary), #000 35%)" }}
             >
               Browse faculty
             </Link>

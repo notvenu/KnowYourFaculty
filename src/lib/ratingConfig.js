@@ -85,6 +85,12 @@ export function getTierColor(tier) {
   return TIER_SYSTEM[tier]?.color || TIER_SYSTEM.B.color;
 }
 
+// Tier colours are bright (good for dots and bars) but fail contrast as text on a light ground.
+// Mixing toward the ink colour keeps the hue and passes AA in both themes.
+export function getTierTextColor(tier) {
+  return `color-mix(in srgb, ${getTierColor(tier)} 62%, var(--text))`;
+}
+
 export function getTierLabel(tier) {
   return TIER_SYSTEM[tier]?.label || TIER_SYSTEM.B.label;
 }

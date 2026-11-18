@@ -16,7 +16,7 @@ function ConfirmOverlay({
     <Overlay open={open} onClose={onCancel}>
       <div className="p-6 sm:p-8">
         {title ? (
-          <h2 className="text-xl font-bold text-(--text) sm:text-2xl">
+          <h2 className="text-xl font-medium text-(--text) sm:text-2xl">
             {title}
           </h2>
         ) : null}
@@ -26,7 +26,7 @@ function ConfirmOverlay({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium text-(--text) transition hover:border-(--primary) hover:bg-(--primary-soft) disabled:opacity-60"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium text-(--text) transition hover:bg-(--panel-dark) disabled:opacity-60"
           >
             {cancelLabel}
           </button>
@@ -34,9 +34,9 @@ function ConfirmOverlay({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`rounded-(--radius) px-5 py-2.5 text-sm font-semibold text-white shadow-(--shadow) transition hover:shadow-(--shadow-hover) disabled:opacity-60 ${
+            className={`rounded-(--radius) px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-60 ${
               danger
-                ? "bg-red-500 hover:bg-red-600"
+                ? "bg-(--danger) hover:opacity-90"
                 : "bg-(--primary) hover:opacity-90"
             }`}
           >

@@ -9,6 +9,7 @@ import FacultyCard from "../components/faculty/FacultyCard.jsx";
 import { getTierFromRating, TIER_SYSTEM } from "../lib/ratingConfig.js";
 import { fuzzyMatchAny, fuzzyScoreAny } from "../lib/fuzzySearch.js";
 import { PAGINATION_LIMITS } from "../config/pagination.js";
+import { useCardStagger, useReveals } from "../lib/motion.js";
 
 const FACULTY_PER_PAGE = PAGINATION_LIMITS.facultyDirectoryPerPage;
 const DIRECTORY_STATE_KEY = "kyf.facultyDirectory.state.v1";
@@ -72,7 +73,7 @@ function FacultyDirectorySkeletonCards() {
       {Array.from({ length: 10 }).map((_, index) => (
         <div
           key={`faculty-directory-skeleton-${index}`}
-          className="animate-pulse rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-(--shadow-card)"
+          className="animate-pulse rounded-xl border border-(--line) bg-(--bg-elev) p-4"
         >
           <div className="mb-3 h-4 w-3/4 rounded bg-(--panel)" />
           <div className="mb-2 h-3 w-1/2 rounded bg-(--panel)" />
@@ -333,18 +334,33 @@ function FacultyDirectoryPage({ currentUser }) {
     return n;
   }, [filters, selectedCourse, hasUser]);
 
+  const pageRef = useRef(null);
+  const gridRef = useRef(null);
+  useReveals(pageRef);
+  useCardStagger(
+    gridRef,
+    `${loading}|${paginatedFaculty.map((f) => f.$id).join(",")}`,
+  );
+
   return (
-    <div className="space-y-8">
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-6 shadow-(--shadow-card) sm:p-8">
-        <h1 className="text-3xl font-bold tracking-tight text-(--text) sm:text-4xl">
+    <div ref={pageRef} className="space-y-8">
+      <section>
+        <h1
+          data-split
+          className="text-[clamp(2.25rem,1.4rem+3vw,4rem)] font-normal leading-[1.05] tracking-[-0.03em] text-(--text)"
+        >
           Find faculty
         </h1>
-        <p className="mt-2 text-sm text-(--muted) sm:text-base">
-          Filter by department, course, or top ratings. Search by faculty name.
+        <p
+          data-reveal
+          data-delay="0.2"
+          className="mt-3 text-sm text-(--muted) sm:text-base"
+        >
+          Search by name, or filter by department, course and rating
         </p>
       </section>
 
-      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-3 sm:p-4 md:p-5 shadow-(--shadow-card)">
+      <section className="rounded-xl border border-(--line) bg-(--bg-elev) p-3 sm:p-4 md:p-5">
         {/* Search Bar and Filter Toggle */}
         <div className="flex flex-row items-center gap-2 sm:gap-3">
           <div className="relative min-w-0 flex-1">
@@ -361,7 +377,7 @@ function FacultyDirectoryPage({ currentUser }) {
               <button
                 type="button"
                 onClick={() => setFilters((prev) => ({ ...prev, search: "" }))}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                 aria-label="Clear search"
               >
                 <FontAwesomeIcon icon={faXmark} />
@@ -371,14 +387,15 @@ function FacultyDirectoryPage({ currentUser }) {
           <button
             type="button"
             onClick={() => setShowFilterPanel((prev) => !prev)}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-(--text) transition hover:border-(--primary) hover:bg-(--primary-soft)"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-(--radius) border border-(--line) bg-(--panel) px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium text-(--text) btn-slide"
+            style={{ "--fill": "var(--panel-dark)" }}
           >
             <span aria-hidden className="inline-flex items-center">
               <FontAwesomeIcon icon={faFilter} className="text-xs sm:text-sm" />
             </span>
             <span className="hidden lg:inline">Filters</span>
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-(--primary) px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-white">
+              <span className="rounded-(--radius) bg-(--primary) px-2 sm:px-2.5 py-0.5 text-xs sm:text-xs font-medium text-white">
                 {activeFilterCount}
               </span>
             ) : null}
@@ -388,12 +405,12 @@ function FacultyDirectoryPage({ currentUser }) {
         {showFilterPanel ? (
           <>
             <div
-              className="fixed inset-0 z-40 bg-black/30"
+              className="fixed inset-0 z-40 bg-black/40"
               onClick={() => setShowFilterPanel(false)}
             />
-            <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-4xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-2xl sm:p-5">
+            <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-4xl -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-(--shadow-pop) sm:p-5">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-(--text)">Filters</h3>
+                <h3 className="text-lg font-medium text-(--text)">Filters</h3>
                 <button
                   type="button"
                   onClick={() => setShowFilterPanel(false)}
@@ -413,9 +430,9 @@ function FacultyDirectoryPage({ currentUser }) {
                       department: e.target.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                  className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
                 >
-                  <option value="all">All Departments</option>
+                  <option value="all">All departments</option>
                   {departments.map((dept) => (
                     <option key={dept} value={dept}>
                       {dept}
@@ -429,9 +446,9 @@ function FacultyDirectoryPage({ currentUser }) {
                     onChange={(e) =>
                       setFilters((prev) => ({ ...prev, tier: e.target.value }))
                     }
-                    className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                    className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
                   >
-                    <option value="all">All Tiers</option>
+                    <option value="all">All tiers</option>
                     {Object.entries(TIER_SYSTEM).map(([tier, info]) => (
                       <option key={tier} value={tier}>
                         {info.label} ({info.value}/5)
@@ -445,16 +462,16 @@ function FacultyDirectoryPage({ currentUser }) {
                   onChange={(e) =>
                     setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
                   }
-                  className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
+                  className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm outline-none focus:border-(--primary)"
                 >
-                  <option value="none">No Sort</option>
-                  <option value="rating-high">Rating: High to Low</option>
-                  <option value="rating-low">Rating: Low to High</option>
-                  <option value="az">Name: A to Z</option>
-                  <option value="za">Name: Z to A</option>
+                  <option value="none">No sort</option>
+                  <option value="rating-high">Rating, high to low</option>
+                  <option value="rating-low">Rating, low to high</option>
+                  <option value="az">Name, A to Z</option>
+                  <option value="za">Name, Z to A</option>
                 </select>
 
-                <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
+                <label className="flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.topRated}
@@ -468,11 +485,11 @@ function FacultyDirectoryPage({ currentUser }) {
                     className="cursor-pointer"
                   />
                   <span className="text-xs sm:text-sm">
-                    Top Rated Only (4+/5)
+                    Top rated only (4+ of 5)
                   </span>
                 </label>
 
-                <label className="flex items-center gap-2 rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
+                <label className="flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 text-sm cursor-pointer hover:bg-(--bg-elev) transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.notRated}
@@ -485,7 +502,7 @@ function FacultyDirectoryPage({ currentUser }) {
                     }
                     className="cursor-pointer"
                   />
-                  <span className="text-xs sm:text-sm">Not Rated Only</span>
+                  <span className="text-xs sm:text-sm">Not rated only</span>
                 </label>
 
                 <div className="relative">
@@ -501,7 +518,7 @@ function FacultyDirectoryPage({ currentUser }) {
                       setSelectedCourse(null);
                       setCourseQuery(e.target.value);
                     }}
-                    className="w-full rounded-xl border border-(--line) bg-(--panel) px-3 py-2.5 pr-10 text-sm outline-none focus:border-(--primary)"
+                    className="w-full rounded-lg border border-(--line) bg-(--panel) px-3 py-2.5 pr-10 text-sm outline-none focus:border-(--primary)"
                   />
                   {String(courseQuery || "").trim() || selectedCourse ? (
                     <button
@@ -511,14 +528,14 @@ function FacultyDirectoryPage({ currentUser }) {
                         setCourseQuery("");
                         setCourseSuggestions([]);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                       aria-label="Clear course search"
                     >
                       <FontAwesomeIcon icon={faXmark} />
                     </button>
                   ) : null}
                   {courseSuggestions.length > 0 ? (
-                    <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-(--line) bg-(--bg) shadow-xl">
+                    <div className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-(--line) bg-(--bg) shadow-(--shadow-pop)">
                       {courseSuggestions.map((course) => (
                         <button
                           key={course.$id}
@@ -543,7 +560,7 @@ function FacultyDirectoryPage({ currentUser }) {
                 onClick={() => setShowFilterPanel(false)}
                 className="mt-5 w-full rounded-lg bg-(--primary) px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
               >
-                Apply Filters
+                Apply filters
               </button>
             </div>
           </>
@@ -551,28 +568,28 @@ function FacultyDirectoryPage({ currentUser }) {
 
         {selectedCourse ? (
           <div className="mt-3 flex items-center gap-2 text-xs text-(--muted)">
-            <span className="rounded-full border border-(--line) bg-(--panel) px-3 py-1">
-              Course: {selectedCourse.courseCode}
+            <span className="rounded-lg border border-(--line) bg-(--panel) px-3 py-1">
+              Course {selectedCourse.courseCode}
             </span>
             <button
               type="button"
               onClick={() => setSelectedCourse(null)}
-              className="rounded-full border border-(--line) px-3 py-1 hover:border-(--primary)"
+              className="rounded-lg border border-(--line) px-3 py-1 hover:border-(--muted)"
             >
-              Clear Course
+              Clear course
             </button>
           </div>
         ) : null}
       </section>
 
       {error ? (
-        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>
+        <p className="rounded-lg bg-(--danger-light) p-3 text-sm text-(--danger)">{error}</p>
       ) : null}
       {loading ? (
         <div className="h-4 w-40 animate-pulse rounded bg-(--panel)" />
       ) : (
         <p className="text-sm text-(--muted)">
-          {filteredFaculty.length} faculty found
+          <span className="font-mono tabular-nums">{filteredFaculty.length}</span> faculty found
         </p>
       )}
 
@@ -582,18 +599,20 @@ function FacultyDirectoryPage({ currentUser }) {
             type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage <= 1}
-            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm font-medium btn-slide disabled:opacity-50"
+            style={{ "--fill": "var(--panel-dark)" }}
           >
             Previous
           </button>
-          <span className="px-4 py-2 text-sm font-medium text-(--muted)">
+          <span className="px-4 py-2 font-mono text-sm tabular-nums text-(--muted)">
             Page {currentPage} of {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage >= totalPages}
-            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm font-medium btn-slide disabled:opacity-50"
+            style={{ "--fill": "var(--panel-dark)" }}
           >
             Next
           </button>
@@ -603,14 +622,18 @@ function FacultyDirectoryPage({ currentUser }) {
       {loading ? (
         <FacultyDirectorySkeletonCards />
       ) : (
-        <section className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {paginatedFaculty.map((item) => {
+        <section
+          ref={gridRef}
+          className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+        >
+          {paginatedFaculty.map((item, index) => {
             const facultyId = String(item.employeeId || "");
             const overall = ratingLookup[facultyId];
             const ratingCount = ratingCountLookup[facultyId] || 0;
             return (
               <FacultyCard
                 key={item.$id}
+                priority={index < 4}
                 faculty={item}
                 overallRating={overall}
                 ratingCount={ratingCount}
@@ -626,18 +649,20 @@ function FacultyDirectoryPage({ currentUser }) {
             type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage <= 1}
-            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm font-medium btn-slide disabled:opacity-50"
+            style={{ "--fill": "var(--panel-dark)" }}
           >
             Previous
           </button>
-          <span className="px-4 py-2 text-sm font-medium text-(--muted)">
+          <span className="px-4 py-2 font-mono text-sm tabular-nums text-(--muted)">
             Page {currentPage} of {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage >= totalPages}
-            className="rounded-(--radius) border border-(--line) bg-(--panel) px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 hover:border-(--primary)"
+            className="rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm font-medium btn-slide disabled:opacity-50"
+            style={{ "--fill": "var(--panel-dark)" }}
           >
             Next
           </button>

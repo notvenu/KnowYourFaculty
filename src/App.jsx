@@ -55,6 +55,7 @@ const FacultyDetailPage = lazy(() => import("./pages/FacultyDetailPage.jsx"));
 const UserDashboardPage = lazy(() => import("./pages/UserDashboardPage.jsx"));
 const RankingPage = lazy(() => import("./pages/RankingPage.jsx"));
 const PollPage = lazy(() => import("./pages/PollPage.jsx"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage.jsx"));
 const ContactPage = lazy(() => import("./pages/ContactPage.jsx"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage.jsx"));
 const TermsPage = lazy(() => import("./pages/TermsPage.jsx"));
@@ -416,16 +417,16 @@ function App() {
     dispatch(logout());
   };
 
+  // The landing page lays itself out edge to edge; inner pages share one container.
+  const isLanding = location.pathname === "/";
+
   const isAdminUser = useMemo(() => {
     const email = String(currentUser?.email || "")
       .trim()
       .toLowerCase();
     if (!email) return false;
-    const configuredAdmins =
-      clientConfig.adminEmails.length > 0
-        ? clientConfig.adminEmails
-        : clientConfig.explicitAllowedEmails || [];
-    return configuredAdmins.includes(email);
+    // Fail closed: an empty VITE_ADMIN_EMAILS means no admins (the database enforces the real check).
+    return clientConfig.adminEmails.includes(email);
   }, [currentUser]);
 
   const needsAuthCheckForRoute =
@@ -456,6 +457,12 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-(--bg) text-(--text) transition-colors duration-300">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:rounded-lg focus:bg-(--text) focus:px-4 focus:py-2 focus:text-sm focus:text-(--bg)"
+      >
+        Skip to content
+      </a>
       {showNavbar && (
         <SiteNav
           currentUser={currentUser}
@@ -469,11 +476,17 @@ function App() {
       )}
 
       <main
-        className={`flex-1 w-full ${
-          showNavbar ? "px-3 py-5 sm:px-6 sm:py-8 lg:px-8" : ""
+        id="main"
+        tabIndex={-1}
+        className={`min-h-svh flex-1 w-full ${
+          showNavbar && !isLanding ? "py-5 sm:py-8" : ""
         }`}
       >
-        <div className={`${showNavbar ? "mx-auto max-w-7xl" : ""}`}>
+        <div
+          className={
+            showNavbar && !isLanding ? "mx-auto max-w-7xl px-4 sm:px-6" : ""
+          }
+        >
           <Suspense
             fallback={
               <AppShellSkeleton />
@@ -527,7 +540,7 @@ function App() {
                   )
                 }
               />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
         </div>

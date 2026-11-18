@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Page not found - KnowYourFaculty</title>
+    <style>
+      :root { color-scheme: light dark; --bg: #f6f5f2; --ink: #1f1c18; --muted: #6f6860; --accent: #2f5bd0; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #141415; --ink: #ededed; --muted: #85858b; --accent: #3f6ae4; } }
+      body { margin: 0; min-height: 100svh; display: grid; align-content: center; padding: 0 clamp(1rem, 6vw, 6rem); background: var(--bg); color: var(--ink); font: 400 1.125rem/1.5 "Instrument Sans", system-ui, sans-serif; }
+      small { font: 0.75rem ui-monospace, monospace; color: var(--muted); }
+      h1 { margin: 1rem 0 0; font-weight: 400; font-size: clamp(3rem, 1rem + 9vw, 8rem); line-height: 0.95; letter-spacing: -0.04em; }
+      p { max-width: 32rem; color: var(--muted); }
+      .bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; max-width: 48rem; margin: 2.5rem 0; }
+      .bar i { height: 8px; border-radius: 2px; opacity: 0.3; }
+      a { display: inline-flex; align-items: center; height: 3rem; padding: 0 1.25rem; border-radius: 10px; background: var(--accent); color: #fff; text-decoration: none; font-size: 0.875rem; font-weight: 500; }
+      a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <small>404</small>
+      <h1>Off the scale</h1>
+      <p>There is no page at this address. The faculty directory is on the scale.</p>
+      <div class="bar" aria-hidden="true">
+        <i style="background:#dc2626"></i><i style="background:#ea580c"></i><i style="background:#ca8a04"></i><i style="background:#65a30d"></i><i style="background:#16a34a"></i>
+      </div>
+      <a href="/faculty">Browse faculty</a>
+    </main>
+  </body>
+</html>

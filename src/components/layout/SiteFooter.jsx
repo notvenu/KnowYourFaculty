@@ -11,44 +11,43 @@ import {
 function SiteFooter() {
   const currentUser = useSelector((state) => state.auth.currentUser);
   return (
-    <footer className="mt-auto border-t border-(--line) bg-(--bg-elev)">
-      <div className="flex flex-col gap-5 px-4 py-6 text-sm text-(--muted) sm:px-6 md:px-8 lg:px-12 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-2 text-center md:text-left">
-          <p className="font-medium">© 2026 KnowYourFaculty</p>
-          <p className="flex items-center justify-center gap-2 text-sm md:justify-start">
-            { currentUser && ( <>
-              <span>Built with ❤️ by</span>
-              <a
-                href="https://github.com/notvenu"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-(--primary) hover:underline"
-              >
-                Venu K
-              </a> 
-            </>)}
-            { !currentUser && (
+    <footer className="mt-auto border-t border-(--line)">
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-6 text-sm text-(--muted) sm:px-6 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-1 text-center md:text-left">
+          <p className="font-medium text-(--secondary-text)">
+            © 2026 KnowYourFaculty
+          </p>
+          <p>
+            {currentUser ? "Made for students by " : "Made for VIT-AP students"}
+            {currentUser ? (
               <>
-                <span>Built with ❤️ for students</span>
+                <a
+                  href="https://github.com/notvenu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--secondary-text) underline-offset-4 hover:underline"
+                >
+                  Venu K
+                </a>
               </>
-            )}
+            ) : null}
           </p>
         </div>
         <div className="flex flex-col gap-3 items-center md:items-end">
           <nav className="flex flex-wrap items-center justify-center gap-4">
             <Link
               to="/privacy-policy"
-              className="font-medium hover:text-(--text)"
+              className="py-2 font-medium hover:text-(--text)"
             >
               Privacy
             </Link>
             <Link
               to="/terms-and-conditions"
-              className="font-medium hover:text-(--text)"
+              className="py-2 font-medium hover:text-(--text)"
             >
               Terms
             </Link>
-            <Link to="/contact" className="font-medium hover:text-(--text)">
+            <Link to="/contact" className="py-2 font-medium hover:text-(--text)">
               Contact
             </Link>
           </nav>
@@ -59,7 +58,7 @@ function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="GitHub"
-                className="text-xl text-(--muted) transition-colors hover:text-(--text)!"
+                className="text-base text-(--muted) transition-colors hover:text-(--text)!"
               >
                 <FontAwesomeIcon icon={faGithub} />
               </a>
@@ -68,7 +67,7 @@ function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LinkedIn"
-                className="text-xl text-(--muted) transition-colors hover:text-[#0077B5]!"
+                className="text-base text-(--muted) transition-colors hover:text-(--text)!"
               >
                 <FontAwesomeIcon icon={faLinkedin} />
               </a>
@@ -77,7 +76,7 @@ function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="text-xl text-(--muted) transition-colors hover:text-[#E4405F]!"
+                className="text-base text-(--muted) transition-colors hover:text-(--text)!"
               >
                 <FontAwesomeIcon icon={faInstagram} />
               </a>

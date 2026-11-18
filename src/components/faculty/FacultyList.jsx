@@ -114,9 +114,9 @@ function FacultyList({ currentUser = null }) {
           <p className="text-(--muted) flex items-center justify-center gap-2">
             <FontAwesomeIcon
               icon={faMagnifyingGlass}
-              className="text-(--primary)"
+              className="text-(--accent-text)"
             />
-            <span>Finding amazing professors for you...</span>
+            <span>Loading faculty</span>
           </p>
         </div>
       </div>
@@ -126,24 +126,24 @@ function FacultyList({ currentUser = null }) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 animate-fadeIn">
-        <h1 className="mb-4 flex items-center gap-2 text-3xl font-bold text-(--text)">
+        <h1 className="mb-4 flex items-center gap-2 text-3xl font-medium text-(--text)">
           <FontAwesomeIcon
             icon={faGraduationCap}
-            className="text-(--primary)"
+            className="text-(--accent-text)"
           />
           <span>Find Your Professor</span>
         </h1>
         {stats && (
           <div className="flex flex-wrap gap-3 text-sm">
-            <span className="flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-semibold text-(--primary)">
+            <span className="flex items-center gap-1 rounded-(--radius) bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-medium text-(--accent-text)">
               <FontAwesomeIcon icon={faUsers} />
               <span>{stats.total} Professors</span>
             </span>
-            <span className="flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-semibold text-(--primary)">
+            <span className="flex items-center gap-1 rounded-(--radius) bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-medium text-(--accent-text)">
               <FontAwesomeIcon icon={faBuildingColumns} />
               <span>{Object.keys(stats.byDepartment).length} Departments</span>
             </span>
-            <span className="flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-semibold text-(--primary)">
+            <span className="flex items-center gap-1 rounded-(--radius) bg-[color-mix(in_srgb,var(--primary)_20%,var(--panel))] px-4 py-2 font-medium text-(--accent-text)">
               <FontAwesomeIcon icon={faChartBar} />
               <span>{Object.keys(stats.byDesignation).length} Roles</span>
             </span>
@@ -151,13 +151,13 @@ function FacultyList({ currentUser = null }) {
         )}
       </div>
 
-      <div className="mb-6 rounded-3xl border border-(--line) bg-(--bg-elev) p-6 shadow-md">
+      <div className="mb-6 rounded-2xl border border-(--line) bg-(--bg-elev) p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-(--text)">
               <FontAwesomeIcon
                 icon={faMagnifyingGlass}
-                className="text-(--primary)"
+                className="text-(--accent-text)"
               />
               <span>Search</span>
             </label>
@@ -167,13 +167,13 @@ function FacultyList({ currentUser = null }) {
                 placeholder="Type a name..."
                 value={filters.search}
                 onChange={(e) => handleFilterChange("search", e.target.value)}
-                className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-2 pr-10 text-sm outline-none transition-all"
+                className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 pr-10 text-sm outline-none transition-colors"
               />
               {String(filters.search || "").trim() ? (
                 <button
                   type="button"
                   onClick={() => handleFilterChange("search", "")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-(--radius) px-2 py-1 text-xs text-(--muted) hover:text-(--text)"
                   aria-label="Clear search"
                 >
                   �
@@ -186,14 +186,14 @@ function FacultyList({ currentUser = null }) {
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-(--text)">
               <FontAwesomeIcon
                 icon={faBuildingColumns}
-                className="text-(--primary)"
+                className="text-(--accent-text)"
               />
               <span>Department</span>
             </label>
             <select
               value={filters.department}
               onChange={(e) => handleFilterChange("department", e.target.value)}
-              className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-all cursor-pointer"
+              className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-colors cursor-pointer"
             >
               <option value="all">All Departments</option>
               {departments.map((dept) => (
@@ -206,13 +206,13 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-(--text)">
-              <FontAwesomeIcon icon={faChartBar} className="text-(--primary)" />
+              <FontAwesomeIcon icon={faChartBar} className="text-(--accent-text)" />
               <span>Sort By</span>
             </label>
             <select
               value={filters.sortBy}
               onChange={(e) => handleFilterChange("sortBy", e.target.value)}
-              className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-all cursor-pointer"
+              className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-colors cursor-pointer"
             >
               <option value="$updatedAt">Recently Updated</option>
               <option value="name">Name</option>
@@ -223,13 +223,13 @@ function FacultyList({ currentUser = null }) {
 
           <div>
             <label className="mb-2 flex items-center gap-1 text-sm font-medium text-(--text)">
-              <FontAwesomeIcon icon={faSort} className="text-(--primary)" />
+              <FontAwesomeIcon icon={faSort} className="text-(--accent-text)" />
               <span>Order</span>
             </label>
             <select
               value={filters.sortOrder}
               onChange={(e) => handleFilterChange("sortOrder", e.target.value)}
-              className="w-full rounded-full border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-all cursor-pointer"
+              className="w-full rounded-(--radius) border border-(--line) bg-(--panel) px-4 py-2 text-sm outline-none transition-colors cursor-pointer"
             >
               <option value="desc">Descending</option>
               <option value="asc">Ascending</option>
@@ -239,7 +239,7 @@ function FacultyList({ currentUser = null }) {
       </div>
 
       {facultyData.error && (
-        <div className="animate-shake mb-6 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+        <div className="animate-shake mb-6 rounded-2xl border border-(--danger)/40 bg-(--danger-light) px-4 py-3 text-(--danger)">
           <strong className="inline-flex items-center gap-2">
             <FontAwesomeIcon icon={faExclamationTriangle} />
             <span>Error:</span>
@@ -247,7 +247,7 @@ function FacultyList({ currentUser = null }) {
           {facultyData.error}
           <button
             onClick={() => loadFaculty()}
-            className="ml-4 inline-flex items-center gap-2 font-semibold underline hover:no-underline"
+            className="ml-4 inline-flex items-center gap-2 font-medium underline hover:no-underline"
           >
             <FontAwesomeIcon icon={faArrowRotateRight} />
             <span>Try Again</span>
@@ -274,7 +274,7 @@ function FacultyList({ currentUser = null }) {
         </>
       ) : (
         <div className="text-center py-12">
-          <p className="mb-3 text-2xl text-(--primary)">
+          <p className="mb-3 text-2xl text-(--accent-text)">
             <FontAwesomeIcon icon={faMagnifyingGlass} />
           </p>
           <p className="text-(--muted) text-lg mb-4">
@@ -290,7 +290,7 @@ function FacultyList({ currentUser = null }) {
                   sortOrder: "desc",
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-full bg-(--primary) px-6 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg"
+              className="inline-flex items-center gap-2 rounded-(--radius) bg-(--primary) px-6 py-2 text-sm font-medium text-white"
             >
               <FontAwesomeIcon icon={faArrowRotateRight} />
               <span>Clear All Filters</span>
@@ -304,15 +304,15 @@ function FacultyList({ currentUser = null }) {
       )}
 
       {facultyData.loading && facultyData.faculty.length > 0 && (
-        <div className="fixed inset-0 bg-[color-mix(in_srgb,var(--text)_40%,transparent)] backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="animate-fadeIn rounded-2xl border border-(--line) bg-(--bg-elev) p-6 shadow-xl">
+        <div className="fixed inset-0 bg-[color-mix(in_srgb,var(--text)_40%,transparent)] flex items-center justify-center z-50">
+          <div className="animate-fadeIn rounded-2xl border border-(--line) bg-(--bg-elev) p-6">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--primary) mx-auto mb-2"></div>
             <p className="flex items-center justify-center gap-2 text-(--muted)">
               <FontAwesomeIcon
                 icon={faHourglassHalf}
-                className="text-(--primary)"
+                className="text-(--accent-text)"
               />
-              <span>Loading...</span>
+              <span>Loading</span>
             </p>
           </div>
         </div>
@@ -349,7 +349,7 @@ function FacultyCard({ faculty }) {
         cursor: "pointer",
         pointerEvents: "auto",
       }}
-      className="flex flex-col rounded-2xl border border-(--line) bg-(--bg-elev) shadow-md overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 h-full"
+      className="flex flex-col rounded-2xl border border-(--line) bg-(--bg-elev) overflow-hidden transition-colors h-full"
     >
       <div
         className="h-40 bg-(--panel) flex items-center justify-center shrink-0 overflow-hidden"
@@ -359,7 +359,7 @@ function FacultyCard({ faculty }) {
           <img
             src={photoUrl}
             alt={faculty.name}
-            className="h-full w-full object-cover object-[50%_20%] transition-transform hover:scale-105"
+            className="h-full w-full object-cover object-[50%_20%] transition-transform"
             loading="lazy"
             decoding="async"
             onError={handleImageError}
@@ -367,7 +367,7 @@ function FacultyCard({ faculty }) {
           />
         ) : (
           <div className="text-center text-(--muted)">
-            <div className="mb-1 text-3xl text-(--primary)">
+            <div className="mb-1 text-3xl text-(--accent-text)">
               <FontAwesomeIcon icon={faUser} />
             </div>
             <div className="text-xs">No photo</div>
@@ -379,7 +379,7 @@ function FacultyCard({ faculty }) {
         className="p-3 flex-1 flex flex-col"
         style={{ pointerEvents: "none" }}
       >
-        <h3 className="font-semibold text-base text-(--text) mb-2 line-clamp-2 min-h-10">
+        <h3 className="font-medium text-base text-(--text) mb-2 line-clamp-2 min-h-10">
           {faculty.name || "Unknown"}
         </h3>
 
@@ -423,7 +423,7 @@ function FacultyCard({ faculty }) {
                   .map((area, idx) => (
                     <span
                       key={idx}
-                      className="inline-flex items-center rounded-full bg-(--primary-soft) px-2 py-0.5 text-xs font-medium text-(--primary)"
+                      className="inline-flex items-center rounded-(--radius) bg-(--primary-soft) px-2 py-0.5 text-xs font-medium text-(--accent-text)"
                     >
                       {area}
                     </span>
@@ -481,7 +481,7 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={!hasPrev}
-          className="rounded-full border border-(--line) bg-(--bg-elev) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--panel) disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-(--radius) border border-(--line) bg-(--bg-elev) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--panel) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="inline-flex items-center gap-2">
             <FontAwesomeIcon icon={faChevronLeft} />
@@ -493,9 +493,9 @@ function Pagination({
           <button
             key={page}
             onClick={() => onPageChange(page)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-all ${
+            className={`rounded-(--radius) px-4 py-2 text-sm font-medium transition-colors ${
               page === currentPage
-                ? "bg-(--primary) text-white shadow-lg scale-110"
+                ? "bg-(--primary) text-white scale-110"
                 : "border border-(--line) bg-(--bg-elev) text-(--text) hover:bg-(--panel)"
             }`}
           >
@@ -506,7 +506,7 @@ function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={!hasNext}
-          className="rounded-full border border-(--line) bg-(--bg-elev) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--panel) disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-(--radius) border border-(--line) bg-(--bg-elev) px-4 py-2 text-sm font-medium text-(--text) hover:bg-(--panel) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="inline-flex items-center gap-2">
             <span>Next</span>

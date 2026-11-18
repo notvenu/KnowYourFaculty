@@ -8,6 +8,7 @@ import {
   getTierLabel,
   getTierShortLabel,
   getTierColor,
+  getTierTextColor,
 } from "../../lib/ratingConfig.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -87,16 +88,16 @@ export default function FacultyRatingsCard({
   });
 
   return (
-    <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 shadow-lg sm:p-5 md:p-6">
+    <div className="rounded-xl border border-(--line) bg-(--bg-elev) p-4 sm:p-5 md:p-6">
       {showFiltersOverlay && (setTimeFilter || setCourseFilter) && (
         <>
           <div
             className="fixed inset-0 z-40 bg-black/30"
             onClick={() => setShowFiltersOverlay(false)}
           />
-          <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-2xl">
+          <div className="fixed left-1/2 top-1/2 z-50 w-11/12 max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-(--line) bg-(--bg-elev) p-5 shadow-(--shadow-pop)">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-(--text)">
+              <h3 className="text-lg font-medium text-(--text)">
                 Rating Filters
               </h3>
               <button
@@ -112,7 +113,7 @@ export default function FacultyRatingsCard({
             <div className="space-y-4">
               {setTimeFilter && (
                 <div>
-                  <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                  <label className="mb-2 block text-xs font-medium text-(--muted)">
                     Ratings Time
                   </label>
                   <select
@@ -129,7 +130,7 @@ export default function FacultyRatingsCard({
 
               {setCourseFilter && (
                 <div>
-                  <label className="mb-2 block text-xs font-semibold text-(--muted)">
+                  <label className="mb-2 block text-xs font-medium text-(--muted)">
                     Course
                   </label>
                   <select
@@ -165,12 +166,12 @@ export default function FacultyRatingsCard({
             <button
               type="button"
               onClick={() => setShowFiltersOverlay(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--text) hover:bg-(--bg-elev)"
+              className="inline-flex items-center gap-2 rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-medium text-(--text) hover:bg-(--bg-elev)"
             >
               <FontAwesomeIcon icon={faFilter} className="h-3 w-3" />
               <span className="hidden sm:inline">Filters</span>
               {activeFiltersCount > 0 ? (
-                <span className="rounded-full bg-(--primary-soft) px-2 py-0.5 text-[10px] font-bold text-(--primary)">
+                <span className="rounded-md bg-(--panel) px-2 py-0.5 text-xs font-medium text-(--secondary-text)">
                   {activeFiltersCount}
                 </span>
               ) : null}
@@ -179,7 +180,7 @@ export default function FacultyRatingsCard({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="hidden sm:inline-flex items-center rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-semibold text-(--muted) hover:text-(--text) hover:bg-(--bg-elev)"
+                className="hidden sm:inline-flex items-center rounded-lg border border-(--line) bg-(--panel) px-3 py-2 text-xs font-medium text-(--muted) hover:text-(--text) hover:bg-(--bg-elev)"
                 aria-label="Clear rating filters"
               >
                 Clear
@@ -192,7 +193,7 @@ export default function FacultyRatingsCard({
             <button
               type="button"
               onClick={onShareFeedback}
-              className="inline-flex items-center gap-2 rounded-xl bg-(--primary) px-4 py-2 text-xs font-bold text-white shadow-(--shadow) hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-xl bg-(--primary) px-4 py-2 text-xs font-medium text-white hover:opacity-90"
               aria-label="Share feedback"
               title="Share feedback"
             >
@@ -204,7 +205,7 @@ export default function FacultyRatingsCard({
             <button
               type="button"
               onClick={onEditRating}
-              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) hover:bg-(--bg-elev)"
               aria-label="Edit ratings"
               title="Edit ratings"
             >
@@ -215,7 +216,7 @@ export default function FacultyRatingsCard({
             <button
               type="button"
               onClick={onAddReview}
-              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-bold text-(--text) hover:bg-(--bg-elev)"
+              className="rounded-xl border border-(--line) bg-(--panel) px-4 py-2 text-xs font-medium text-(--text) hover:bg-(--bg-elev)"
               aria-label="Add review"
               title="Add review"
             >
@@ -227,7 +228,7 @@ export default function FacultyRatingsCard({
               type="button"
               onClick={onDeleteRating}
               disabled={deleting}
-              className="rounded-xl border border-red-400 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-500/20 disabled:opacity-60"
+              className="rounded-xl border border-(--danger)/40 bg-(--danger-light) px-4 py-2 text-xs font-medium text-(--danger) hover:bg-(--danger-lighter) disabled:opacity-60"
               aria-label={deleting ? "Removing feedback" : "Delete feedback"}
               title={deleting ? "Removing feedback" : "Delete feedback"}
             >
@@ -239,7 +240,7 @@ export default function FacultyRatingsCard({
 
       {!hasRatings ? (
         <div className="border-b border-(--line) pb-4 text-center sm:pb-5">
-          <div className="text-4xl font-extrabold text-(--muted) sm:text-5xl">
+          <div className="text-4xl font-medium text-(--muted) sm:text-5xl">
             —
           </div>
           <p className="mt-2 text-xs font-medium text-(--muted)">
@@ -249,7 +250,7 @@ export default function FacultyRatingsCard({
             <button
               type="button"
               onClick={onShareFeedback}
-              className="mt-4 rounded-xl bg-(--primary) px-6 py-3 text-sm font-bold text-white shadow-(--shadow) hover:opacity-90 sm:px-8 sm:py-3.5 sm:text-base"
+              className="mt-4 rounded-xl bg-(--primary) px-6 py-3 text-sm font-medium text-white hover:opacity-90 sm:px-8 sm:py-3.5 sm:text-base"
             >
               Share feedback
             </button>
@@ -259,9 +260,9 @@ export default function FacultyRatingsCard({
         <div className="border-b border-(--line) pb-4 text-center sm:pb-5">
           <div className="flex flex-col items-center justify-center gap-2">
             <span
-              className="text-5xl font-bold sm:text-6xl"
+              className="text-5xl font-medium sm:text-6xl"
               style={{
-                color: getTierColor(
+                color: getTierTextColor(
                   getTierFromRating(ratingSummary.overallAverage),
                 ),
               }}
@@ -280,17 +281,35 @@ export default function FacultyRatingsCard({
                 : `${ratingSummary.overallAverage?.toFixed(1) ?? "—"}`}
             </span>
             {hasUser ? (
-              <div className="text-2xl font-extrabold text-(--primary) sm:text-3xl">
+              <div className="text-2xl font-medium text-(--accent-text) sm:text-3xl">
                 {ratingSummary.overallAverage?.toFixed(1) ?? "—"}
               </div>
             ) : null}
           </div>
-          <div className="mt-2 flex justify-center">
-            <StarRating
-              rating={ratingSummary.overallAverage || 0}
-              size="text-lg"
-            />
-          </div>
+          {hasUser ? (
+            <div aria-hidden="true" className="mx-auto mt-3 flex max-w-xs gap-0.5">
+              {["D", "C", "B", "A", "S"].map((key) => (
+                <span
+                  key={key}
+                  className="h-1.5 flex-1 rounded-[2px]"
+                  style={{
+                    background: TIER_SYSTEM[key].color,
+                    opacity:
+                      key === getTierFromRating(ratingSummary.overallAverage)
+                        ? 1
+                        : 0.22,
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-2 flex justify-center">
+              <StarRating
+                rating={ratingSummary.overallAverage || 0}
+                size="text-lg"
+              />
+            </div>
+          )}
           <p className="mt-2 text-xs font-medium text-(--muted)">
             {ratingSummary.totalRatings}{" "}
             {ratingSummary.totalRatings === 1 ? "rating" : "ratings"}
@@ -305,7 +324,7 @@ export default function FacultyRatingsCard({
                 { tier: "S", abbr: "L-G", full: "Loose-God" },
               ].map(({ tier, abbr, full }) => (
                 <span key={tier} className="flex items-center gap-1">
-                  <span className="text-sm font-bold" style={{ color: TIER_SYSTEM[tier].color }}>{abbr}</span>
+                  <span className="text-sm font-medium" style={{ color: getTierTextColor(tier) }}>{abbr}</span>
                   <span className="text-xs text-(--muted)">{full}</span>
                 </span>
               ))}
@@ -329,16 +348,16 @@ export default function FacultyRatingsCard({
                 className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-(--text)">Theory</span>
+                  <span className="font-medium text-(--text)">Theory</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-(--muted)">
+                    <span className="text-xs font-medium text-(--muted)">
                       {sectionCounts.theory || 0}{" "}
                       {sectionCounts.theory === 1 ? "rating" : "ratings"}
                     </span>
                     <span
-                      className="font-bold"
+                      className="font-medium"
                       style={{
-                        color: getTierColor(
+                        color: getTierTextColor(
                           getTierFromRating(sectionAverages.theory),
                         ),
                       }}
@@ -377,11 +396,11 @@ export default function FacultyRatingsCard({
                         </span>
                         <div className="flex items-center gap-2">
                           <span
-                            className="text-xs font-bold"
+                            className="text-xs font-medium"
                             style={{
                               color:
                                 value != null
-                                  ? getTierColor(getTierFromRating(value))
+                                  ? getTierTextColor(getTierFromRating(value))
                                   : "var(--primary)",
                             }}
                           >
@@ -423,16 +442,16 @@ export default function FacultyRatingsCard({
                 className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-(--text)">Lab</span>
+                  <span className="font-medium text-(--text)">Lab</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-(--muted)">
+                    <span className="text-xs font-medium text-(--muted)">
                       {sectionCounts.lab || 0}{" "}
                       {sectionCounts.lab === 1 ? "rating" : "ratings"}
                     </span>
                     <span
-                      className="font-bold"
+                      className="font-medium"
                       style={{
-                        color: getTierColor(
+                        color: getTierTextColor(
                           getTierFromRating(sectionAverages.lab),
                         ),
                       }}
@@ -471,11 +490,11 @@ export default function FacultyRatingsCard({
                         </span>
                         <div className="flex items-center gap-2">
                           <span
-                            className="text-xs font-bold"
+                            className="text-xs font-medium"
                             style={{
                               color:
                                 value != null
-                                  ? getTierColor(getTierFromRating(value))
+                                  ? getTierTextColor(getTierFromRating(value))
                                   : "var(--primary)",
                             }}
                           >
@@ -517,18 +536,18 @@ export default function FacultyRatingsCard({
                 className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-(--text)">
+                  <span className="font-medium text-(--text)">
                     ECS / Capstone
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-(--muted)">
+                    <span className="text-xs font-medium text-(--muted)">
                       {sectionCounts.ecs || 0}{" "}
                       {sectionCounts.ecs === 1 ? "rating" : "ratings"}
                     </span>
                     <span
-                      className="font-bold"
+                      className="font-medium"
                       style={{
-                        color: getTierColor(
+                        color: getTierTextColor(
                           getTierFromRating(sectionAverages.ecs),
                         ),
                       }}
@@ -567,11 +586,11 @@ export default function FacultyRatingsCard({
                         </span>
                         <div className="flex items-center gap-2">
                           <span
-                            className="text-xs font-bold"
+                            className="text-xs font-medium"
                             style={{
                               color:
                                 value != null
-                                  ? getTierColor(getTierFromRating(value))
+                                  ? getTierTextColor(getTierFromRating(value))
                                   : "var(--primary)",
                             }}
                           >
@@ -618,7 +637,7 @@ export default function FacultyRatingsCard({
                   className="flex w-full items-center justify-between bg-(--panel) px-4 py-3 transition-colors hover:bg-(--bg-elev)"
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-semibold text-(--text)">
+                    <span className="font-medium text-(--text)">
                       Notes Information
                     </span>
                   </div>
@@ -638,7 +657,7 @@ export default function FacultyRatingsCard({
                         <span className="text-xs font-medium text-(--text)">
                           Theory Notes Required
                         </span>
-                        <span className="text-xs font-bold text-(--primary)">
+                        <span className="text-xs font-medium text-(--accent-text)">
                           {notesSummary.theoryNotes.percentage}% (
                           {notesSummary.theoryNotes.count}/
                           {notesSummary.theoryNotes.total})
@@ -663,7 +682,7 @@ export default function FacultyRatingsCard({
                                   <span className="text-xs text-(--muted)">
                                     {type}
                                   </span>
-                                  <span className="text-xs font-semibold text-(--primary)">
+                                  <span className="text-xs font-medium text-(--accent-text)">
                                     {data.percentage}% ({data.count}/
                                     {data.total})
                                   </span>
@@ -678,27 +697,27 @@ export default function FacultyRatingsCard({
             )}
 
           <div className="rounded-lg border border-(--line) bg-(--panel) p-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-(--muted)">
+            <p className="text-xs font-medium text-(--muted)">
               Section Rating Count
             </p>
             <div className="mt-1.5 grid grid-cols-3 gap-1.5">
               <div className="rounded-md border border-(--line) bg-(--bg-elev) px-2 py-1.5 text-center">
-                <p className="text-[10px] font-semibold text-(--muted)">Theory</p>
-                <p className="text-xs font-bold text-(--text)">
+                <p className="text-xs font-medium text-(--muted)">Theory</p>
+                <p className="text-xs font-medium text-(--text)">
                   {sectionCounts.theory || 0}
                 </p>
               </div>
               <div className="rounded-md border border-(--line) bg-(--bg-elev) px-2 py-1.5 text-center">
-                <p className="text-[10px] font-semibold text-(--muted)">Lab</p>
-                <p className="text-xs font-bold text-(--text)">
+                <p className="text-xs font-medium text-(--muted)">Lab</p>
+                <p className="text-xs font-medium text-(--text)">
                   {sectionCounts.lab || 0}
                 </p>
               </div>
               <div className="rounded-md border border-(--line) bg-(--bg-elev) px-2 py-1.5 text-center">
-                <p className="text-[10px] font-semibold text-(--muted)">
+                <p className="text-xs font-medium text-(--muted)">
                   ECS / Capstone
                 </p>
-                <p className="text-xs font-bold text-(--text)">
+                <p className="text-xs font-medium text-(--text)">
                   {sectionCounts.ecs || 0}
                 </p>
               </div>

@@ -24,6 +24,9 @@ function processFacultyData(rawData, baseUrl = "") {
   });
 }
 
+const PAGE_SIZE = 100;
+const MAX_PAGES = 50; // safety stop; 607 faculty is 7 pages
+
 export async function fetchFacultyProfiles() {
   const baseUrl = "https://cms.vitap.ac.in";
 
@@ -41,14 +44,20 @@ export async function fetchFacultyProfiles() {
     "&fields[9]=Research_area_of_specialization" +
     "&populate[Photo][fields][0]=url";
 
-  const url = baseUrl + endpoint;
-
-  const response = await axios.get(url, {
-    headers: {
-      Authorization: `Bearer ${serverConfig.authToken}`
-    },
-    timeout: 20000
-  });
-
-  return processFacultyData(response.data, baseUrl);
+  // The CMS (Strapi) paginates, default 500 per page. Without these params only the
+  // first page came back and everyone past it was never scraped.
+  const rows = [];
+  let pageCount = 1;
+  for (let page = 1; page <= pageCount && page <= MAX_PAGES; page++) {
+    const response = await axios.get(
+      `${baseUrl}${endpoint}&pagination[page]=${page}&pagination[pageSize]=${PAGE_SIZE}`,
+      {
+        headers: { Authorization: `Bearer ${serverConfig.authToken}` },
+        timeout: 20000,
+      },
+    );
+    rows.push(...processFacultyData(response.data, baseUrl));
+    pageCount = response.data?.meta?.pagination?.pageCount || 1;
+  }
+  return rows;
 }

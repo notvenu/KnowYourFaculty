@@ -22,9 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env
+.env*
+!.env.sample
 scripts/*
 !scripts/scrapeOnce.js
 **/build/
 
-supabase/
+supabase/*
+!supabase/config.toml
+!supabase/functions/
+!supabase/sql/
+supabase/sql/*
+!supabase/sql/security_hardening.sql
+supabase/.temp/
