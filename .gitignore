@@ -26,6 +26,9 @@ dist-ssr
 !.env.sample
 scripts/*
 !scripts/scrapeOnce.js
+!scripts/prerender.js
+!scripts/indexnow.js
+!scripts/makeSeoAssets.js
 **/build/
 
 supabase/*
