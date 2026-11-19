@@ -1,12 +1,11 @@
 // eslint-disable tailwindcss/no-custom-classname
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import publicFacultyService from "../services/publicFacultyService.js";
 import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
 import { addToast } from "../store/uiSlice.js";
-import { setShowLoginOverlay } from "../store/authSlice.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTrophy,
@@ -87,9 +86,8 @@ function RankIcon({ rank }) {
   return <span className="text-2xl font-medium text-(--muted)">#{rank}</span>;
 }
 
-export default function RankingPage({ currentUser }) {
+export default function RankingPage() {
   const dispatch = useDispatch();
-  const authChecked = useSelector((state) => state.auth.authChecked);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [facultyList, setFacultyList] = useState([]);
@@ -110,8 +108,6 @@ export default function RankingPage({ currentUser }) {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const filterDropdownRef = useRef(null);
-
-  const hasUser = Boolean(currentUser?.$id);
 
   // Close dropdown when clicking outside on large screens
   useEffect(() => {
@@ -186,14 +182,11 @@ export default function RankingPage({ currentUser }) {
   }, []);
 
   useEffect(() => {
-    if (hasUser) {
-      loadData();
-    }
-  }, [hasUser]);
+    loadData();
+  }, []);
 
   // Refresh rankings independently every 1 hour
   useEffect(() => {
-    if (!hasUser) return;
     const interval = setInterval(
       () => {
         refreshRankings();
@@ -201,7 +194,7 @@ export default function RankingPage({ currentUser }) {
       60 * 60 * 1000,
     );
     return () => clearInterval(interval);
-  }, [hasUser, refreshRankings]);
+  }, [refreshRankings]);
 
   const loadData = async () => {
     try {
@@ -362,38 +355,6 @@ export default function RankingPage({ currentUser }) {
     const start = (currentPage - 1) * RANKINGS_PER_PAGE;
     return rankedFaculty.slice(start, start + RANKINGS_PER_PAGE);
   }, [rankedFaculty, currentPage]);
-  if (!authChecked) {
-    return (
-      <div className="bg-(--bg) text-(--text) transition-colors duration-300">
-        <RankingsPageSkeleton fullScreen />
-      </div>
-    );
-  }
-
-  // Match poll page behavior when logged out.
-  if (!hasUser) {
-    return (
-      <div className="min-h-screen bg-(--background) flex items-center justify-center px-4">
-        <div className="text-center">
-          <h1 className="mb-4 text-2xl font-medium text-(--text)">
-            Sign in to see the rankings
-          </h1>
-          <p className="text-(--muted)">
-            Please log in to view faculty rankings.
-          </p>
-          <button
-            type="button"
-            onClick={() => dispatch(setShowLoginOverlay(true))}
-            className="btn-slide mt-6 inline-flex h-12 items-center rounded-(--radius) bg-(--primary) px-5 text-sm font-medium text-white"
-            style={{ "--fill": "color-mix(in srgb, var(--primary), #000 35%)" }}
-          >
-            Sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return <RankingsPageSkeleton />;
   }

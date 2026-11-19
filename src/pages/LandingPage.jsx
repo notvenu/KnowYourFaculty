@@ -3,56 +3,8 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Hero from "../components/landing/Hero.jsx";
 import { TIER_SYSTEM } from "../lib/ratingConfig.js";
+import { faqs, features, trust } from "../data/siteContent.js";
 import { useReveals, useSmoothScroll } from "../lib/motion.js";
-
-const features = [
-  {
-    title: "Rated by section",
-    text: "Theory, lab and ECS are scored separately, so a strong lecturer with a harsh lab does not average out.",
-  },
-  {
-    title: "Search by course",
-    text: "Filter by department, course or top rating, then read what students say about workload, grading and teaching style.",
-  },
-  {
-    title: "Yours to edit",
-    text: "Every section is optional. Change or delete your feedback from your dashboard whenever you like.",
-  },
-];
-
-const trust = [
-  {
-    title: "Student verification",
-    text: "Only verified VIT-AP student accounts can post feedback.",
-  },
-  {
-    title: "Public but anonymous",
-    text: "Ratings and reviews are visible to everyone. Identities are never shown.",
-  },
-  {
-    title: "Full data control",
-    text: "Update or delete your feedback anytime, or request account deletion.",
-  },
-];
-
-const faqs = [
-  {
-    q: "Do I need to sign in to view data?",
-    a: "No. Faculty ratings and reviews are public. Sign in is only required to verify VIT-AP students before they submit feedback.",
-  },
-  {
-    q: "Is feedback anonymous?",
-    a: "Yes. Public feedback is anonymous. Your account is used only for verification, moderation and letting you edit or delete your own entries.",
-  },
-  {
-    q: "Are all rating sections mandatory?",
-    a: "No. Submit only the parts you experienced: Theory, Lab or ECS.",
-  },
-  {
-    q: "Can I remove my data later?",
-    a: "Yes. Edit or delete your feedback from your dashboard, or request account deletion.",
-  },
-];
 
 const TIER_COLORS = ["D", "C", "B", "A", "S"].map((k) => TIER_SYSTEM[k].color);
 

@@ -8,6 +8,7 @@ import facultyFeedbackService from "../services/facultyFeedbackService.js";
 import courseService from "../services/courseService.js";
 import { addToast } from "../store/uiSlice.js";
 import { setShowLoginOverlay } from "../store/authSlice.js";
+import { applySeo, facultySeo } from "../lib/seo.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faAngleLeft,
@@ -136,9 +137,6 @@ function FacultyDetailPage({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    if (faculty?.name) document.title = `${faculty.name} - KnowYourFaculty`;
-  }, [faculty]);
   const [deleting, setDeleting] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [feedbackList, setFeedbackList] = useState([]);
@@ -150,6 +148,20 @@ function FacultyDetailPage({ currentUser }) {
     sectionCounts: {},
     averages: {},
   });
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
+  // Head tags follow the loaded profile; a missing profile must not be indexed (the shell answers 200 for any id).
+  useEffect(() => {
+    if (faculty && summaryLoaded) {
+      applySeo(facultySeo(faculty, ratingSummary));
+    } else if (!faculty && !loading && error) {
+      applySeo({
+        title: "Faculty not found | KnowYourFaculty",
+        description: "This faculty profile does not exist.",
+        path: `/faculty/${facultyId}`,
+        noindex: true,
+      });
+    }
+  }, [faculty, ratingSummary, summaryLoaded, loading, error, facultyId]);
   const [feedbackForm, setFeedbackForm] = useState(INITIAL_FEEDBACK_FORM);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -487,6 +499,7 @@ function FacultyDetailPage({ currentUser }) {
           averages: {},
         },
       );
+      setSummaryLoaded(true);
       const preloadedCourses = await loadCourseLookup([
         ...(response.reviews || []).map((row) => row.courseId),
         ...(response.ratings || []).map((row) => row.courseId),
@@ -575,6 +588,7 @@ function FacultyDetailPage({ currentUser }) {
       if (!unauthorized || hasUser) {
         setError(loadError?.message || "Failed to load feedback");
       }
+      setSummaryLoaded(true);
     }
   };
 

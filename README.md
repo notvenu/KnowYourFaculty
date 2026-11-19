@@ -12,7 +12,7 @@ KnowYourFaculty is a modern, anonymous faculty feedback platform built with Reac
 - **Community Polls** — Create, vote, and view real-time poll results
 - **Responsive Design** — Mobile-first UI with light/dark theme support
 - **Enhanced Privacy** — Comprehensive privacy policy and account deletion controls
-- **SEO Optimized** — Open Graph and Twitter Card integration
+- **SEO Optimized** — Prerendered pages, per-faculty metadata, JSON-LD, sitemap and `llms.txt`
 
 ## 🎯 Rating System
 
@@ -229,14 +229,21 @@ The project is configured for Vercel with:
 - Static assets: `max-age=31536000, immutable`
 - HTML: no-cache for dynamic routing
 
-### SEO Configuration
+### SEO / AEO / GEO
 
-**Meta Tags** (`index.html`):
+The app is a client-rendered SPA, so `npm run build` runs `scripts/prerender.js` after `vite build`. It reads faculty and ratings from Supabase (anon key, needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` at build time) and writes:
 
-- Open Graph tags for social media sharing
-- Twitter Card integration
-- Canonical URL
-- Structured metadata (description, keywords, author)
+- `dist/<route>/index.html` for every static route, department (`/departments/:slug`) and faculty profile (`/faculty/:id`), each with its own title, description, canonical, Open Graph, JSON-LD and a text copy of the page for crawlers that skip JavaScript
+- `dist/sitemap.xml` with real `lastmod` dates, `dist/llms.txt`, and `dist/app-shell.html` (generic fallback for profiles added after the build; returns `noindex` through the SPA when the id does not exist)
+
+Head tags are defined once in `src/lib/seo.js` and used by both the prerender and the browser (`applySeo`). Shared copy (FAQs, scale) lives in `src/data/siteContent.js`.
+
+Operations:
+
+- **Redeploy after the weekly scrape** so new faculty get static pages and sitemap entries (a Vercel deploy hook called at the end of the scrape works well).
+- **Custom domain:** set `VITE_SITE_URL` (for example `https://knowyourfaculty.in`) on the host. Canonicals, sitemap, OG tags and JSON-LD all follow it. Also update the `Sitemap:` line in `public/robots.txt`.
+- **Bing / ChatGPT search:** verify the site in Bing Webmaster Tools, then run `npm run seo:indexnow` after a production deploy (key file in `public/`).
+- `node scripts/makeSeoAssets.js` regenerates `og-image.png` and the icons from `public/logo.png`.
 
 ## 🔒 Privacy & Security
 

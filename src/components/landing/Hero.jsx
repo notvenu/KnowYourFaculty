@@ -145,7 +145,7 @@ export default function Hero({ currentUser, onOpenLogin }) {
               data-intro
               className="text-[clamp(2.5rem,1.4rem+4.6vw,5rem)] font-normal leading-[1.04] tracking-[-0.03em] text-(--text)"
             >
-              Know how your professors teach before you register
+              Know how your VIT-AP professors teach before you register
             </h1>
             <p
               data-reveal

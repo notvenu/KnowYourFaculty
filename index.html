@@ -3,149 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <!-- Primary Meta Tags -->
-    <title>KnowYourFaculty | Anonymous Faculty Reviews & Ratings</title>
-    <meta
-      name="title"
-      content="KnowYourFaculty | Anonymous Faculty Reviews & Ratings"
-    />
-    <meta
-      name="description"
-      content="KnowYourFaculty is an anonymous student platform for faculty reviews and ratings. Search professors, compare feedback, and find better teachers."
-    />
-    <meta
-      name="keywords"
-      content="knowyourfaculty, know your faculty, knowyouraculty, knowyoufaculty, faculty reviews, professor ratings, student feedback, anonymous reviews, teacher ratings, college faculty, university professors"
-    />
+    <title>VIT-AP Faculty Reviews & Ratings | KnowYourFaculty</title>
     <meta name="author" content="KnowYourFaculty" />
     <meta name="application-name" content="KnowYourFaculty" />
-    <meta
-      name="robots"
-      content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
-    />
-    <meta name="googlebot" content="index, follow" />
     <meta name="theme-color" content="#2f5bd0" />
     <meta name="color-scheme" content="light dark" />
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://knowyourfaculty.vercel.app/" />
-    <meta property="og:site_name" content="KnowYourFaculty" />
+    <!-- Title, description, canonical, Open Graph, Twitter and JSON-LD are written per route:
+         at build time by scripts/prerender.js and in the browser by src/lib/seo.js. -->
+    <!--seo:start-->
     <meta
-      property="og:title"
-      content="KnowYourFaculty | Anonymous Faculty Reviews & Ratings"
+      name="description"
+      content="Anonymous VIT-AP faculty reviews from real students. Compare professors by theory, lab and ECS before you register."
+      data-seo
     />
-    <meta
-      property="og:description"
-      content="Search faculty, read anonymous student reviews, and compare ratings on KnowYourFaculty."
-    />
-    <meta
-      property="og:image"
-      content="https://knowyourfaculty.vercel.app/logo.png"
-    />
-    <meta
-      property="og:image:alt"
-      content="KnowYourFaculty - Anonymous Faculty Reviews and Ratings"
-    />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:locale" content="en_US" />
+    <!--seo:end-->
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta
-      property="twitter:url"
-      content="https://knowyourfaculty.vercel.app/"
-    />
-    <meta
-      property="twitter:title"
-      content="KnowYourFaculty | Anonymous Faculty Reviews & Ratings"
-    />
-    <meta
-      property="twitter:description"
-      content="Search faculty, read anonymous student reviews, and compare ratings on KnowYourFaculty."
-    />
-    <meta
-      property="twitter:image"
-      content="https://knowyourfaculty.vercel.app/logo.png"
-    />
-
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://knowyourfaculty.vercel.app/" />
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
-
-    <!-- PWA Manifest -->
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://res.cloudinary.com" />
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
-
-    <!-- Structured Data / JSON-LD -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "KnowYourFaculty",
-        "alternateName": ["Know Your Faculty", "KnowYourAculty", "KnowYouFaculty"],
-        "description": "Anonymous faculty feedback and ratings platform for students. Discover professors with real student reviews.",
-        "url": "https://knowyourfaculty.vercel.app/",
-        "applicationCategory": "EducationalApplication",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "featureList": [
-          "Anonymous faculty reviews",
-          "Rating system",
-          "Faculty search and filtering",
-          "Community polls",
-          "Verified student accounts"
-        ]
-      }
-    </script>
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "KnowYourFaculty",
-        "alternateName": ["Know Your Faculty", "KnowYourAculty", "KnowYouFaculty"],
-        "url": "https://knowyourfaculty.vercel.app/"
-      }
-    </script>
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "KnowYourFaculty",
-        "url": "https://knowyourfaculty.vercel.app/",
-        "logo": "https://knowyourfaculty.vercel.app/logo.png"
-      }
-    </script>
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap"
+      />
+    </noscript>
   </head>
   <body>
     <noscript>
-      KnowYourFaculty (also searched as Know Your Faculty, KnowYourAculty, KnowYouFaculty) is a student platform for anonymous faculty reviews and ratings.
+      KnowYourFaculty is a free student platform for anonymous VIT-AP faculty reviews and ratings. Enable JavaScript to search faculty and post feedback.
     </noscript>
-    <div id="root">
-      <main class="boot-fallback" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
-        <h1>KnowYourFaculty: anonymous faculty ratings for VIT-AP students</h1>
-        <p>Read what students say about each professor, split into theory, lab and ECS, and see who is strict about attendance and who marks fairly. Ratings are anonymous and sign-in is only needed to post.</p>
-        <p><a href="/faculty">Browse faculty</a> <a href="/rankings">Rankings</a> <a href="/polls">Polls</a> <a href="/contact">Contact</a></p>
-      </main>
-    </div>
+    <div id="root"><!--prerender--></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-

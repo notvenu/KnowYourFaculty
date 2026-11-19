@@ -102,7 +102,7 @@ export default function SiteNav({
       label: "Course selector",
       icon: faArrowUpRightFromSquare,
     },
-    currentUser && { to: "/rankings", label: "Rankings", icon: faTrophy },
+    { to: "/rankings", label: "Rankings", icon: faTrophy },
     currentUser && { to: "/polls", label: "Polls", icon: faPoll },
     { to: "/contact", label: "Contact", icon: faEnvelope },
     isAdminUser && { to: "/admin", label: "Admin", icon: faGear },
@@ -132,11 +132,9 @@ export default function SiteNav({
               >
                 Course selector
               </a>
-              {currentUser ? (
-                <NavLink to="/rankings" className={navClass}>
-                  Rankings
-                </NavLink>
-              ) : null}
+              <NavLink to="/rankings" className={navClass}>
+                Rankings
+              </NavLink>
               {currentUser ? (
                 <NavLink to="/polls" className={navClass}>
                   Polls

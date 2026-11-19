@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.js",
+    "seo:indexnow": "node scripts/indexnow.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "scraper:run": "node scripts/scrapeOnce.js",

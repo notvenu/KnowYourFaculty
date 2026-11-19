@@ -33,48 +33,43 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/(.*)\\.(png|ico)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/app-shell.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/faculty",
-      "destination": "/index.html"
-    },
-    {
       "source": "/faculty/:id",
-      "destination": "/index.html"
+      "destination": "/app-shell.html"
+    },
+    {
+      "source": "/departments/:slug",
+      "destination": "/app-shell.html"
     },
     {
       "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/rankings",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/polls",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/contact",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/privacy-policy",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/terms-and-conditions",
-      "destination": "/index.html"
+      "destination": "/app-shell.html"
     },
     {
       "source": "/admin",
-      "destination": "/index.html"
+      "destination": "/app-shell.html"
     }
-  ]
+  ],
+  "trailingSlash": false
 }

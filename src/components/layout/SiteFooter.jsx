@@ -35,6 +35,9 @@ function SiteFooter() {
         </div>
         <div className="flex flex-col gap-3 items-center md:items-end">
           <nav className="flex flex-wrap items-center justify-center gap-4">
+            <Link to="/about" className="py-2 font-medium hover:text-(--text)">
+              About
+            </Link>
             <Link
               to="/privacy-policy"
               className="py-2 font-medium hover:text-(--text)"

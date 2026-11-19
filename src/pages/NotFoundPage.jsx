@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { TIER_SYSTEM } from "../lib/ratingConfig.js";
 import { useReveals } from "../lib/motion.js";
@@ -9,19 +9,6 @@ const SEGMENT_COLORS = ["D", "C", "B", "A", "S"].map((k) => TIER_SYSTEM[k].color
 export default function NotFoundPage() {
   const ref = useRef(null);
   useReveals(ref);
-
-  useEffect(() => {
-    const meta = document.createElement("meta");
-    meta.name = "robots";
-    meta.content = "noindex";
-    document.head.appendChild(meta);
-    const previous = document.title;
-    document.title = "Page not found - KnowYourFaculty";
-    return () => {
-      meta.remove();
-      document.title = previous;
-    };
-  }, []);
 
   return (
     <div ref={ref} className="flex min-h-[70svh] flex-col justify-center py-16">
