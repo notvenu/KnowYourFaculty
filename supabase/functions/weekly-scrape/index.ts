@@ -639,9 +639,22 @@ Deno.serve(async (request) => {
       added += 1;
     }
 
+    // Rebuild the site so new faculty get prerendered pages, sitemap entries and an IndexNow ping.
+    // Set VERCEL_DEPLOY_HOOK_URL as a function secret; unset = no redeploy.
+    let redeployed = false;
+    const deployHook = readEnv("VERCEL_DEPLOY_HOOK_URL");
+    if (!dryRun && deployHook && added + updatedPhotos > 0) {
+      try {
+        redeployed = (await fetch(deployHook, { method: "POST" })).ok;
+      } catch (error) {
+        console.error("Deploy hook failed:", error);
+      }
+    }
+
     return json({
       ok: true,
       mode: dryRun ? "dry-run" : "live",
+      redeployed,
       scanned: scrapedFaculty.length,
       facultyTable: facultyIndexStats.table,
       indexSourceColumn: facultyIndexStats.sourceColumn,

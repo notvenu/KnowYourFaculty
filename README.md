@@ -240,7 +240,7 @@ Head tags are defined once in `src/lib/seo.js` and used by both the prerender an
 
 Operations:
 
-- **Redeploy after the weekly scrape** so new faculty get static pages and sitemap entries (a Vercel deploy hook called at the end of the scrape works well).
+- **Redeploy after the weekly scrape** so new faculty get static pages and sitemap entries: create a Vercel Deploy Hook (Project Settings → Git → Deploy Hooks, branch `main`) and set it as the `VERCEL_DEPLOY_HOOK_URL` secret on the `weekly-scrape` function (`supabase secrets set VERCEL_DEPLOY_HOOK_URL=...`). The function calls it when the scrape added faculty or photos. The production build then pings IndexNow automatically.
 - **Custom domain:** set `VITE_SITE_URL` (for example `https://knowyourfaculty.in`) on the host. Canonicals, sitemap, OG tags and JSON-LD all follow it. Also update the `Sitemap:` line in `public/robots.txt`.
 - **Bing / ChatGPT search:** verify the site in Bing Webmaster Tools, then run `npm run seo:indexnow` after a production deploy (key file in `public/`).
 - `node scripts/makeSeoAssets.js` regenerates `og-image.png` and the icons from `public/logo.png`.
